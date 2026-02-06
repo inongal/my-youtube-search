@@ -65,6 +65,26 @@
         }
         .sidebar-item:hover { background: var(--yt-surface); }
         .sidebar-item.active { background: var(--yt-surface); font-weight: 600; }
+
+        /* Toast Styling */
+        .copy-toast {
+            visibility: hidden;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 50px;
+            padding: 10px 20px;
+            position: fixed;
+            z-index: 1000;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .copy-toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body class="custom-scrollbar">
@@ -91,17 +111,24 @@
         </div>
 
         <div class="flex items-center gap-4">
-            <button onclick="toggleConfig()" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-400" title="הגדרות">
+            <!-- Settings Button -->
+            <button onclick="toggleConfig()" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-400" title="הגדרות API וגוגל">
                 <i class="fas fa-cog text-xl"></i>
             </button>
+            
             <div id="authContainer">
                 <button onclick="requestToken()" class="bg-[#272727] hover:bg-[#3f3f3f] px-4 py-2 rounded-full text-sm font-bold border border-[#444] transition">
                     התחברות
                 </button>
             </div>
+            
             <div id="userDisplay" class="hidden flex items-center gap-3">
                 <span id="userName" class="text-xs font-bold hidden md:inline text-gray-400"></span>
                 <img id="userImg" class="w-8 h-8 rounded-full border border-gray-600">
+                <!-- Logout Button -->
+                <button onclick="handleLogout()" class="p-2 hover:bg-[#272727] rounded-full transition text-red-500" title="התנתק">
+                    <i class="fas fa-sign-out-alt text-lg"></i>
+                </button>
             </div>
         </div>
     </header>
@@ -129,7 +156,7 @@
             </nav>
             
             <div class="mt-8">
-                <h4 class="px-3 text-xs font-bold text-gray-500 mb-4 uppercase tracking-wider">ניתוח נתונים</h4>
+                <h4 class="px-3 text-xs font-bold text-gray-500 mb-4 uppercase tracking-wider text-right">ניתוח נתונים</h4>
                 <div class="chart-container">
                     <canvas id="statsChart"></canvas>
                 </div>
@@ -142,9 +169,10 @@
 
             <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                 <!-- Initial Welcome -->
-                <div class="col-span-full flex flex-col items-center justify-center py-32 opacity-20">
+                <div class="col-span-full flex flex-col items-center justify-center py-32 opacity-20 text-center">
                     <i class="fab fa-youtube text-[120px] mb-6"></i>
-                    <h3 class="text-2xl font-bold text-center italic">המנוע מוכן. הזן הגדרות לחיפוש...</h3>
+                    <h3 class="text-2xl font-bold italic">ברוכים הבאים ל-YouTube Search Hub</h3>
+                    <p class="text-sm mt-2">הגדר מפתח API כדי להתחיל לחקור</p>
                 </div>
             </div>
 
@@ -161,7 +189,7 @@
     <!-- Video Modal -->
     <div id="videoModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/90" onclick="closePlayer()"></div>
-        <div class="relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333]">
+        <div class="relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333] shadow-2xl">
             <div class="p-4 flex justify-between items-center border-b border-[#222]">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2"></h3>
                 <button onclick="closePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition">
@@ -169,7 +197,7 @@
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto custom-scrollbar">
-                <div class="aspect-video w-full">
+                <div class="aspect-video w-full bg-black">
                     <iframe id="playerFrame" class="w-full h-full" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>
                 </div>
                 <div class="p-8">
@@ -183,26 +211,29 @@
         </div>
     </div>
 
-    <!-- Config Modal -->
+    <!-- Config Modal (API & Client ID) -->
     <div id="configModal" class="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center p-4">
         <div class="bg-[#1a1a1a] p-8 rounded-3xl w-full max-w-md border border-[#333] shadow-2xl">
-            <h2 class="text-2xl font-bold mb-2 text-center">הגדרות מערכת</h2>
-            <div class="space-y-5">
+            <h2 class="text-2xl font-bold mb-2 text-center text-white">הגדרות מערכת</h2>
+            <p class="text-gray-500 text-xs text-center mb-6">כאן תוכל לעדכן את מפתחות הגישה שלך</p>
+            <div class="space-y-5 text-right">
                 <div>
-                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest text-right">YouTube Data API Key</label>
-                    <input type="password" id="apiKeyInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-red-600 transition">
+                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">YouTube Data API Key</label>
+                    <input type="password" id="apiKeyInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-red-600 transition text-white">
                 </div>
                 <div>
-                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest text-right">Google Client ID</label>
-                    <input type="text" id="clientIdInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-blue-600 transition">
+                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Google Client ID</label>
+                    <input type="text" id="clientIdInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-blue-600 transition text-white">
                 </div>
-                <div class="flex gap-3">
+                <div class="flex gap-3 pt-4">
                     <button onclick="saveAndStart()" class="flex-1 bg-white text-black py-4 rounded-xl font-bold hover:bg-gray-200 transition">שמור והפעל</button>
-                    <button onclick="toggleConfig()" class="px-6 bg-[#222] text-white py-4 rounded-xl font-bold transition">סגור</button>
+                    <button onclick="toggleConfig()" class="px-6 bg-[#222] text-white py-4 rounded-xl font-bold transition">ביטול</button>
                 </div>
             </div>
         </div>
     </div>
+
+    <div id="toast" class="copy-toast">הקישור הועתק ללוח!</div>
 
     <script>
         let appState = {
@@ -215,23 +246,43 @@
             tokenClient: null
         };
 
+        // UI Helpers
         function toggleConfig() {
             const modal = document.getElementById('configModal');
             modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
         }
 
         function saveAndStart() {
-            appState.apiKey = document.getElementById('apiKeyInput').value.trim();
-            appState.clientId = document.getElementById('clientIdInput').value.trim();
-            if (!appState.apiKey) return alert("נא להזין API Key");
+            const newKey = document.getElementById('apiKeyInput').value.trim();
+            const newClientId = document.getElementById('clientIdInput').value.trim();
+            
+            if (!newKey) return alert("נא להזין API Key לפחות.");
+            
+            appState.apiKey = newKey;
+            appState.clientId = newClientId;
             
             localStorage.setItem('yt_api_key', appState.apiKey);
             localStorage.setItem('yt_client_id', appState.clientId);
             
             document.getElementById('configModal').style.display = 'none';
+            
             if (appState.clientId) initAuth();
             initChart();
             loadHomePage();
+        }
+
+        function handleLogout() {
+            if (appState.token) {
+                google.accounts.oauth2.revoke(appState.token, () => {
+                    console.log('Token revoked.');
+                });
+            }
+            appState.token = null;
+            document.getElementById('authContainer').classList.remove('hidden');
+            document.getElementById('userDisplay').classList.add('hidden');
+            document.getElementById('userName').innerText = '';
+            document.getElementById('userImg').src = '';
+            loadHomePage(); 
         }
 
         window.onload = () => {
@@ -239,8 +290,14 @@
             const savedClient = localStorage.getItem('yt_client_id');
             if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
-            if(savedKey) saveAndStart();
-            else toggleConfig();
+            
+            if(savedKey) {
+                appState.apiKey = savedKey;
+                appState.clientId = savedClient;
+                saveAndStart();
+            } else {
+                toggleConfig();
+            }
         };
 
         function initAuth() {
@@ -249,6 +306,7 @@
                     client_id: appState.clientId,
                     scope: 'https://www.googleapis.com/auth/youtube.readonly',
                     callback: (tokenResponse) => {
+                        if (tokenResponse.error !== undefined) throw (tokenResponse);
                         appState.token = tokenResponse.access_token;
                         updateUserInfo();
                         loadHomePage();
@@ -258,7 +316,12 @@
         }
 
         function requestToken() {
-            if (appState.tokenClient) appState.tokenClient.requestAccessToken();
+            if (appState.tokenClient) {
+                appState.tokenClient.requestAccessToken();
+            } else {
+                alert("אנא הגדר Client ID תקין בהגדרות כדי להתחבר.");
+                toggleConfig();
+            }
         }
 
         async function updateUserInfo() {
@@ -271,7 +334,7 @@
                 document.getElementById('userDisplay').classList.remove('hidden');
                 document.getElementById('userImg').src = data.picture;
                 document.getElementById('userName').innerText = data.name;
-            } catch(e) {}
+            } catch(e) { console.error("UserInfo fetch error", e); }
         }
 
         function initChart() {
@@ -296,7 +359,7 @@
             
             const titleEl = document.getElementById('sectionTitle');
             titleEl.classList.remove('hidden');
-            titleEl.innerText = appState.token ? "מומלצים עבורך" : "סרטונים פופולריים";
+            titleEl.innerText = appState.token ? "מומלצים עבורך" : "סרטונים פופולריים בישראל";
 
             try {
                 let url = appState.token 
@@ -308,17 +371,19 @@
                 const data = await res.json();
                 
                 let videoIds = [];
-                if (appState.token) {
+                if (appState.token && data.items) {
                     videoIds = data.items
                         .filter(i => i.contentDetails.upload || i.contentDetails.playlistItem)
                         .map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId)
                         .filter(Boolean);
-                } else {
+                } else if (data.items) {
                     videoIds = data.items.map(i => i.id);
                 }
 
                 if (videoIds.length > 0) {
                     fetchAndRenderVideos(videoIds, true);
+                } else {
+                    document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים להצגה.</div>';
                 }
             } catch (err) { console.error(err); }
         }
@@ -326,22 +391,23 @@
         async function loadWatchHistory() {
             if (!appState.token) return alert("יש להתחבר לחשבון גוגל.");
             setActiveNavItem('navHistory');
-            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">טוען היסטוריה...</div>';
+            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">טוען פעילות...</div>';
             
             const titleEl = document.getElementById('sectionTitle');
             titleEl.classList.remove('hidden');
-            titleEl.innerText = "פעילות אחרונה";
+            titleEl.innerText = "פעילות אחרונה בחשבון";
 
             try {
                 const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=20&key=${appState.apiKey}`;
                 const res = await fetch(url, { headers: { Authorization: `Bearer ${appState.token}` } });
                 const data = await res.json();
 
-                const videoIds = data.items
+                const videoIds = (data.items || [])
                     .map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId || i.contentDetails.like?.resourceId?.videoId)
                     .filter(Boolean);
 
-                fetchAndRenderVideos(videoIds, true);
+                if(videoIds.length > 0) fetchAndRenderVideos(videoIds, true);
+                else document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאה פעילות אחרונה.</div>';
             } catch(e) { console.error(e); }
         }
 
@@ -368,19 +434,18 @@
                 appState.pageToken = data.nextPageToken || "";
                 document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
 
-                const videoIds = data.items.map(i => i.id.videoId).filter(Boolean);
+                const videoIds = (data.items || []).map(i => i.id.videoId).filter(Boolean);
                 fetchAndRenderVideos(videoIds, !loadMore);
             } catch (err) { console.error(err); }
         }
 
-        // המנגנון המקורי: קריאה ל-videos כדי לקבל snippet ו-statistics יחד
         async function fetchAndRenderVideos(ids, clear) {
             if (!ids.length) return;
             try {
                 const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids.join(',')}&key=${appState.apiKey}`);
                 const data = await res.json();
-                renderResults(data.items, clear);
-                updateChart(data.items);
+                renderResults(data.items || [], clear);
+                updateChart(data.items || []);
             } catch (e) { console.error(e); }
         }
 
@@ -404,12 +469,18 @@
                             <i class="fas fa-play text-[10px] opacity-30"></i>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <h3 class="font-bold text-[14px] leading-tight line-clamp-2 mb-1" onclick="openPlayer('${videoId}', '${snip.title.replace(/'/g, "\\'")}')">${snip.title}</h3>
-                            <p class="text-gray-500 text-xs">${snip.channelTitle}</p>
-                            <p class="text-gray-400 text-[11px] mt-1 font-bold">
-                                <i class="fas fa-eye ml-1 opacity-50"></i> ${formatNum(stats.viewCount)} צפיות &nbsp;
-                                <i class="fas fa-thumbs-up ml-1 opacity-50"></i> ${formatNum(stats.likeCount)} לייקים
-                            </p>
+                            <h3 class="font-bold text-[14px] leading-tight line-clamp-2 mb-1 text-right" onclick="openPlayer('${videoId}', '${snip.title.replace(/'/g, "\\'")}')">${snip.title}</h3>
+                            <p class="text-gray-500 text-xs text-right">${snip.channelTitle}</p>
+                            <div class="flex flex-col gap-1 mt-1 font-bold text-right">
+                                <p class="text-gray-400 text-[11px]">
+                                    <i class="fas fa-eye ml-1 opacity-50"></i> ${formatNum(stats.viewCount)} צפיות &nbsp;
+                                    <i class="fas fa-thumbs-up ml-1 opacity-50"></i> ${formatNum(stats.likeCount)} לייקים
+                                </p>
+                                <!-- Copy Link Button -->
+                                <button onclick="event.stopPropagation(); copyLink('${videoId}')" class="mt-2 flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit mr-auto">
+                                    <i class="fas fa-link"></i> העתק קישור
+                                </button>
+                            </div>
                         </div>
                     </div>`;
                 grid.appendChild(card);
@@ -458,6 +529,20 @@
             document.getElementById('videoModal').style.display = 'none';
             document.getElementById('playerFrame').src = '';
             document.body.style.overflow = 'auto';
+        }
+
+        function copyLink(id) {
+            const url = `https://www.youtube.com/watch?v=${id}`;
+            const dummy = document.createElement("input");
+            document.body.appendChild(dummy);
+            dummy.value = url;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            
+            const toast = document.getElementById('toast');
+            toast.className = "copy-toast show";
+            setTimeout(() => { toast.className = "copy-toast"; }, 3000);
         }
 
         document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') performSearch(false); });
