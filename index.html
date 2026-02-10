@@ -10,7 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap');
@@ -44,7 +44,19 @@
         .video-card img { transition: transform 0.3s ease; }
         .video-card:hover img { transform: scale(1.02); border-radius: 8px; }
 
-        #videoModal, #configModal { display: none; backdrop-filter: blur(12px); }
+        /* Watch View (Background Play support) */
+        #watchView { 
+            display: none; /* Controlled via JS classList */
+            backdrop-filter: blur(12px); 
+        }
+        #watchView.hidden {
+            display: none !important;
+        }
+        #watchView.active {
+            display: flex !important;
+        }
+
+        #configModal { display: none; backdrop-filter: blur(12px); }
 
         .line-clamp-2 {
             display: -webkit-box;
@@ -129,6 +141,13 @@
         </div>
 
         <div class="flex items-center gap-4">
+            <button id="return-to-video-btn" class="text-white hover:text-blue-400 p-2 px-3 rounded-full hidden transition-colors bg-[#272727] border border-[#333]" title="חזור לסרטון">
+                <i class="fa-solid fa-tv"></i>
+            </button>
+            <button id="global-pause-btn" class="text-gray-400 hover:text-white p-2 w-10 h-10 flex items-center justify-center rounded-full hidden transition-colors border border-transparent hover:border-[#333]" title="השהה/נגן">
+                <i class="fa-solid fa-pause"></i>
+            </button>
+
             <button onclick="toggleConfig()" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-400" title="הגדרות API וגוגל">
                 <i class="fas fa-cog text-xl"></i>
             </button>
@@ -200,14 +219,20 @@
         </main>
     </div>
 
-    <div id="videoModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/90" onclick="closePlayer()"></div>
-        <div class="relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333] shadow-2xl">
+    <div id="watchView" class="fixed inset-0 z-[200] items-center justify-center p-4 bg-black/90">
+        <div class="absolute inset-0" onclick="minimizePlayer()"></div>
+        
+        <div class="relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333] shadow-2xl z-10">
             <div class="p-4 flex justify-between items-center border-b border-[#222]">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2"></h3>
-                <button onclick="closePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="minimizePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="מזער והמשך לשמוע ברקע">
+                        <i class="fas fa-compress text-gray-400"></i>
+                    </button>
+                    <button onclick="closePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="סגור נגן">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
             </div>
             <div class="flex-1 overflow-y-auto custom-scrollbar">
                 <div class="aspect-video w-full bg-black">
@@ -256,10 +281,12 @@
             chart: null,
             token: null,
             tokenClient: null,
-            searchContext: 'general'
+            searchContext: 'general',
+            currentVideoId: null, // New: Track current video
+            isVideoPaused: false  // New: Track pause state
         };
 
-        // --- Helper Functions for Formatting (New) ---
+        // --- Helper Functions ---
         function formatCount(num) {
             const n = parseInt(num);
             if (!n) return '0';
@@ -271,7 +298,6 @@
         function timeSince(date) {
             const seconds = Math.floor((new Date() - new Date(date)) / 1000);
             let interval = seconds / 31536000;
-
             if (interval > 1) return "לפני " + Math.floor(interval) + " שנים";
             interval = seconds / 2592000;
             if (interval > 1) return "לפני " + Math.floor(interval) + " חודשים";
@@ -284,7 +310,45 @@
             return "ממש עכשיו";
         }
 
-        // UI Helpers
+        // --- Control Logic (Background Play) ---
+        const returnToVideoBtn = document.getElementById('return-to-video-btn');
+        const globalPauseBtn = document.getElementById('global-pause-btn');
+        const watchView = document.getElementById('watchView');
+        const playerFrame = document.getElementById('playerFrame');
+
+        // Logic 3: Global Pause Button
+        globalPauseBtn.addEventListener('click', () => {
+            if (appState.isVideoPaused) {
+                // Play
+                playerFrame.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+                globalPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                appState.isVideoPaused = false;
+            } else {
+                // Pause
+                playerFrame.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+                globalPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+                appState.isVideoPaused = true;
+            }
+        });
+
+        // Logic 4: Return to Video
+        returnToVideoBtn.addEventListener('click', () => {
+            watchView.classList.add('active'); // Show Player
+            watchView.classList.remove('hidden');
+            returnToVideoBtn.classList.add('hidden'); // Hide Return Button
+        });
+
+        function minimizePlayer() {
+            if (appState.currentVideoId) {
+                watchView.classList.remove('active');
+                watchView.classList.add('hidden');
+                returnToVideoBtn.classList.remove('hidden');
+            } else {
+                closePlayer();
+            }
+        }
+
+        // --- Config & Auth ---
         function toggleConfig() {
             const modal = document.getElementById('configModal');
             modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
@@ -394,7 +458,14 @@
             appState.searchContext = 'general';
             document.getElementById('searchInput').value = "";
             appState.pageToken = "";
-            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען...</div>';
+            
+            // Logic 2 (Part A): If video is playing, don't clear everything, just hide
+            if (appState.currentVideoId) {
+                minimizePlayer();
+            } else {
+                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען...</div>';
+            }
+
             document.getElementById('pagination').classList.add('hidden');
             
             const titleEl = document.getElementById('sectionTitle');
@@ -432,9 +503,15 @@
             if (!appState.token) return alert("יש להתחבר לחשבון גוגל.");
             setActiveNavItem('navHistory');
             appState.searchContext = 'general';
-            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">טוען פעילות...</div>';
-            document.getElementById('pagination').classList.add('hidden');
             
+            // Logic 2 (Part B)
+            if (appState.currentVideoId) {
+                minimizePlayer();
+            } else {
+                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">טוען פעילות...</div>';
+            }
+            
+            document.getElementById('pagination').classList.add('hidden');
             const titleEl = document.getElementById('sectionTitle');
             titleEl.classList.remove('hidden');
             titleEl.innerText = "פעילות אחרונה בחשבון";
@@ -469,10 +546,18 @@
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
 
+            // Logic 2 (Part C): Search Logic
             if (!loadMore) {
                 appState.query = query;
                 appState.pageToken = "";
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>';
+                
+                if (appState.currentVideoId) {
+                    // Just hide the player, don't destroy it
+                    minimizePlayer();
+                    document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>';
+                } else {
+                    document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>';
+                }
             }
 
             try {
@@ -486,32 +571,22 @@
                 document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
 
                 const items = data.items || [];
-                
-                // For search results, we render immediately but then fetch stats
-                // To support the new detailed view, we need to fetch stats BEFORE rendering if possible, 
-                // OR render then update. The best UX is to fetch details then render.
-                
                 const videoIds = items.filter(i => i.id.kind === 'youtube#video').map(i => i.id.videoId);
                 const channelItems = items.filter(i => i.id.kind === 'youtube#channel');
                 
-                // If we have videos, fetch their details (stats)
                 if (videoIds.length > 0) {
                      const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds.join(',')}&key=${appState.apiKey}`);
                      const statsData = await statsRes.json();
-                     
-                     // Combine channel items with fetched video details
                      const combinedItems = [...channelItems, ...statsData.items.map(i => ({
                          id: { kind: 'youtube#video', videoId: i.id },
                          snippet: i.snippet,
                          statistics: i.statistics
                      }))];
-                     
                      renderResults(combinedItems, !loadMore);
                      updateChart(statsData.items || []);
                 } else {
                     renderResults(channelItems, !loadMore);
                 }
-
             } catch (err) { console.error(err); }
         }
 
@@ -534,6 +609,11 @@
             if (!channelId && !appState.query) return;
             
             if (!loadMore) {
+                // Logic 2 (Part D): Channel switch
+                if (appState.currentVideoId) {
+                     minimizePlayer();
+                }
+
                 try {
                     document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען ערוץ...</div>';
                     document.getElementById('sectionTitle').innerText = "טוען...";
@@ -564,7 +644,6 @@
                 appState.pageToken = data.nextPageToken || "";
                 document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
 
-                // Need to fetch stats for playlist items
                 const videoIds = data.items.map(item => item.snippet.resourceId.videoId).join(',');
                 if(videoIds) {
                     const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}&key=${appState.apiKey}`);
@@ -581,7 +660,6 @@
             } catch(e) { console.error(e); }
         }
 
-        // --- Modified Render Function with Requested Logic ---
         function renderResults(items, clear) {
             const grid = document.getElementById('resultsGrid');
             if (clear) grid.innerHTML = '';
@@ -590,7 +668,6 @@
                 const snip = item.snippet;
                 const kind = item.id.kind;
                 
-                // --- Channel Card ---
                 if (kind === 'youtube#channel') {
                     const channelId = item.id.channelId;
                     const card = document.createElement('div');
@@ -610,18 +687,15 @@
                     return;
                 }
 
-                // --- Video Card ---
                 const videoId = item.id.videoId;
                 if (!videoId) return;
 
-                // --- INTEGRATED LOGIC START ---
                 let viewsText = '';
                 let likesText = '';
                 let timeText = '';
                 const title = snip.title.replace(/'/g, "\\'");
                 const channelTitle = snip.channelTitle;
 
-                // Check if we have statistics (Video object)
                 if (item.statistics) {
                     const views = item.statistics.viewCount;
                     const likes = item.statistics.likeCount;
@@ -631,7 +705,6 @@
                     if(likes) likesText = ` • ${formatCount(likes)} לייקים`;
                     if(date) timeText = ` • ${timeSince(date)}`;
                 }
-                // --- INTEGRATED LOGIC END ---
 
                 const card = document.createElement('div');
                 card.className = "video-card group flex flex-col cursor-pointer";
@@ -643,14 +716,12 @@
                         <div class="w-9 h-9 rounded-full bg-gray-800 flex-shrink-0 border border-[#333] flex items-center justify-center">
                             <i class="fas fa-play text-[10px] opacity-30"></i>
                         </div>
-                        
                         <div class="flex-1">
                             <h3 class="text-white font-semibold text-base leading-snug line-clamp-2" title="${snip.title}" onclick="openPlayer('${videoId}', '${title}')">${snip.title}</h3>
                             <div class="text-[#aaaaaa] text-sm mt-1">
                                 <p class="hover:text-white transition-colors" onclick="loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
                                 <p>${viewsText}${likesText}${timeText}</p> 
                             </div>
-                            
                             <button onclick="event.stopPropagation(); copyLink('${videoId}')" class="mt-3 flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit mr-auto">
                                 <i class="fas fa-link"></i> העתק קישור
                             </button>
@@ -674,10 +745,21 @@
         }
 
         async function openPlayer(id, title) {
-            const modal = document.getElementById('videoModal');
+            const view = document.getElementById('watchView');
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('fullTitle').innerText = title;
-            document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1`;
+            
+            // New: Set enablejsapi=1
+            document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1`;
+            
+            // New: Set State
+            appState.currentVideoId = id;
+            appState.isVideoPaused = false;
+            
+            // New: Show Global Controls
+            document.getElementById('global-pause-btn').classList.remove('hidden');
+            document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
+            document.getElementById('return-to-video-btn').classList.add('hidden');
             
             try {
                 const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${id}&key=${appState.apiKey}`);
@@ -688,14 +770,23 @@
                     document.getElementById('modalStats').innerText = `${parseInt(item.statistics.viewCount).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`;
                 }
             } catch(e) {}
-            modal.style.display = 'flex';
+            
+            view.classList.add('active'); // Use Class instead of style
+            view.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
 
         function closePlayer() {
-            document.getElementById('videoModal').style.display = 'none';
+            document.getElementById('watchView').classList.remove('active');
+            document.getElementById('watchView').classList.add('hidden');
             document.getElementById('playerFrame').src = '';
             document.body.style.overflow = 'auto';
+            
+            // New: Reset State
+            appState.currentVideoId = null;
+            appState.isVideoPaused = false;
+            document.getElementById('global-pause-btn').classList.add('hidden');
+            document.getElementById('return-to-video-btn').classList.add('hidden');
         }
 
         function copyLink(id) {
