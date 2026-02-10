@@ -3,234 +3,236 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Search Pro - NetFree Edition</title>
+    <title>YouTube Search Hub - Pro Edition</title>
     <link rel="icon" type="image/x-icon" href="https://www.youtube.com/s/desktop/28b67e7f/img/favicon_32x32.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap');
-        body { background-color: #0f0f0f; color: white; font-family: 'Assistant', sans-serif; margin: 0; }
-        .video-card:hover img { transform: scale(1.03); border-radius: 12px; }
-        .video-card img { transition: all 0.3s ease; }
+        :root { --yt-main: #0f0f0f; --yt-surface: #272727; --yt-border: #3f3f3f; }
+        body { background-color: var(--yt-main); color: #ffffff; font-family: 'Assistant', sans-serif; margin: 0; overflow-x: hidden; }
+        .chart-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; height: 250px; }
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f3f; border-radius: 10px; }
-        #videoModal, #configModal { display: none; backdrop-filter: blur(15px); }
-        select { cursor: pointer; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--yt-border); border-radius: 10px; }
+        .video-card img { transition: transform 0.3s ease; }
+        .video-card:hover img { transform: scale(1.02); border-radius: 8px; }
+        #videoModal, #configModal { display: none; backdrop-filter: blur(12px); }
+        .sidebar-item { display: flex; align-items: center; gap: 20px; padding: 12px; cursor: pointer; border-radius: 12px; transition: background 0.2s; }
+        .sidebar-item:hover { background: var(--yt-surface); }
+        .sidebar-item.active { background: var(--yt-surface); font-weight: 600; }
+        .copy-toast { visibility: hidden; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 10px 20px; position: fixed; z-index: 1000; bottom: 30px; left: 50%; transform: translateX(-50%); font-size: 14px; }
+        .copy-toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body class="custom-scrollbar">
 
-    <header class="fixed top-0 left-0 right-0 h-20 bg-[#0f0f0f]/95 border-b border-[#222] flex items-center justify-between px-6 z-[100]">
-        <div class="flex items-center gap-4">
-            <i class="fab fa-youtube text-[#ff0000] text-3xl"></i>
-            <span class="text-xl font-bold hidden md:block">YouTube Hub</span>
+    <header class="fixed top-0 left-0 right-0 h-16 bg-[#0f0f0f]/95 border-b border-[#222] flex items-center justify-between px-6 z-[100]">
+        <div class="flex items-center gap-5">
+            <button class="text-xl p-2 hover:bg-[#272727] rounded-full transition"><i class="fas fa-bars"></i></button>
+            <div class="flex items-center gap-1 cursor-pointer" onclick="loadHomePage()">
+                <i class="fab fa-youtube text-[#ff0000] text-3xl"></i>
+                <span class="text-xl font-bold tracking-tight text-white">YouTube</span>
+            </div>
         </div>
 
-        <div class="flex-1 max-w-4xl flex flex-col md:flex-row items-center gap-2 px-4">
+        <div class="flex-1 max-w-4xl flex items-center px-4 gap-2">
             <div class="flex w-full group">
-                <input type="text" id="searchInput" placeholder="מה תרצה לחפש?" 
-                    class="w-full bg-[#121212] border border-[#303030] rounded-r-full py-2 px-5 focus:border-red-600 outline-none text-white text-right">
-                <button onclick="performSearch(false)" class="bg-[#222] border border-[#303030] border-r-0 rounded-l-full px-5 hover:bg-[#333]">
-                    <i class="fas fa-search text-gray-400"></i>
+                <input type="text" id="searchInput" placeholder="חיפוש" 
+                    class="w-full bg-[#121212] border border-[#303030] rounded-r-full py-2.5 px-5 focus:border-blue-500 outline-none transition text-right text-white">
+                <button onclick="performSearch(false)" class="bg-[#222222] border border-[#303030] border-r-0 rounded-l-full px-6 hover:bg-[#2a2a2a] transition">
+                    <i class="fas fa-search text-gray-300"></i>
                 </button>
             </div>
-            
-            <div class="flex gap-2 w-full md:w-auto">
-                <select id="orderFilter" class="bg-[#222] text-xs border border-[#303030] rounded-full px-3 py-2 outline-none">
+            <div class="hidden md:flex gap-1">
+                <select id="orderFilter" class="bg-[#1a1a1a] text-[10px] border border-[#333] rounded-full px-2 py-1 outline-none text-gray-400">
                     <option value="relevance">רלוונטיות</option>
-                    <option value="date">חדש ביותר</option>
-                    <option value="viewCount">הכי נצפים</option>
+                    <option value="date">תאריך</option>
+                    <option value="viewCount">צפיות</option>
                 </select>
-                <select id="durationFilter" class="bg-[#222] text-xs border border-[#303030] rounded-full px-3 py-2 outline-none">
+                <select id="durationFilter" class="bg-[#1a1a1a] text-[10px] border border-[#333] rounded-full px-2 py-1 outline-none text-gray-400">
                     <option value="any">כל אורך</option>
-                    <option value="short">קצר (עד 4 דק')</option>
-                    <option value="medium">בינוני (4-20 דק')</option>
-                    <option value="long">ארוך (20+ דק')</option>
-                </select>
-                <select id="timeFilter" class="bg-[#222] text-xs border border-[#303030] rounded-full px-3 py-2 outline-none">
-                    <option value="all">כל הזמן</option>
-                    <option value="today">היום</option>
-                    <option value="week">השבוע</option>
-                    <option value="month">החודש</option>
+                    <option value="short">קצר</option>
+                    <option value="long">ארוך</option>
                 </select>
             </div>
         </div>
 
-        <div class="flex items-center gap-3">
-            <button onclick="toggleConfig()" class="p-2 hover:bg-[#272727] rounded-full text-gray-400"><i class="fas fa-cog"></i></button>
+        <div class="flex items-center gap-4">
+            <button onclick="toggleConfig()" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-400"><i class="fas fa-cog text-xl"></i></button>
+            <div id="authContainer">
+                <button onclick="requestToken()" class="bg-[#272727] hover:bg-[#3f3f3f] px-4 py-2 rounded-full text-sm font-bold border border-[#444] transition">התחברות</button>
+            </div>
+            <div id="userDisplay" class="hidden flex items-center gap-3">
+                <img id="userImg" class="w-8 h-8 rounded-full border border-gray-600">
+                <button onclick="handleLogout()" class="p-2 hover:bg-[#272727] rounded-full transition text-red-500"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
         </div>
     </header>
 
-    <main class="pt-24 p-6 min-h-screen">
-        <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <div class="col-span-full text-center py-40 opacity-30">
-                <i class="fas fa-search text-6xl mb-4"></i>
-                <p>הזן מפתח API בהגדרות והתחל לחפש</p>
+    <div class="flex pt-16 min-h-screen">
+        <aside class="w-64 fixed right-0 top-16 bottom-0 hidden lg:block bg-[#0f0f0f] border-l border-[#222] p-4 overflow-y-auto custom-scrollbar">
+            <nav class="space-y-1">
+                <div onclick="loadHomePage()" class="sidebar-item active" id="navHome"><i class="fas fa-house"></i><span>דף הבית</span></div>
+                <div class="sidebar-item"><i class="fas fa-bolt"></i><span>Shorts</span></div>
+                <hr class="my-3 border-[#222]">
+                <div onclick="loadWatchHistory()" class="sidebar-item" id="navHistory"><i class="fas fa-history"></i><span>היסטוריה</span></div>
+            </nav>
+            <div class="mt-8">
+                <h4 class="px-3 text-xs font-bold text-gray-500 mb-4 uppercase text-right">סטטיסטיקת לייקים</h4>
+                <div class="chart-container"><canvas id="statsChart"></canvas></div>
             </div>
-        </div>
-        
-        <div id="pagination" class="hidden py-10 flex justify-center">
-            <button onclick="performSearch(true)" class="bg-white text-black px-10 py-2 rounded-full font-bold hover:bg-gray-200 transition">טען תוצאות נוספות</button>
-        </div>
-    </main>
+        </aside>
 
-    <div id="configModal" class="fixed inset-0 z-[300] bg-black/90 flex items-center justify-center p-4">
-        <div class="bg-[#1a1a1a] p-8 rounded-3xl w-full max-w-md border border-[#333]">
-            <h2 class="text-xl font-bold mb-6 text-center">הגדרות מערכת</h2>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-[10px] text-gray-500 mb-1 uppercase">YouTube API Key</label>
-                    <input type="password" id="apiKeyInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-red-600 text-white">
-                </div>
-                <button onclick="saveSettings()" class="w-full bg-white text-black py-3 rounded-xl font-bold hover:bg-gray-200 transition">שמור הגדרות</button>
+        <main class="flex-1 lg:mr-64 p-6">
+            <h2 id="sectionTitle" class="text-2xl font-bold mb-6 hidden">מומלצים</h2>
+            <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6"></div>
+            <div id="pagination" class="hidden mt-12 mb-20 flex justify-center">
+                <button onclick="performSearch(true)" class="bg-white text-black px-12 py-3 rounded-full font-bold hover:bg-gray-200 shadow-lg">טען תוצאות נוספות</button>
             </div>
-        </div>
+        </main>
     </div>
 
     <div id="videoModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/95" onclick="closePlayer()"></div>
-        <div class="relative bg-[#0f0f0f] w-full max-w-4xl rounded-2xl overflow-hidden border border-[#333]">
-            <div class="aspect-video">
-                <iframe id="playerFrame" class="w-full h-full" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>
-            </div>
-            <div class="p-6">
-                <h2 id="modalTitle" class="text-xl font-bold mb-2"></h2>
-                <p id="modalDesc" class="text-gray-400 text-sm line-clamp-3"></p>
+        <div class="absolute inset-0 bg-black/90" onclick="closePlayer()"></div>
+        <div class="relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden border border-[#333]">
+            <iframe id="playerFrame" class="w-full aspect-video" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+            <div class="p-6 overflow-y-auto"><h2 id="modalTitle" class="text-xl font-bold"></h2><p id="modalDesc" class="text-gray-400 text-sm mt-4"></p></div>
+        </div>
+    </div>
+
+    <div id="configModal" class="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center p-4">
+        <div class="bg-[#1a1a1a] p-8 rounded-3xl w-full max-w-md border border-[#333]">
+            <h2 class="text-2xl font-bold mb-6 text-center">הגדרות API</h2>
+            <div class="space-y-4">
+                <input type="password" id="apiKeyInput" placeholder="YouTube API Key" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 text-white">
+                <input type="text" id="clientIdInput" placeholder="Google Client ID" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 text-white">
+                <button onclick="saveAndStart()" class="w-full bg-white text-black py-4 rounded-xl font-bold">שמור והפעל</button>
             </div>
         </div>
     </div>
 
+    <div id="toast" class="copy-toast">הקישור הועתק!</div>
+
     <script>
-        let state = {
-            key: localStorage.getItem('yt_key') || '',
-            pageToken: '',
-            query: ''
+        let appState = {
+            apiKey: localStorage.getItem('yt_api_key') || "",
+            clientId: localStorage.getItem('yt_client_id') || "",
+            pageToken: "",
+            query: "",
+            chart: null,
+            token: null
         };
 
-        // טעינת הגדרות ראשונית
         window.onload = () => {
-            if (!state.key) toggleConfig();
-            else document.getElementById('apiKeyInput').value = state.key;
+            if(appState.apiKey) {
+                document.getElementById('apiKeyInput').value = appState.apiKey;
+                document.getElementById('clientIdInput').value = appState.clientId;
+                saveAndStart();
+            } else toggleConfig();
         };
 
-        function toggleConfig() {
-            const m = document.getElementById('configModal');
-            m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
-        }
+        function toggleConfig() { document.getElementById('configModal').style.display = (document.getElementById('configModal').style.display === 'flex') ? 'none' : 'flex'; }
 
-        function saveSettings() {
-            const key = document.getElementById('apiKeyInput').value.trim();
-            if (key) {
-                localStorage.setItem('yt_key', key);
-                state.key = key;
-                toggleConfig();
-                alert("הגדרות נשמרו!");
-            }
-        }
-
-        function getPublishedAfter(filter) {
-            const now = new Date();
-            if (filter === 'today') now.setDate(now.getDate() - 1);
-            else if (filter === 'week') now.setDate(now.getDate() - 7);
-            else if (filter === 'month') now.setMonth(now.getMonth() - 1);
-            else return '';
-            return now.toISOString();
+        function saveAndStart() {
+            appState.apiKey = document.getElementById('apiKeyInput').value.trim();
+            appState.clientId = document.getElementById('clientIdInput').value.trim();
+            localStorage.setItem('yt_api_key', appState.apiKey);
+            localStorage.setItem('yt_client_id', appState.clientId);
+            document.getElementById('configModal').style.display = 'none';
+            initChart();
+            loadHomePage();
         }
 
         async function performSearch(loadMore) {
-            if (!state.key) return toggleConfig();
-            
             const query = document.getElementById('searchInput').value.trim();
             const order = document.getElementById('orderFilter').value;
             const duration = document.getElementById('durationFilter').value;
-            const timeFrame = document.getElementById('timeFilter').value;
-
-            if (!query) return;
-            if (!loadMore) {
-                state.query = query;
-                state.pageToken = '';
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 animate-pulse">מחפש...</div>';
-            }
+            
+            if (!query) return loadHomePage();
+            if (!loadMore) { appState.pageToken = ""; document.getElementById('resultsGrid').innerHTML = 'טוען...'; }
 
             try {
-                // בניית השאילתה - שים לב: אם יש פילטר אורך, מחפשים רק וידאו (מגבלת יוטיוב)
-                let typeParam = (duration !== 'any') ? 'video' : 'video,channel';
-                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=16&q=${encodeURIComponent(state.query)}&type=${typeParam}&order=${order}&key=${state.key}`;
-                
+                // אם נבחר פילטר אורך, מחפשים רק וידאו כדי למנוע שגיאת API
+                let type = (duration !== 'any') ? 'video' : 'video,channel';
+                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=12&q=${encodeURIComponent(query)}&type=${type}&order=${order}&key=${appState.apiKey}`;
                 if (duration !== 'any') url += `&videoDuration=${duration}`;
-                const publishedAfter = getPublishedAfter(timeFrame);
-                if (publishedAfter) url += `&publishedAfter=${publishedAfter}`;
-                if (state.pageToken) url += `&pageToken=${state.pageToken}`;
+                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
                 const res = await fetch(url);
                 const data = await res.json();
+                appState.pageToken = data.nextPageToken || "";
+                document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
 
-                if (data.error) throw data.error;
+                // השלמת סטטיסטיקות לסרטונים בלבד
+                const videoIds = data.items.filter(i => i.id.kind === 'youtube#video').map(i => i.id.videoId);
+                let stats = {};
+                if(videoIds.length > 0) {
+                    const sRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoIds.join(',')}&key=${appState.apiKey}`);
+                    const sData = await sRes.json();
+                    sData.items.forEach(v => stats[v.id] = v.statistics);
+                }
 
-                state.pageToken = data.nextPageToken || '';
-                document.getElementById('pagination').classList.toggle('hidden', !state.pageToken);
-
-                render(data.items, !loadMore);
-            } catch (e) {
-                console.error(e);
-                alert("שגיאה בחיפוש. בדוק את מפתח ה-API שלך.");
-            }
+                renderResults(data.items, stats, !loadMore);
+            } catch (e) { alert("שגיאה בחיפוש"); }
         }
 
-        async function render(items, clear) {
+        function renderResults(items, stats, clear) {
             const grid = document.getElementById('resultsGrid');
-            if (clear) grid.innerHTML = '';
-
-            // משיכת סטטיסטיקות לסרטונים
-            const videoIds = items.filter(i => i.id.kind === 'youtube#video').map(i => i.id.videoId);
-            let statsMap = {};
-            
-            if (videoIds.length > 0) {
-                const sRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoIds.join(',')}&key=${state.key}`);
-                const sData = await sRes.json();
-                sData.items?.forEach(v => statsMap[v.id] = v.statistics);
-            }
+            if(clear) grid.innerHTML = '';
 
             items.forEach(item => {
-                const snip = item.snippet;
                 const isChan = item.id.kind === 'youtube#channel';
                 const id = isChan ? item.id.channelId : item.id.videoId;
-                const stats = statsMap[id] || { viewCount: '0' };
+                const snip = item.snippet;
+                const s = stats[id] || {viewCount: 0, likeCount: 0};
 
                 const card = document.createElement('div');
-                card.className = "video-card cursor-pointer group";
+                card.className = "video-card cursor-pointer";
                 
-                if (isChan) {
-                    card.innerHTML = `
-                        <div class="flex flex-col items-center p-6 bg-[#1a1a1a] rounded-2xl border border-[#333] h-full" onclick="window.open('https://www.youtube.com/channel/${id}', '_blank')">
-                            <img src="${snip.thumbnails.high.url}" class="w-24 h-24 rounded-full mb-4 object-cover border-2 border-red-600">
-                            <h3 class="font-bold text-center line-clamp-1">${snip.title}</h3>
-                            <span class="text-[10px] text-gray-500 mt-2 uppercase">ערוץ</span>
-                        </div>`;
+                if(isChan) {
+                    card.innerHTML = `<div class="flex flex-col items-center p-6 bg-[#1a1a1a] rounded-2xl border border-[#333]" onclick="window.open('https://youtube.com/channel/${id}')">
+                        <img src="${snip.thumbnails.high.url}" class="w-20 h-20 rounded-full mb-3 border-2 border-red-600">
+                        <h3 class="text-sm font-bold text-center">${snip.title}</h3>
+                        <span class="text-[10px] text-gray-500 mt-1">ערוץ</span>
+                    </div>`;
                 } else {
-                    card.innerHTML = `
-                        <div onclick="openPlayer('${id}', '${snip.title.replace(/'/g, "")}', '${snip.description.replace(/'/g, "")}')">
-                            <img src="${snip.thumbnails.high.url}" class="w-full aspect-video object-cover rounded-xl mb-3 bg-[#222]">
-                            <h3 class="font-bold text-sm line-clamp-2 mb-1 text-right">${snip.title}</h3>
-                            <p class="text-xs text-gray-500 text-right">${snip.channelTitle}</p>
-                            <p class="text-[10px] text-gray-400 mt-1 text-right">${parseInt(stats.viewCount).toLocaleString()} צפיות</p>
-                        </div>`;
+                    card.innerHTML = `<div onclick="openPlayer('${id}', '${snip.title.replace(/'/g,"")}')">
+                        <img src="${snip.thumbnails.high.url}" class="w-full aspect-video rounded-xl mb-2">
+                        <h3 class="text-sm font-bold line-clamp-2 text-right">${snip.title}</h3>
+                        <p class="text-[11px] text-gray-500 text-right">${snip.channelTitle}</p>
+                        <p class="text-[10px] text-gray-400 text-right">${parseInt(s.viewCount).toLocaleString()} צפיות</p>
+                    </div>`;
                 }
                 grid.appendChild(card);
             });
         }
 
-        function openPlayer(id, title, desc) {
-            document.getElementById('modalTitle').innerText = title;
-            document.getElementById('modalDesc').innerText = desc;
+        async function loadHomePage() {
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = 'טוען מומלצים...';
+            const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=IL&maxResults=12&key=${appState.apiKey}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            renderResults(data.items, {}, true);
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('statsChart').getContext('2d');
+            if(appState.chart) appState.chart.destroy();
+            appState.chart = new Chart(ctx, { type: 'bar', data: { labels: ['A','B','C','D'], datasets: [{ data: [10,20,30,40], backgroundColor: '#ff0000' }] }, options: { plugins: {legend: {display: false}}, scales: {y: {display: false}} } });
+        }
+
+        function openPlayer(id, title) {
             document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1`;
+            document.getElementById('modalTitle').innerText = title;
             document.getElementById('videoModal').style.display = 'flex';
         }
 
-        function closePlayer() {
-            document.getElementById('videoModal').style.display = 'none';
-            document.getElementById('playerFrame').src = '';
-        }
+        function closePlayer() { document.getElementById('videoModal').style.display = 'none'; document.getElementById('playerFrame').src = ''; }
 
         document.getElementById('searchInput').addEventListener('keypress', e => { if(e.key === 'Enter') performSearch(false) });
     </script>
