@@ -46,7 +46,7 @@
 
         /* Watch View (Background Play support) */
         #watchView { 
-            display: none; 
+            display: none; /* Controlled via JS classList */
             backdrop-filter: blur(12px); 
         }
         #watchView.hidden {
@@ -118,16 +118,6 @@
         </div>
 
         <div class="flex-1 max-w-3xl flex items-center gap-2 px-4">
-            
-            <div class="flex items-center gap-1 ml-2">
-                <button onclick="goForward()" id="btnForward" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-500 disabled:opacity-30" title="קדימה" disabled>
-                    <i class="fas fa-arrow-right"></i>
-                </button>
-                <button onclick="goBack()" id="btnBack" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-500 disabled:opacity-30" title="אחורה" disabled>
-                    <i class="fas fa-arrow-left"></i>
-                </button>
-            </div>
-
             <div class="flex w-full group">
                 <input type="text" id="searchInput" placeholder="חיפוש" 
                     class="w-full bg-[#121212] border border-[#303030] rounded-r-full py-2.5 px-5 focus:border-blue-500 outline-none transition text-right text-white">
@@ -231,11 +221,12 @@
 
     <div id="watchView" class="fixed inset-0 z-[200] items-center justify-center p-4 bg-black/90">
         <div class="absolute inset-0" onclick="minimizePlayer()"></div>
+        
         <div class="relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333] shadow-2xl z-10">
             <div class="p-4 flex justify-between items-center border-b border-[#222]">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2"></h3>
                 <div class="flex gap-2">
-                    <button onclick="minimizePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="מזער">
+                    <button onclick="minimizePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="מזער והמשך לשמוע ברקע">
                         <i class="fas fa-compress text-gray-400"></i>
                     </button>
                     <button onclick="closePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="סגור נגן">
@@ -291,71 +282,9 @@
             token: null,
             tokenClient: null,
             searchContext: 'general',
-            currentVideoId: null,
-            isVideoPaused: false,
-            
-            // --- History System ---
-            history: [],
-            historyIndex: -1,
-            isHistoryNav: false // Flag to prevent pushing history during navigation
+            currentVideoId: null, // New: Track current video
+            isVideoPaused: false  // New: Track pause state
         };
-
-        // --- History Functions ---
-        function pushHistory(state) {
-            if (appState.isHistoryNav) return;
-
-            // Remove any forward history if we start a new path
-            if (appState.historyIndex < appState.history.length - 1) {
-                appState.history = appState.history.slice(0, appState.historyIndex + 1);
-            }
-
-            appState.history.push(state);
-            appState.historyIndex++;
-            updateNavButtons();
-        }
-
-        function updateNavButtons() {
-            const btnBack = document.getElementById('btnBack');
-            const btnForward = document.getElementById('btnForward');
-            
-            btnBack.disabled = appState.historyIndex <= 0;
-            btnForward.disabled = appState.historyIndex >= appState.history.length - 1;
-            
-            btnBack.style.color = btnBack.disabled ? '#444' : '#fff';
-            btnForward.style.color = btnForward.disabled ? '#444' : '#fff';
-        }
-
-        function goBack() {
-            if (appState.historyIndex > 0) {
-                appState.historyIndex--;
-                restoreState(appState.history[appState.historyIndex]);
-            }
-        }
-
-        function goForward() {
-            if (appState.historyIndex < appState.history.length - 1) {
-                appState.historyIndex++;
-                restoreState(appState.history[appState.historyIndex]);
-            }
-        }
-
-        function restoreState(state) {
-            appState.isHistoryNav = true;
-            
-            if (state.type === 'home') {
-                loadHomePage();
-            } else if (state.type === 'search') {
-                document.getElementById('searchInput').value = state.query;
-                performSearch(false);
-            } else if (state.type === 'channel') {
-                loadChannelVideos(state.id);
-            } else if (state.type === 'history') {
-                loadWatchHistory();
-            }
-            
-            updateNavButtons();
-            appState.isHistoryNav = false;
-        }
 
         // --- Helper Functions ---
         function formatCount(num) {
@@ -381,28 +310,39 @@
             return "ממש עכשיו";
         }
 
+        function linkify(text) {
+            // Escape existing HTML to prevent injection
+            let safeText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // Replace URLs with clickable links
+            return safeText.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors">$1</a>');
+        }
+
         // --- Control Logic (Background Play) ---
         const returnToVideoBtn = document.getElementById('return-to-video-btn');
         const globalPauseBtn = document.getElementById('global-pause-btn');
         const watchView = document.getElementById('watchView');
         const playerFrame = document.getElementById('playerFrame');
 
+        // Logic 3: Global Pause Button
         globalPauseBtn.addEventListener('click', () => {
             if (appState.isVideoPaused) {
+                // Play
                 playerFrame.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
                 globalPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
                 appState.isVideoPaused = false;
             } else {
+                // Pause
                 playerFrame.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
                 globalPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
                 appState.isVideoPaused = true;
             }
         });
 
+        // Logic 4: Return to Video
         returnToVideoBtn.addEventListener('click', () => {
-            watchView.classList.add('active'); 
+            watchView.classList.add('active'); // Show Player
             watchView.classList.remove('hidden');
-            returnToVideoBtn.classList.add('hidden'); 
+            returnToVideoBtn.classList.add('hidden'); // Hide Return Button
         });
 
         function minimizePlayer() {
@@ -526,9 +466,7 @@
             document.getElementById('searchInput').value = "";
             appState.pageToken = "";
             
-            // History
-            pushHistory({ type: 'home' });
-            
+            // Logic 2 (Part A): If video is playing, don't clear everything, just hide
             if (appState.currentVideoId) {
                 minimizePlayer();
             } else {
@@ -573,9 +511,7 @@
             setActiveNavItem('navHistory');
             appState.searchContext = 'general';
             
-            // History
-            pushHistory({ type: 'history' });
-
+            // Logic 2 (Part B)
             if (appState.currentVideoId) {
                 minimizePlayer();
             } else {
@@ -617,14 +553,13 @@
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
 
+            // Logic 2 (Part C): Search Logic
             if (!loadMore) {
-                // History: Save search
-                pushHistory({ type: 'search', query: query });
-                
                 appState.query = query;
                 appState.pageToken = "";
                 
                 if (appState.currentVideoId) {
+                    // Just hide the player, don't destroy it
                     minimizePlayer();
                     document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>';
                 } else {
@@ -681,9 +616,7 @@
             if (!channelId && !appState.query) return;
             
             if (!loadMore) {
-                // History: Save channel visit
-                pushHistory({ type: 'channel', id: channelId });
-                
+                // Logic 2 (Part D): Channel switch
                 if (appState.currentVideoId) {
                      minimizePlayer();
                 }
@@ -823,11 +756,14 @@
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('fullTitle').innerText = title;
             
+            // New: Set enablejsapi=1
             document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1`;
             
+            // New: Set State
             appState.currentVideoId = id;
             appState.isVideoPaused = false;
             
+            // New: Show Global Controls
             document.getElementById('global-pause-btn').classList.remove('hidden');
             document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
             document.getElementById('return-to-video-btn').classList.add('hidden');
@@ -837,12 +773,13 @@
                 const data = await res.json();
                 const item = data.items[0];
                 if (item) {
-                    document.getElementById('modalDesc').innerText = item.snippet.description;
+                    // Update: use innerHTML with linkify function
+                    document.getElementById('modalDesc').innerHTML = linkify(item.snippet.description);
                     document.getElementById('modalStats').innerText = `${parseInt(item.statistics.viewCount).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`;
                 }
             } catch(e) {}
             
-            view.classList.add('active');
+            view.classList.add('active'); // Use Class instead of style
             view.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
@@ -853,6 +790,7 @@
             document.getElementById('playerFrame').src = '';
             document.body.style.overflow = 'auto';
             
+            // New: Reset State
             appState.currentVideoId = null;
             appState.isVideoPaused = false;
             document.getElementById('global-pause-btn').classList.add('hidden');
