@@ -79,26 +79,26 @@
             display: flex !important;
         }
 
-        /* --- New: Floating Player Styles --- */
+        /* --- Floating Player Styles (UPDATED) --- */
         #watchView.floating-mode {
             position: fixed;
             top: auto;
             left: 20px;
             bottom: 20px;
             right: auto;
-            width: 400px; /* גודל התחלתי */
-            height: 225px; /* יחס 16:9 בערך */
+            width: 400px; 
+            height: 225px; 
             background: transparent;
             backdrop-filter: none;
             padding: 0;
             z-index: 9999;
             align-items: flex-end;
             justify-content: flex-start;
-            pointer-events: none; /* מאפשר קליקים דרך הרקע השקוף */
+            pointer-events: none;
         }
 
         #watchView.floating-mode .modal-overlay-bg {
-            display: none; /* הסתרת הרקע השחור */
+            display: none; 
         }
 
         #watchView.floating-mode .player-container {
@@ -106,32 +106,55 @@
             height: 100% !important;
             max-width: none !important;
             max-height: none !important;
-            resize: both; /* מאפשר שינוי גודל */
+            resize: both; 
             overflow: hidden;
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-            border: 2px solid #333;
-            pointer-events: auto; /* החזרת אינטראקציה לנגן עצמו */
-            display: flex;
-            flex-direction: column;
+            border: 1px solid #333;
+            pointer-events: auto;
+            display: block; /* Changed from flex to block to allow absolute positioning */
+            position: relative;
         }
 
-        #watchView.floating-mode .player-info-section {
-            display: none; /* הסתרת התיאור והתגובות במצב צף */
-        }
-        
+        /* Hide standard elements in floating mode */
+        #watchView.floating-mode .player-info-section,
         #watchView.floating-mode .player-header {
-            padding: 5px 10px;
-            background: rgba(0,0,0,0.8);
-            cursor: move; /* סמן גרירה */
+            display: none !important;
         }
-        
-        #watchView.floating-mode .player-header h3 {
-            font-size: 12px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 200px;
+
+        /* Make iframe fill container in floating mode */
+        #watchView.floating-mode .aspect-video {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            inset: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* Floating Controls (Overlay) */
+        .floating-controls {
+            display: none;
+        }
+
+        #watchView.floating-mode .floating-controls {
+            display: flex;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 8px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            justify-content: flex-end;
+            gap: 10px;
+            cursor: move; /* Allow dragging from the control bar */
+        }
+
+        #watchView.floating-mode .player-container:hover .floating-controls {
+            opacity: 1;
         }
 
         #configModal { display: none; backdrop-filter: blur(12px); }
@@ -310,13 +333,22 @@
         <div class="absolute inset-0 modal-overlay-bg" onclick="minimizePlayer()"></div>
         
         <div class="player-container relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333] shadow-2xl z-10">
+            
+            <div class="floating-controls">
+                 <button onclick="toggleFloatingMode()" class="w-8 h-8 bg-black/60 hover:bg-[#cc0000] text-white rounded-full flex items-center justify-center transition" title="חזור למסך רגיל">
+                    <i class="fas fa-expand-alt text-xs"></i>
+                </button>
+                <button onclick="closePlayer()" class="w-8 h-8 bg-black/60 hover:bg-[#cc0000] text-white rounded-full flex items-center justify-center transition" title="סגור">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+            </div>
+
             <div class="player-header p-4 flex justify-between items-center border-b border-[#222]">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2"></h3>
                 <div class="flex gap-2">
                     <button onclick="toggleFloatingMode()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="חלון צף">
                         <i class="fas fa-clone text-gray-400"></i>
                     </button>
-                    
                     <button onclick="minimizePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="מזער והמשך לשמוע ברקע">
                         <i class="fas fa-compress text-gray-400"></i>
                     </button>
@@ -325,6 +357,7 @@
                     </button>
                 </div>
             </div>
+
             <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                 <div class="aspect-video w-full bg-black flex-shrink-0 relative">
                     <iframe id="playerFrame" class="w-full h-full absolute inset-0" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>
@@ -375,7 +408,7 @@
             searchContext: 'general',
             currentVideoId: null,
             isVideoPaused: false,
-            isFloating: false // New: Track floating state
+            isFloating: false 
         };
 
         // --- משתני ניהול היסטוריה ---
@@ -478,7 +511,6 @@
 
         returnToVideoBtn.addEventListener('click', () => {
             if (appState.isFloating) {
-                // If returning from hidden while floating, just remove hidden
                 watchView.classList.remove('hidden');
             } else {
                 watchView.classList.add('active'); 
@@ -487,14 +519,12 @@
             returnToVideoBtn.classList.add('hidden'); 
         });
 
-        // --- New Function: Toggle Floating Mode ---
         function toggleFloatingMode() {
             const view = document.getElementById('watchView');
             appState.isFloating = !appState.isFloating;
             
             if (appState.isFloating) {
                 view.classList.add('floating-mode');
-                // Ensure draggable/resizable logic could be here if needed
             } else {
                 view.classList.remove('floating-mode');
             }
@@ -502,9 +532,8 @@
 
         function minimizePlayer() {
             if (appState.isFloating) {
-                // If user clicks "minimize" while floating, we hide it completely but keep playing
                 const view = document.getElementById('watchView');
-                view.classList.add('hidden'); // Hide the floating window
+                view.classList.add('hidden'); 
                 returnToVideoBtn.classList.remove('hidden');
             } else if (appState.currentVideoId) {
                 watchView.classList.remove('active');
@@ -923,7 +952,6 @@
 
         async function openPlayer(id, title) {
             const view = document.getElementById('watchView');
-            // If already in floating mode, switch back to modal
             if(appState.isFloating) {
                 toggleFloatingMode();
             }
@@ -958,7 +986,7 @@
         function closePlayer() {
             document.getElementById('watchView').classList.remove('active');
             document.getElementById('watchView').classList.add('hidden');
-            document.getElementById('watchView').classList.remove('floating-mode'); // Exit floating on close
+            document.getElementById('watchView').classList.remove('floating-mode'); 
             appState.isFloating = false;
             
             document.getElementById('playerFrame').src = '';
