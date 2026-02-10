@@ -46,7 +46,7 @@
 
         /* Watch View (Background Play support) */
         #watchView { 
-            display: none; /* Controlled via JS classList */
+            display: none; 
             backdrop-filter: blur(12px); 
         }
         #watchView.hidden {
@@ -118,6 +118,15 @@
         </div>
 
         <div class="flex-1 max-w-3xl flex items-center gap-2 px-4">
+            <div class="flex items-center gap-1 ml-2">
+                <button id="navBack" onclick="goBack()" class="p-2 rounded-full hover:bg-[#272727] text-gray-400 disabled:opacity-30 disabled:hover:bg-transparent transition" disabled title="חזור">
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button id="navForward" onclick="goForward()" class="p-2 rounded-full hover:bg-[#272727] text-gray-400 disabled:opacity-30 disabled:hover:bg-transparent transition" disabled title="הבא">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+            </div>
+
             <div class="flex w-full group">
                 <input type="text" id="searchInput" placeholder="חיפוש" 
                     class="w-full bg-[#121212] border border-[#303030] rounded-r-full py-2.5 px-5 focus:border-blue-500 outline-none transition text-right text-white">
@@ -282,9 +291,13 @@
             token: null,
             tokenClient: null,
             searchContext: 'general',
-            currentVideoId: null, // New: Track current video
-            isVideoPaused: false  // New: Track pause state
+            currentVideoId: null,
+            isVideoPaused: false
         };
+
+        // --- Navigation History State ---
+        let searchHistory = [];
+        let historyIndex = -1;
 
         // --- Helper Functions ---
         function formatCount(num) {
@@ -310,32 +323,77 @@
             return "ממש עכשיו";
         }
 
+        // --- New: Link Formatter ---
+        function formatDescription(text) {
+            if (!text) return '';
+            // Regex to find URLs
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            return text.replace(urlRegex, function(url) {
+                return `<a href="${url}" target="_blank" class="text-blue-400 hover:text-blue-300 hover:underline break-all">${url}</a>`;
+            });
+        }
+
+        // --- New: History Navigation Functions ---
+        function updateNavButtons() {
+            document.getElementById('navBack').disabled = historyIndex <= 0;
+            document.getElementById('navForward').disabled = historyIndex >= searchHistory.length - 1;
+        }
+
+        function addToHistory(query) {
+            // Only add if different from current
+            if (historyIndex === -1 || searchHistory[historyIndex] !== query) {
+                // If we are in middle of history and search new thing, remove forward history
+                if (historyIndex < searchHistory.length - 1) {
+                    searchHistory = searchHistory.slice(0, historyIndex + 1);
+                }
+                searchHistory.push(query);
+                historyIndex++;
+                updateNavButtons();
+            }
+        }
+
+        function goBack() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                const query = searchHistory[historyIndex];
+                document.getElementById('searchInput').value = query;
+                performSearch(false, true); // true = triggered by nav
+                updateNavButtons();
+            }
+        }
+
+        function goForward() {
+            if (historyIndex < searchHistory.length - 1) {
+                historyIndex++;
+                const query = searchHistory[historyIndex];
+                document.getElementById('searchInput').value = query;
+                performSearch(false, true); // true = triggered by nav
+                updateNavButtons();
+            }
+        }
+
         // --- Control Logic (Background Play) ---
         const returnToVideoBtn = document.getElementById('return-to-video-btn');
         const globalPauseBtn = document.getElementById('global-pause-btn');
         const watchView = document.getElementById('watchView');
         const playerFrame = document.getElementById('playerFrame');
 
-        // Logic 3: Global Pause Button
         globalPauseBtn.addEventListener('click', () => {
             if (appState.isVideoPaused) {
-                // Play
                 playerFrame.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
                 globalPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
                 appState.isVideoPaused = false;
             } else {
-                // Pause
                 playerFrame.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
                 globalPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
                 appState.isVideoPaused = true;
             }
         });
 
-        // Logic 4: Return to Video
         returnToVideoBtn.addEventListener('click', () => {
-            watchView.classList.add('active'); // Show Player
+            watchView.classList.add('active'); 
             watchView.classList.remove('hidden');
-            returnToVideoBtn.classList.add('hidden'); // Hide Return Button
+            returnToVideoBtn.classList.add('hidden'); 
         });
 
         function minimizePlayer() {
@@ -459,7 +517,6 @@
             document.getElementById('searchInput').value = "";
             appState.pageToken = "";
             
-            // Logic 2 (Part A): If video is playing, don't clear everything, just hide
             if (appState.currentVideoId) {
                 minimizePlayer();
             } else {
@@ -504,7 +561,6 @@
             setActiveNavItem('navHistory');
             appState.searchContext = 'general';
             
-            // Logic 2 (Part B)
             if (appState.currentVideoId) {
                 minimizePlayer();
             } else {
@@ -530,7 +586,7 @@
             } catch(e) { console.error(e); }
         }
 
-        async function performSearch(loadMore) {
+        async function performSearch(loadMore, triggeredByNav = false) {
             const query = document.getElementById('searchInput').value.trim();
             const order = document.getElementById('searchOrder').value;
             const type = document.getElementById('searchType').value || 'video,channel';
@@ -546,13 +602,16 @@
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
 
-            // Logic 2 (Part C): Search Logic
             if (!loadMore) {
+                // Add to history unless triggered by back/forward buttons
+                if (!triggeredByNav && query) {
+                    addToHistory(query);
+                }
+
                 appState.query = query;
                 appState.pageToken = "";
                 
                 if (appState.currentVideoId) {
-                    // Just hide the player, don't destroy it
                     minimizePlayer();
                     document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>';
                 } else {
@@ -609,7 +668,6 @@
             if (!channelId && !appState.query) return;
             
             if (!loadMore) {
-                // Logic 2 (Part D): Channel switch
                 if (appState.currentVideoId) {
                      minimizePlayer();
                 }
@@ -749,14 +807,11 @@
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('fullTitle').innerText = title;
             
-            // New: Set enablejsapi=1
             document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1`;
             
-            // New: Set State
             appState.currentVideoId = id;
             appState.isVideoPaused = false;
             
-            // New: Show Global Controls
             document.getElementById('global-pause-btn').classList.remove('hidden');
             document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
             document.getElementById('return-to-video-btn').classList.add('hidden');
@@ -766,12 +821,13 @@
                 const data = await res.json();
                 const item = data.items[0];
                 if (item) {
-                    document.getElementById('modalDesc').innerText = item.snippet.description;
+                    // Changed to innerHTML and using helper function for links
+                    document.getElementById('modalDesc').innerHTML = formatDescription(item.snippet.description);
                     document.getElementById('modalStats').innerText = `${parseInt(item.statistics.viewCount).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`;
                 }
             } catch(e) {}
             
-            view.classList.add('active'); // Use Class instead of style
+            view.classList.add('active');
             view.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
@@ -782,7 +838,6 @@
             document.getElementById('playerFrame').src = '';
             document.body.style.overflow = 'auto';
             
-            // New: Reset State
             appState.currentVideoId = null;
             appState.isVideoPaused = false;
             document.getElementById('global-pause-btn').classList.add('hidden');
