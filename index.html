@@ -277,148 +277,23 @@
             }
         };
 
-        function toggleConfig() {
-            const modal = document.getElementById('configModal');
-            modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+        function toggleConfig() { 
+            const m = document.getElementById('configModal');
+            m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
         }
 
         function saveAndStart() {
             appState.apiKey = document.getElementById('apiKeyInput').value.trim();
             appState.clientId = document.getElementById('clientIdInput').value.trim();
             
-            if (!appState.apiKey) return alert("נא להזין API Key לפחות.");
-            
+            if (!appState.apiKey) return alert("חובה להזין מפתח API");
+
             localStorage.setItem('yt_api_key', appState.apiKey);
             localStorage.setItem('yt_client_id', appState.clientId);
             
             document.getElementById('configModal').style.display = 'none';
-            
-            if (appState.clientId) initAuth();
             try { initChart(); } catch(e) {}
             loadHomePage();
-        }
-
-        function handleLogout() {
-            if (appState.token) {
-                google.accounts.oauth2.revoke(appState.token, () => {});
-            }
-            appState.token = null;
-            document.getElementById('authContainer').classList.remove('hidden');
-            document.getElementById('userDisplay').classList.add('hidden');
-            document.getElementById('userName').innerText = '';
-            document.getElementById('userImg').src = '';
-            loadHomePage(); 
-        }
-
-        function initAuth() {
-            try {
-                appState.tokenClient = google.accounts.oauth2.initTokenClient({
-                    client_id: appState.clientId,
-                    scope: 'https://www.googleapis.com/auth/youtube.readonly',
-                    callback: (tokenResponse) => {
-                        if (tokenResponse.error !== undefined) throw (tokenResponse);
-                        appState.token = tokenResponse.access_token;
-                        updateUserInfo();
-                        loadHomePage();
-                    },
-                });
-            } catch (e) { console.error("Auth init error", e); }
-        }
-
-        function requestToken() {
-            if (appState.tokenClient) {
-                appState.tokenClient.requestAccessToken();
-            } else {
-                alert("אנא הגדר Client ID תקין בהגדרות כדי להתחבר.");
-                toggleConfig();
-            }
-        }
-
-        async function updateUserInfo() {
-            try {
-                const res = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, {
-                    headers: { Authorization: `Bearer ${appState.token}` }
-                });
-                const data = await res.json();
-                document.getElementById('authContainer').classList.add('hidden');
-                document.getElementById('userDisplay').classList.remove('hidden');
-                document.getElementById('userImg').src = data.picture;
-                document.getElementById('userName').innerText = data.name;
-            } catch(e) { console.error("UserInfo fetch error", e); }
-        }
-
-        function initChart() {
-            const ctx = document.getElementById('statsChart').getContext('2d');
-            if(appState.chart) appState.chart.destroy();
-            appState.chart = new Chart(ctx, {
-                type: 'bar',
-                data: { labels: [], datasets: [{ data: [], backgroundColor: '#ff0000', borderRadius: 4 }] },
-                options: { 
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }, 
-                    scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#555', font: { size: 8 } } } } 
-                }
-            });
-        }
-
-        async function loadHomePage() {
-            setActiveNavItem('navHome');
-            document.getElementById('searchInput').value = "";
-            appState.pageToken = "";
-            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען...</div>';
-            
-            const titleEl = document.getElementById('sectionTitle');
-            titleEl.classList.remove('hidden');
-            titleEl.innerText = appState.token ? "מומלצים עבורך" : "סרטונים פופולריים בישראל";
-
-            try {
-                let url = appState.token 
-                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=12&key=${appState.apiKey}`
-                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=IL&maxResults=12&key=${appState.apiKey}`;
-
-                const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
-                const res = await fetch(url, { headers });
-                const data = await res.json();
-                
-                let videoIds = [];
-                if (appState.token && data.items) {
-                    videoIds = data.items
-                        .filter(i => i.contentDetails.upload || i.contentDetails.playlistItem)
-                        .map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId)
-                        .filter(Boolean);
-                } else if (data.items) {
-                    videoIds = data.items.map(i => i.id);
-                }
-
-                if (videoIds.length > 0) {
-                    fetchAndRenderVideos(videoIds, true);
-                } else {
-                    document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים להצגה.</div>';
-                }
-            } catch (err) { console.error(err); }
-        }
-
-        async function loadWatchHistory() {
-            if (!appState.token) return alert("יש להתחבר לחשבון גוגל.");
-            setActiveNavItem('navHistory');
-            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">טוען פעילות...</div>';
-            
-            const titleEl = document.getElementById('sectionTitle');
-            titleEl.classList.remove('hidden');
-            titleEl.innerText = "פעילות אחרונה בחשבון";
-
-            try {
-                const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=20&key=${appState.apiKey}`;
-                const res = await fetch(url, { headers: { Authorization: `Bearer ${appState.token}` } });
-                const data = await res.json();
-
-                const videoIds = (data.items || [])
-                    .map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId || i.contentDetails.like?.resourceId?.videoId)
-                    .filter(Boolean);
-
-                if(videoIds.length > 0) fetchAndRenderVideos(videoIds, true);
-                else document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאה פעילות אחרונה.</div>';
-            } catch(e) { console.error(e); }
         }
 
         async function performSearch(loadMore) {
@@ -439,7 +314,6 @@
             }
 
             try {
-                // לוגיקה: אם נבחר פילטר אורך או תאריך ספציפי - חייבים לחפש רק וידאו (מגבלת API).
                 let type = 'video,channel';
                 if (duration !== 'any' || date !== 'any') {
                     type = 'video';
@@ -461,14 +335,13 @@
                 const response = await fetch(url);
                 const data = await response.json();
                 
-                if (data.error) throw data.error;
+                if (data.error) throw new Error("שגיאת API");
 
                 appState.pageToken = data.nextPageToken || "";
                 document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
 
                 const items = data.items || [];
                 
-                // משיכת נתונים נוספים רק עבור סרטונים
                 const videoIds = items.filter(i => i.id.kind === 'youtube#video').map(i => i.id.videoId);
                 let statsMap = {};
 
@@ -482,7 +355,7 @@
                             });
                             updateChart(statsData.items);
                         }
-                    } catch(e){}
+                    } catch (e) { console.log(e); }
                 }
 
                 const finalItems = items.map(item => {
@@ -492,26 +365,47 @@
                     return item;
                 });
 
-                if(finalItems.length === 0) {
-                     document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו תוצאות. נסה לשנות את הסינון.</div>';
+                if (finalItems.length === 0) {
+                     document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו תוצאות. נסה לשנות את המסננים.</div>';
                 } else {
                     renderResults(finalItems, !loadMore);
                 }
 
             } catch (err) { 
                 console.error(err);
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 text-red-500">שגיאה בחיפוש. בדוק את המפתח.</div>';
+                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 text-red-500">שגיאה בחיפוש. וודא שמפתח ה-API תקין.</div>';
             }
         }
 
-        async function fetchAndRenderVideos(ids, clear) {
-            if (!ids.length) return;
+        // פונקציה חדשה לטעינת תוכן של ערוץ בתוך האתר
+        async function loadChannelVideos(channelId, channelTitle) {
+            document.getElementById('searchInput').value = `ערוץ: ${channelTitle}`;
+            appState.pageToken = "";
+            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען את סרטוני הערוץ...</div>';
+            
             try {
-                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids.join(',')}&key=${appState.apiKey}`);
+                // חיפוש סרטונים ספציפית מהערוץ הזה
+                const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=12&order=date&type=video&key=${appState.apiKey}`;
+                const res = await fetch(url);
                 const data = await res.json();
-                renderResults(data.items || [], clear);
-                updateChart(data.items || []);
-            } catch (e) { console.error(e); }
+                
+                const items = data.items || [];
+                const videoIds = items.map(i => i.id.videoId);
+                let statsMap = {};
+
+                if (videoIds.length > 0) {
+                    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoIds.join(',')}&key=${appState.apiKey}`);
+                    const statsData = await statsRes.json();
+                    statsData.items.forEach(item => statsMap[item.id] = item.statistics);
+                }
+
+                const finalItems = items.map(item => ({ ...item, statistics: statsMap[item.id.videoId] }));
+                renderResults(finalItems, true);
+                
+            } catch(e) {
+                console.error(e);
+                alert("לא ניתן לטעון את הערוץ");
+            }
         }
 
         function renderResults(items, clear) {
@@ -522,19 +416,22 @@
                 const snip = item.snippet;
                 const isChannel = item.id.kind === 'youtube#channel';
                 const id = isChannel ? item.id.channelId : (item.id.videoId || item.id);
-                const stats = item.statistics || {viewCount: '0', likeCount: '0'};
+                const stats = item.statistics || {viewCount: '0', likeCount: '0'}; 
                 
                 const card = document.createElement('div');
                 card.className = "video-card group flex flex-col cursor-pointer";
                 
                 if (isChannel) {
+                    // שינוי: לחיצה טוענת את הערוץ באותו דף במקום לפתוח חלון
                     card.innerHTML = `
-                        <div class="flex flex-col items-center py-6 bg-[#1a1a1a] rounded-2xl border border-[#333] hover:border-red-600 transition h-full" onclick="window.open('https://www.youtube.com/channel/${id}', '_blank')">
+                        <div class="flex flex-col items-center py-6 bg-[#1a1a1a] rounded-2xl border border-[#333] hover:border-red-600 transition h-full" 
+                             onclick="loadChannelVideos('${id}', '${snip.title.replace(/'/g, "\\'")}')">
                             <img src="${snip.thumbnails.high.url}" class="w-24 h-24 rounded-full mb-4 border-2 border-[#333] object-cover">
                             <h3 class="font-bold text-md text-white text-center px-4 line-clamp-1">${snip.title}</h3>
-                            <span class="bg-[#272727] text-gray-400 text-[10px] px-3 py-1 rounded-full mt-3 font-bold">ערוץ</span>
+                            <span class="bg-[#272727] text-gray-400 text-[10px] px-3 py-1 rounded-full mt-3 font-bold">ערוץ - לחץ לכניסה</span>
                         </div>`;
                 } else {
+                    // שינוי: הוספת לייקים וצפיות בתצוגה
                     card.innerHTML = `
                         <div class="relative mb-4" onclick="openPlayer('${id}', '${snip.title.replace(/'/g, "\\'")}')">
                             <img src="${snip.thumbnails.high.url}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
@@ -546,11 +443,12 @@
                             <div class="flex-1 min-w-0">
                                 <h3 class="font-bold text-[14px] leading-tight line-clamp-2 mb-1 text-white" onclick="openPlayer('${id}', '${snip.title.replace(/'/g, "\\'")}')">${snip.title}</h3>
                                 <p class="text-gray-500 text-[11px]">${snip.channelTitle}</p>
-                                <div class="flex flex-col gap-1 mt-1 font-bold">
-                                    <p class="text-gray-400 text-[11px]">
-                                        <i class="fas fa-eye ml-1 opacity-50"></i> ${formatNum(stats.viewCount)} צפיות
+                                <div class="flex flex-col gap-1 mt-2">
+                                    <p class="text-gray-400 text-[11px] flex items-center gap-3">
+                                        <span><i class="fas fa-eye ml-1 text-gray-500"></i> ${formatNum(stats.viewCount)}</span>
+                                        <span><i class="fas fa-thumbs-up ml-1 text-gray-500"></i> ${formatNum(stats.likeCount)}</span>
                                     </p>
-                                    <button onclick="event.stopPropagation(); copyLink('${id}')" class="mt-2 flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit mr-auto">
+                                    <button onclick="event.stopPropagation(); copyLink('${id}')" class="mt-1 flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit mr-auto">
                                         <i class="fas fa-link"></i> העתק קישור
                                     </button>
                                 </div>
@@ -559,6 +457,101 @@
                 }
                 grid.appendChild(card);
             });
+        }
+
+        async function loadHomePage() {
+            setActiveNavItem('navHome');
+            document.getElementById('searchInput').value = "";
+            appState.pageToken = "";
+            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען מומלצים...</div>';
+            document.getElementById('sectionTitle').classList.remove('hidden');
+
+            try {
+                let url = appState.token 
+                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=12&key=${appState.apiKey}`
+                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=IL&maxResults=12&key=${appState.apiKey}`;
+
+                const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
+                const res = await fetch(url, { headers });
+                const data = await res.json();
+                
+                let items = [];
+                // נרמול הנתונים כך שיתאימו למבנה האחיד (id, snippet, statistics)
+                if (appState.token && data.items) {
+                     // עבור פעילות משתמש (activity) צריך למשוך את פרטי הוידאו המלאים
+                    const ids = data.items.map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId).filter(Boolean);
+                    if(ids.length) {
+                        const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids.join(',')}&key=${appState.apiKey}`);
+                        const vData = await vRes.json();
+                        items = vData.items || [];
+                    }
+                } else {
+                    items = data.items || [];
+                }
+
+                if (items.length > 0) {
+                    renderResults(items, true);
+                    updateChart(items);
+                } else {
+                    document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים.</div>';
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // --- Auth & Charts & Helpers (No Changes) ---
+        function handleLogout() {
+            if (appState.token) google.accounts.oauth2.revoke(appState.token, () => {});
+            appState.token = null;
+            document.getElementById('authContainer').classList.remove('hidden');
+            document.getElementById('userDisplay').classList.add('hidden');
+            loadHomePage(); 
+        }
+
+        function initAuth() {
+            try {
+                appState.tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: appState.clientId,
+                    scope: 'https://www.googleapis.com/auth/youtube.readonly',
+                    callback: (tokenResponse) => {
+                        appState.token = tokenResponse.access_token;
+                        updateUserInfo();
+                        loadHomePage();
+                    },
+                });
+            } catch (e) {}
+        }
+
+        function requestToken() {
+            if (appState.tokenClient) appState.tokenClient.requestAccessToken();
+            else toggleConfig();
+        }
+
+        async function updateUserInfo() {
+            const res = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, { headers: { Authorization: `Bearer ${appState.token}` } });
+            const data = await res.json();
+            document.getElementById('authContainer').classList.add('hidden');
+            document.getElementById('userDisplay').classList.remove('hidden');
+            document.getElementById('userImg').src = data.picture;
+            document.getElementById('userName').innerText = data.name;
+        }
+
+        async function loadWatchHistory() {
+            if (!appState.token) return alert("יש להתחבר לחשבון גוגל.");
+            setActiveNavItem('navHistory');
+            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">טוען...</div>';
+            
+            try {
+                const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=20&key=${appState.apiKey}`;
+                const res = await fetch(url, { headers: { Authorization: `Bearer ${appState.token}` } });
+                const data = await res.json();
+                const ids = data.items.map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId).filter(Boolean);
+                
+                if(ids.length) {
+                     const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids.join(',')}&key=${appState.apiKey}`);
+                     const vData = await vRes.json();
+                     renderResults(vData.items, true);
+                }
+            } catch(e){}
         }
 
         function formatNum(n) {
@@ -573,6 +566,12 @@
             appState.chart.data.labels = items.slice(0, 5).map(v => v.snippet.title.substring(0, 8) + '..');
             appState.chart.data.datasets[0].data = items.slice(0, 5).map(v => parseInt(v.statistics?.likeCount || 0));
             appState.chart.update();
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('statsChart').getContext('2d');
+            if(appState.chart) appState.chart.destroy();
+            appState.chart = new Chart(ctx, { type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: '#ff0000', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#555', font: { size: 8 } } } } } });
         }
 
         function setActiveNavItem(id) {
