@@ -5,16 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Search Hub - Pro Edition</title>
     
-    <!-- שינוי סמל האתר (Favicon) -->
     <link rel="icon" type="image/x-icon" href="https://www.youtube.com/s/desktop/28b67e7f/img/favicon_32x32.png">
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js for Data Analysis -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <style>
@@ -89,21 +84,28 @@
         .copy-toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        
+        select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: left 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-left: 2.5rem;
+        }
     </style>
 </head>
 <body class="custom-scrollbar">
 
-    <!-- Header -->
     <header class="fixed top-0 left-0 right-0 h-16 bg-[#0f0f0f]/95 border-b border-[#222] flex items-center justify-between px-6 z-[100]">
         <div class="flex items-center gap-5">
             <button class="text-xl p-2 hover:bg-[#272727] rounded-full transition"><i class="fas fa-bars"></i></button>
             <div class="flex items-center gap-1 cursor-pointer" onclick="loadHomePage()">
                 <i class="fab fa-youtube text-[#ff0000] text-3xl"></i>
-                <span class="text-xl font-bold tracking-tight text-white">YouTube</span>
+                <span class="text-xl font-bold tracking-tight text-white hidden md:inline">YouTube</span>
             </div>
         </div>
 
-        <div class="flex-1 max-w-2xl flex items-center px-4">
+        <div class="flex-1 max-w-3xl flex items-center gap-2 px-4">
             <div class="flex w-full group">
                 <input type="text" id="searchInput" placeholder="חיפוש" 
                     class="w-full bg-[#121212] border border-[#303030] rounded-r-full py-2.5 px-5 focus:border-blue-500 outline-none transition text-right text-white">
@@ -112,10 +114,21 @@
                     <i class="fas fa-search text-gray-300"></i>
                 </button>
             </div>
+            
+            <select id="searchType" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סוג תוצאה">
+                <option value="">הכל</option>
+                <option value="video">סרטונים</option>
+                <option value="channel">ערוצים</option>
+            </select>
+            
+            <select id="searchOrder" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סינון לפי">
+                <option value="relevance">רלוונטיות</option>
+                <option value="date">תאריך העלאה</option>
+                <option value="viewCount">מספר צפיות</option>
+            </select>
         </div>
 
         <div class="flex items-center gap-4">
-            <!-- Settings Button -->
             <button onclick="toggleConfig()" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-400" title="הגדרות API וגוגל">
                 <i class="fas fa-cog text-xl"></i>
             </button>
@@ -129,7 +142,6 @@
             <div id="userDisplay" class="hidden flex items-center gap-3">
                 <span id="userName" class="text-xs font-bold hidden md:inline text-gray-400"></span>
                 <img id="userImg" class="w-8 h-8 rounded-full border border-gray-600">
-                <!-- Logout Button -->
                 <button onclick="handleLogout()" class="p-2 hover:bg-[#272727] rounded-full transition text-red-500" title="התנתק">
                     <i class="fas fa-sign-out-alt text-lg"></i>
                 </button>
@@ -138,7 +150,6 @@
     </header>
 
     <div class="flex pt-16 min-h-screen">
-        <!-- Sidebar -->
         <aside class="w-64 fixed right-0 top-16 bottom-0 hidden lg:block bg-[#0f0f0f] border-l border-[#222] p-4 overflow-y-auto custom-scrollbar">
             <nav class="space-y-1">
                 <div onclick="loadHomePage()" class="sidebar-item active" id="navHome">
@@ -167,12 +178,12 @@
             </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="flex-1 lg:mr-64 p-6">
-            <h2 id="sectionTitle" class="text-2xl font-bold mb-6 hidden">מומלצים</h2>
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="sectionTitle" class="text-2xl font-bold hidden">מומלצים</h2>
+                </div>
 
             <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
-                <!-- Initial Welcome -->
                 <div class="col-span-full flex flex-col items-center justify-center py-32 opacity-20 text-center">
                     <i class="fab fa-youtube text-[120px] mb-6"></i>
                     <h3 class="text-2xl font-bold italic">ברוכים הבאים ל-YouTube Search Hub</h3>
@@ -180,7 +191,6 @@
                 </div>
             </div>
 
-            <!-- Pagination -->
             <div id="pagination" class="hidden mt-12 mb-20 flex justify-center">
                 <button id="loadMoreBtn" onclick="performSearch(true)" 
                     class="bg-white text-black px-12 py-3 rounded-full font-bold hover:bg-gray-200 transition shadow-lg">
@@ -190,7 +200,6 @@
         </main>
     </div>
 
-    <!-- Video Modal -->
     <div id="videoModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/90" onclick="closePlayer()"></div>
         <div class="relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333] shadow-2xl">
@@ -215,7 +224,6 @@
         </div>
     </div>
 
-    <!-- Config Modal (API & Client ID) -->
     <div id="configModal" class="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center p-4">
         <div class="bg-[#1a1a1a] p-8 rounded-3xl w-full max-w-md border border-[#333] shadow-2xl">
             <h2 class="text-2xl font-bold mb-2 text-center text-white">הגדרות מערכת</h2>
@@ -247,7 +255,8 @@
             query: "",
             chart: null,
             token: null,
-            tokenClient: null
+            tokenClient: null,
+            searchContext: 'general' // 'general' or 'channel'
         };
 
         // UI Helpers
@@ -357,9 +366,11 @@
 
         async function loadHomePage() {
             setActiveNavItem('navHome');
+            appState.searchContext = 'general';
             document.getElementById('searchInput').value = "";
             appState.pageToken = "";
             document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען...</div>';
+            document.getElementById('pagination').classList.add('hidden');
             
             const titleEl = document.getElementById('sectionTitle');
             titleEl.classList.remove('hidden');
@@ -395,7 +406,9 @@
         async function loadWatchHistory() {
             if (!appState.token) return alert("יש להתחבר לחשבון גוגל.");
             setActiveNavItem('navHistory');
+            appState.searchContext = 'general';
             document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">טוען פעילות...</div>';
+            document.getElementById('pagination').classList.add('hidden');
             
             const titleEl = document.getElementById('sectionTitle');
             titleEl.classList.remove('hidden');
@@ -417,10 +430,21 @@
 
         async function performSearch(loadMore) {
             const query = document.getElementById('searchInput').value.trim();
-            if (!query) return loadHomePage();
+            const order = document.getElementById('searchOrder').value;
+            const type = document.getElementById('searchType').value || 'video,channel'; // Default to mixed
 
+            if (!query && appState.searchContext !== 'channel') return loadHomePage();
+
+            // If we are just paginating inside a channel view
+            if (appState.searchContext === 'channel' && loadMore) {
+                return loadChannelVideos(null, true);
+            }
+
+            // Normal Search
+            appState.searchContext = 'general';
             setActiveNavItem('');
-            document.getElementById('sectionTitle').classList.add('hidden');
+            document.getElementById('sectionTitle').classList.remove('hidden');
+            document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
 
             if (!loadMore) {
                 appState.query = query;
@@ -429,7 +453,7 @@
             }
 
             try {
-                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=12&q=${encodeURIComponent(appState.query)}&type=video&key=${appState.apiKey}`;
+                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=12&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
                 const response = await fetch(url);
@@ -438,9 +462,27 @@
                 appState.pageToken = data.nextPageToken || "";
                 document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
 
-                const videoIds = (data.items || []).map(i => i.id.videoId).filter(Boolean);
-                fetchAndRenderVideos(videoIds, !loadMore);
+                // Split items into videos and channels
+                const items = data.items || [];
+                
+                // Directly render channels mixed with videos
+                renderResults(items, !loadMore);
+
+                // Fetch details for videos (to get view counts etc)
+                const videoIds = items.filter(i => i.id.kind === 'youtube#video').map(i => i.id.videoId);
+                if (videoIds.length) updateVideoStats(videoIds);
+
             } catch (err) { console.error(err); }
+        }
+
+        // Fetch just stats for existing cards to avoid re-rendering
+        async function updateVideoStats(ids) {
+            try {
+                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids.join(',')}&key=${appState.apiKey}`);
+                const data = await res.json();
+                updateChart(data.items || []);
+                // We could update the DOM here if we had IDs on elements, but for now we trust the chart update is enough
+            } catch(e){}
         }
 
         async function fetchAndRenderVideos(ids, clear) {
@@ -448,25 +490,107 @@
             try {
                 const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids.join(',')}&key=${appState.apiKey}`);
                 const data = await res.json();
-                renderResults(data.items || [], clear);
+                // Map format to match Search result format roughly
+                const formatted = data.items.map(item => ({
+                    id: { kind: 'youtube#video', videoId: item.id },
+                    snippet: item.snippet,
+                    statistics: item.statistics
+                }));
+                renderResults(formatted, clear);
                 updateChart(data.items || []);
             } catch (e) { console.error(e); }
         }
 
-        function renderResults(videos, clear) {
+        async function loadChannelVideos(channelId, loadMore = false) {
+            if (!channelId && !appState.query) return; // appState.query holds playlistId in this context
+            
+            if (!loadMore) {
+                // Initial load: Get the Uploads Playlist ID
+                try {
+                    document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען ערוץ...</div>';
+                    document.getElementById('sectionTitle').innerText = "טוען...";
+                    
+                    const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet&id=${channelId}&key=${appState.apiKey}`);
+                    const data = await res.json();
+                    
+                    if (!data.items || !data.items.length) return;
+                    
+                    const channel = data.items[0];
+                    const uploadsPlaylistId = channel.contentDetails.relatedPlaylists.uploads;
+                    
+                    // Set context
+                    appState.query = uploadsPlaylistId; // reusing query var for playlist ID
+                    appState.searchContext = 'channel';
+                    appState.pageToken = "";
+                    
+                    document.getElementById('sectionTitle').innerText = `סרטונים מאת: ${channel.snippet.title}`;
+                } catch(e) { console.error(e); return; }
+            }
+
+            // Fetch Playlist Items
+            try {
+                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=12&playlistId=${appState.query}&key=${appState.apiKey}`;
+                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
+
+                const res = await fetch(url);
+                const data = await res.json();
+
+                appState.pageToken = data.nextPageToken || "";
+                document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
+
+                const formatted = data.items.map(item => ({
+                    id: { kind: 'youtube#video', videoId: item.snippet.resourceId.videoId },
+                    snippet: item.snippet
+                }));
+
+                renderResults(formatted, !loadMore);
+                
+                const videoIds = formatted.map(i => i.id.videoId);
+                if (videoIds.length) updateVideoStats(videoIds);
+
+            } catch(e) { console.error(e); }
+        }
+
+        function renderResults(items, clear) {
             const grid = document.getElementById('resultsGrid');
             if (clear) grid.innerHTML = '';
 
-            videos.forEach(video => {
-                const snip = video.snippet;
-                const stats = video.statistics || {viewCount: '0', likeCount: '0'};
-                const videoId = video.id;
+            items.forEach(item => {
+                const snip = item.snippet;
+                const kind = item.id.kind;
+                
+                // --- Channel Card ---
+                if (kind === 'youtube#channel') {
+                    const channelId = item.id.channelId;
+                    const card = document.createElement('div');
+                    card.className = "video-card group flex flex-col items-center p-4 bg-[#1a1a1a] rounded-2xl cursor-pointer hover:bg-[#252525] transition border border-[#222]";
+                    card.onclick = () => loadChannelVideos(channelId);
+                    card.innerHTML = `
+                        <div class="mb-4">
+                            <img src="${snip.thumbnails.high?.url || snip.thumbnails.medium.url}" class="w-32 h-32 rounded-full object-cover border-2 border-[#333]">
+                        </div>
+                        <h3 class="font-bold text-lg text-center mb-1">${snip.title}</h3>
+                        <p class="text-gray-500 text-xs text-center mb-3">ערוץ</p>
+                        <button class="bg-[#cc0000] text-white text-xs font-bold px-4 py-2 rounded-full hover:bg-red-700 transition">
+                            צפה בסרטונים
+                        </button>
+                    `;
+                    grid.appendChild(card);
+                    return;
+                }
+
+                // --- Video Card ---
+                const videoId = item.id.videoId;
+                if (!videoId) return;
+
+                const stats = item.statistics || { viewCount: '?', likeCount: '?' };
+                const viewText = stats.viewCount === '?' ? '' : formatNum(stats.viewCount) + ' צפיות';
                 
                 const card = document.createElement('div');
                 card.className = "video-card group flex flex-col cursor-pointer";
                 card.innerHTML = `
                     <div class="relative mb-4" onclick="openPlayer('${videoId}', '${snip.title.replace(/'/g, "\\'")}')">
-                        <img src="${snip.thumbnails.high.url}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
+                        <img src="${snip.thumbnails.high?.url || snip.thumbnails.medium?.url}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
                     </div>
                     <div class="flex gap-3 px-1">
                         <div class="w-9 h-9 rounded-full bg-gray-800 flex-shrink-0 border border-[#333] flex items-center justify-center">
@@ -474,13 +598,11 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             <h3 class="font-bold text-[14px] leading-tight line-clamp-2 mb-1 text-right" onclick="openPlayer('${videoId}', '${snip.title.replace(/'/g, "\\'")}')">${snip.title}</h3>
-                            <p class="text-gray-500 text-xs text-right">${snip.channelTitle}</p>
+                            <p class="text-gray-500 text-xs text-right cursor-pointer hover:text-white" onclick="loadChannelVideos('${snip.channelId}')">${snip.channelTitle}</p>
                             <div class="flex flex-col gap-1 mt-1 font-bold text-right">
                                 <p class="text-gray-400 text-[11px]">
-                                    <i class="fas fa-eye ml-1 opacity-50"></i> ${formatNum(stats.viewCount)} צפיות &nbsp;
-                                    <i class="fas fa-thumbs-up ml-1 opacity-50"></i> ${formatNum(stats.likeCount)} לייקים
+                                    ${viewText}
                                 </p>
-                                <!-- Copy Link Button -->
                                 <button onclick="event.stopPropagation(); copyLink('${videoId}')" class="mt-2 flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit mr-auto">
                                     <i class="fas fa-link"></i> העתק קישור
                                 </button>
@@ -500,8 +622,10 @@
 
         function updateChart(items) {
             if (!appState.chart || !items.length) return;
-            appState.chart.data.labels = items.slice(0, 5).map(v => v.snippet.title.substring(0, 8) + '..');
-            appState.chart.data.datasets[0].data = items.slice(0, 5).map(v => parseInt(v.statistics?.likeCount || 0));
+            // Only chart videos with statistics
+            const videoItems = items.filter(v => v.statistics);
+            appState.chart.data.labels = videoItems.slice(0, 5).map(v => v.snippet.title.substring(0, 8) + '..');
+            appState.chart.data.datasets[0].data = videoItems.slice(0, 5).map(v => parseInt(v.statistics?.likeCount || 0));
             appState.chart.update();
         }
 
@@ -553,4 +677,3 @@
     </script>
 </body>
 </html>
-
