@@ -103,22 +103,16 @@
             </div>
         </div>
 
-      <div class="flex-1 max-w-3xl flex items-center px-4 gap-3">
-    <div class="flex w-full group">
-        <input type="text" id="searchInput" placeholder="חיפוש סרטונים וערוצים..." 
-            class="w-full bg-[#121212] border border-[#303030] rounded-r-full py-2.5 px-5 focus:border-blue-500 outline-none transition text-right text-white">
-        <button onclick="performSearch(false)" 
-            class="bg-[#222222] border border-[#303030] border-r-0 rounded-l-full px-6 hover:bg-[#2a2a2a] transition">
-            <i class="fas fa-search text-gray-300"></i>
-        </button>
-    </div>
-    <select id="orderFilter" class="bg-[#222] text-white text-sm border border-[#303030] rounded-full px-4 py-2.5 outline-none cursor-pointer focus:border-red-600 transition">
-        <option value="relevance">רלוונטיות</option>
-        <option value="date">תאריך העלאה</option>
-        <option value="viewCount">הכי נצפים</option>
-        <option value="rating">דירוג גבוה</option>
-    </select>
-</div>
+        <div class="flex-1 max-w-2xl flex items-center px-4">
+            <div class="flex w-full group">
+                <input type="text" id="searchInput" placeholder="חיפוש" 
+                    class="w-full bg-[#121212] border border-[#303030] rounded-r-full py-2.5 px-5 focus:border-blue-500 outline-none transition text-right text-white">
+                <button onclick="performSearch(false)" 
+                    class="bg-[#222222] border border-[#303030] border-r-0 rounded-l-full px-6 hover:bg-[#2a2a2a] transition">
+                    <i class="fas fa-search text-gray-300"></i>
+                </button>
+            </div>
+        </div>
 
         <div class="flex items-center gap-4">
             <!-- Settings Button -->
