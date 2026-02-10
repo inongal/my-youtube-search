@@ -49,8 +49,12 @@
             display: none; 
             backdrop-filter: blur(12px); 
         }
-        #watchView.hidden { display: none !important; }
-        #watchView.active { display: flex !important; }
+        #watchView.hidden {
+            display: none !important;
+        }
+        #watchView.active {
+            display: flex !important;
+        }
 
         #configModal { display: none; backdrop-filter: blur(12px); }
 
@@ -114,11 +118,12 @@
         </div>
 
         <div class="flex-1 max-w-3xl flex items-center gap-2 px-4">
-            <div class="flex items-center gap-1 ml-2 text-gray-400">
-                <button id="navBack" onclick="goBack()" class="p-2 rounded-full hover:bg-[#272727] disabled:opacity-30 disabled:cursor-not-allowed transition" title="חזור" disabled>
+            
+            <div class="flex items-center gap-1 ml-2">
+                <button onclick="goForward()" id="btnForward" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-500 disabled:opacity-30" title="קדימה" disabled>
                     <i class="fas fa-arrow-right"></i>
                 </button>
-                <button id="navForward" onclick="goForward()" class="p-2 rounded-full hover:bg-[#272727] disabled:opacity-30 disabled:cursor-not-allowed transition" title="קדימה" disabled>
+                <button onclick="goBack()" id="btnBack" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-500 disabled:opacity-30" title="אחורה" disabled>
                     <i class="fas fa-arrow-left"></i>
                 </button>
             </div>
@@ -226,12 +231,11 @@
 
     <div id="watchView" class="fixed inset-0 z-[200] items-center justify-center p-4 bg-black/90">
         <div class="absolute inset-0" onclick="minimizePlayer()"></div>
-        
         <div class="relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333] shadow-2xl z-10">
             <div class="p-4 flex justify-between items-center border-b border-[#222]">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2"></h3>
                 <div class="flex gap-2">
-                    <button onclick="minimizePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="מזער והמשך לשמוע ברקע">
+                    <button onclick="minimizePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="מזער">
                         <i class="fas fa-compress text-gray-400"></i>
                     </button>
                     <button onclick="closePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="סגור נגן">
@@ -247,7 +251,7 @@
                     <h2 id="fullTitle" class="text-2xl font-bold mb-4"></h2>
                     <div class="bg-[#222] p-5 rounded-2xl">
                         <p id="modalStats" class="text-sm font-bold mb-3 text-gray-300"></p>
-                        <div id="modalDesc" class="text-sm text-gray-400 leading-relaxed overflow-hidden" style="white-space: pre-wrap;"></div>
+                        <div id="modalDesc" class="text-sm text-gray-400 whitespace-pre-wrap leading-relaxed"></div>
                     </div>
                 </div>
             </div>
@@ -289,29 +293,71 @@
             searchContext: 'general',
             currentVideoId: null,
             isVideoPaused: false,
-            // History Management
+            
+            // --- History System ---
             history: [],
             historyIndex: -1,
-            isNavigating: false // Flag to prevent pushing history during Back/Forward
+            isHistoryNav: false // Flag to prevent pushing history during navigation
         };
 
-        // --- Helper: Make Links Clickable & Fix Line Breaks ---
-        function makeLinksClickable(text) {
-            // 1. Escape HTML to prevent XSS (basic)
-            let escaped = text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-            
-            // 2. Replace URLs with <a> tags
-            let linked = escaped.replace(
-                /(https?:\/\/[^\s]+)/g, 
-                '<a href="$1" target="_blank" class="text-blue-400 hover:text-blue-300 hover:underline break-all">$1</a>'
-            );
-            
-            return linked;
+        // --- History Functions ---
+        function pushHistory(state) {
+            if (appState.isHistoryNav) return;
+
+            // Remove any forward history if we start a new path
+            if (appState.historyIndex < appState.history.length - 1) {
+                appState.history = appState.history.slice(0, appState.historyIndex + 1);
+            }
+
+            appState.history.push(state);
+            appState.historyIndex++;
+            updateNavButtons();
         }
 
+        function updateNavButtons() {
+            const btnBack = document.getElementById('btnBack');
+            const btnForward = document.getElementById('btnForward');
+            
+            btnBack.disabled = appState.historyIndex <= 0;
+            btnForward.disabled = appState.historyIndex >= appState.history.length - 1;
+            
+            btnBack.style.color = btnBack.disabled ? '#444' : '#fff';
+            btnForward.style.color = btnForward.disabled ? '#444' : '#fff';
+        }
+
+        function goBack() {
+            if (appState.historyIndex > 0) {
+                appState.historyIndex--;
+                restoreState(appState.history[appState.historyIndex]);
+            }
+        }
+
+        function goForward() {
+            if (appState.historyIndex < appState.history.length - 1) {
+                appState.historyIndex++;
+                restoreState(appState.history[appState.historyIndex]);
+            }
+        }
+
+        function restoreState(state) {
+            appState.isHistoryNav = true;
+            
+            if (state.type === 'home') {
+                loadHomePage();
+            } else if (state.type === 'search') {
+                document.getElementById('searchInput').value = state.query;
+                performSearch(false);
+            } else if (state.type === 'channel') {
+                loadChannelVideos(state.id);
+            } else if (state.type === 'history') {
+                loadWatchHistory();
+            }
+            
+            updateNavButtons();
+            appState.isHistoryNav = false;
+        }
+
+        // --- Helper Functions ---
         function formatCount(num) {
             const n = parseInt(num);
             if (!n) return '0';
@@ -335,62 +381,7 @@
             return "ממש עכשיו";
         }
 
-        // --- History Logic ---
-        function pushHistory(state) {
-            if (appState.isNavigating) return;
-            
-            // Cut off forward history if we are in the middle of the stack
-            if (appState.historyIndex < appState.history.length - 1) {
-                appState.history = appState.history.slice(0, appState.historyIndex + 1);
-            }
-            
-            appState.history.push(state);
-            appState.historyIndex++;
-            updateNavButtons();
-        }
-
-        function updateNavButtons() {
-            const backBtn = document.getElementById('navBack');
-            const fwdBtn = document.getElementById('navForward');
-            
-            backBtn.disabled = appState.historyIndex <= 0;
-            fwdBtn.disabled = appState.historyIndex >= appState.history.length - 1;
-        }
-
-        function goBack() {
-            if (appState.historyIndex > 0) {
-                appState.historyIndex--;
-                restoreState(appState.history[appState.historyIndex]);
-            }
-        }
-
-        function goForward() {
-            if (appState.historyIndex < appState.history.length - 1) {
-                appState.historyIndex++;
-                restoreState(appState.history[appState.historyIndex]);
-            }
-        }
-
-        function restoreState(state) {
-            appState.isNavigating = true;
-            
-            if (state.type === 'home') {
-                loadHomePage(false); // pass false to indicate no history push
-            } else if (state.type === 'search') {
-                document.getElementById('searchInput').value = state.query;
-                document.getElementById('searchOrder').value = state.order;
-                document.getElementById('searchType').value = state.searchType;
-                appState.query = state.query;
-                performSearch(false, true); // (loadMore, fromHistory)
-            } else if (state.type === 'channel') {
-                loadChannelVideos(state.channelId, false, true); // (id, loadMore, fromHistory)
-            }
-            
-            appState.isNavigating = false;
-            updateNavButtons();
-        }
-
-        // --- Control Logic ---
+        // --- Control Logic (Background Play) ---
         const returnToVideoBtn = document.getElementById('return-to-video-btn');
         const globalPauseBtn = document.getElementById('global-pause-btn');
         const watchView = document.getElementById('watchView');
@@ -411,7 +402,7 @@
         returnToVideoBtn.addEventListener('click', () => {
             watchView.classList.add('active'); 
             watchView.classList.remove('hidden');
-            returnToVideoBtn.classList.add('hidden');
+            returnToVideoBtn.classList.add('hidden'); 
         });
 
         function minimizePlayer() {
@@ -446,7 +437,7 @@
             
             if (appState.clientId) initAuth();
             initChart();
-            loadHomePage(); // This will trigger the first history push
+            loadHomePage();
         }
 
         function handleLogout() {
@@ -529,16 +520,14 @@
             });
         }
 
-        // Modified: Added history pushing logic
-        async function loadHomePage(pushToHistory = true) {
-            if (pushToHistory) {
-                pushHistory({ type: 'home' });
-            }
-
+        async function loadHomePage() {
             setActiveNavItem('navHome');
             appState.searchContext = 'general';
             document.getElementById('searchInput').value = "";
             appState.pageToken = "";
+            
+            // History
+            pushHistory({ type: 'home' });
             
             if (appState.currentVideoId) {
                 minimizePlayer();
@@ -581,13 +570,12 @@
 
         async function loadWatchHistory() {
             if (!appState.token) return alert("יש להתחבר לחשבון גוגל.");
-            
-            // Note: Not adding distinct history state for Watch History to keep it simple, 
-            // or treating it like Home. For now, treating it as a view change without deep history param.
-            
             setActiveNavItem('navHistory');
             appState.searchContext = 'general';
             
+            // History
+            pushHistory({ type: 'history' });
+
             if (appState.currentVideoId) {
                 minimizePlayer();
             } else {
@@ -613,8 +601,7 @@
             } catch(e) { console.error(e); }
         }
 
-        // Modified: Added history pushing logic
-        async function performSearch(loadMore, fromHistory = false) {
+        async function performSearch(loadMore) {
             const query = document.getElementById('searchInput').value.trim();
             const order = document.getElementById('searchOrder').value;
             const type = document.getElementById('searchType').value || 'video,channel';
@@ -625,22 +612,15 @@
                 return loadChannelVideos(null, true);
             }
 
-            // History Push (only if new search)
-            if (!loadMore && !fromHistory) {
-                pushHistory({ 
-                    type: 'search', 
-                    query: query,
-                    order: order,
-                    searchType: type
-                });
-            }
-
             appState.searchContext = 'general';
             setActiveNavItem('');
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
 
             if (!loadMore) {
+                // History: Save search
+                pushHistory({ type: 'search', query: query });
+                
                 appState.query = query;
                 appState.pageToken = "";
                 
@@ -697,16 +677,13 @@
             } catch (e) { console.error(e); }
         }
 
-        // Modified: Added history pushing logic
-        async function loadChannelVideos(channelId, loadMore = false, fromHistory = false) {
+        async function loadChannelVideos(channelId, loadMore = false) {
             if (!channelId && !appState.query) return;
             
             if (!loadMore) {
-                // History Push
-                if (channelId && !fromHistory) {
-                    pushHistory({ type: 'channel', channelId: channelId });
-                }
-
+                // History: Save channel visit
+                pushHistory({ type: 'channel', id: channelId });
+                
                 if (appState.currentVideoId) {
                      minimizePlayer();
                 }
@@ -860,13 +837,12 @@
                 const data = await res.json();
                 const item = data.items[0];
                 if (item) {
-                    // Update: Use makeLinksClickable and set innerHTML instead of innerText
-                    document.getElementById('modalDesc').innerHTML = makeLinksClickable(item.snippet.description);
+                    document.getElementById('modalDesc').innerText = item.snippet.description;
                     document.getElementById('modalStats').innerText = `${parseInt(item.statistics.viewCount).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`;
                 }
             } catch(e) {}
             
-            view.classList.add('active'); 
+            view.classList.add('active');
             view.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
