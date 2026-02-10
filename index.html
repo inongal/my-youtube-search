@@ -6,6 +6,7 @@
     <title>YouTube Search Hub - Pro Edition</title>
     
     <link rel="icon" type="image/x-icon" href="https://www.youtube.com/s/desktop/28b67e7f/img/favicon_32x32.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -14,24 +15,83 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap');
         
-        :root { --yt-main: #0f0f0f; --yt-surface: #272727; --yt-border: #3f3f3f; }
-        body { background-color: var(--yt-main); color: #ffffff; font-family: 'Assistant', sans-serif; margin: 0; overflow-x: hidden; }
-        .chart-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; height: 250px; }
+        :root {
+            --yt-main: #0f0f0f;
+            --yt-surface: #272727;
+            --yt-border: #3f3f3f;
+        }
+
+        body {
+            background-color: var(--yt-main);
+            color: #ffffff;
+            font-family: 'Assistant', sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            height: 250px;
+        }
+
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: var(--yt-main); }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--yt-border); border-radius: 10px; }
+
         .video-card img { transition: transform 0.3s ease; }
         .video-card:hover img { transform: scale(1.02); border-radius: 8px; }
+
         #videoModal, #configModal { display: none; backdrop-filter: blur(12px); }
-        .sidebar-item { display: flex; align-items: center; gap: 20px; padding: 12px; cursor: pointer; border-radius: 12px; transition: background 0.2s; }
+
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 12px;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: background 0.2s;
+        }
         .sidebar-item:hover { background: var(--yt-surface); }
         .sidebar-item.active { background: var(--yt-surface); font-weight: 600; }
-        .copy-toast { visibility: hidden; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 10px 20px; position: fixed; z-index: 1000; bottom: 30px; left: 50%; transform: translateX(-50%); font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+
+        /* Toast Styling */
+        .copy-toast {
+            visibility: hidden;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 50px;
+            padding: 10px 20px;
+            position: fixed;
+            z-index: 1000;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
         .copy-toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
-        .filter-select { background-color: #121212; border: 1px solid #303030; color: #aaa; font-size: 12px; border-radius: 20px; padding: 5px 10px; outline: none; cursor: pointer; }
-        .filter-select:focus { border-color: #3ea6ff; color: white; }
+        
+        select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: left 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-left: 2.5rem;
+        }
     </style>
 </head>
 <body class="custom-scrollbar">
@@ -41,32 +101,50 @@
             <button class="text-xl p-2 hover:bg-[#272727] rounded-full transition"><i class="fas fa-bars"></i></button>
             <div class="flex items-center gap-1 cursor-pointer" onclick="loadHomePage()">
                 <i class="fab fa-youtube text-[#ff0000] text-3xl"></i>
-                <span class="text-xl font-bold tracking-tight text-white">YouTube</span>
+                <span class="text-xl font-bold tracking-tight text-white hidden md:inline">YouTube</span>
             </div>
         </div>
 
-        <div class="flex-1 max-w-4xl flex items-center px-4 gap-2">
+        <div class="flex-1 max-w-3xl flex items-center gap-2 px-4">
             <div class="flex w-full group">
                 <input type="text" id="searchInput" placeholder="חיפוש" 
                     class="w-full bg-[#121212] border border-[#303030] rounded-r-full py-2.5 px-5 focus:border-blue-500 outline-none transition text-right text-white">
-                <button onclick="performSearch(false)" class="bg-[#222222] border border-[#303030] border-r-0 rounded-l-full px-6 hover:bg-[#2a2a2a] transition">
+                <button onclick="performSearch(false)" 
+                    class="bg-[#222222] border border-[#303030] border-r-0 rounded-l-full px-6 hover:bg-[#2a2a2a] transition">
                     <i class="fas fa-search text-gray-300"></i>
                 </button>
             </div>
-            <div class="hidden lg:flex gap-2">
-                <select id="filterOrder" class="filter-select"><option value="relevance">רלוונטיות</option><option value="date">תאריך העלאה</option><option value="viewCount">מספר צפיות</option><option value="rating">דירוג</option></select>
-                <select id="filterDuration" class="filter-select"><option value="any">כל אורך</option><option value="short">קצר (<4 דק')</option><option value="medium">בינוני (4-20 דק')</option><option value="long">ארוך (>20 דק')</option></select>
-                <select id="filterDate" class="filter-select"><option value="any">כל הזמן</option><option value="today">היום</option><option value="week">השבוע</option><option value="month">החודש</option></select>
-            </div>
+            
+            <select id="searchType" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סוג תוצאה">
+                <option value="">הכל</option>
+                <option value="video">סרטונים</option>
+                <option value="channel">ערוצים</option>
+            </select>
+            
+            <select id="searchOrder" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סינון לפי">
+                <option value="relevance">רלוונטיות</option>
+                <option value="date">תאריך העלאה</option>
+                <option value="viewCount">מספר צפיות</option>
+            </select>
         </div>
 
         <div class="flex items-center gap-4">
-            <button onclick="toggleConfig()" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-400"><i class="fas fa-cog text-xl"></i></button>
-            <div id="authContainer"><button onclick="requestToken()" class="bg-[#272727] hover:bg-[#3f3f3f] px-4 py-2 rounded-full text-sm font-bold border border-[#444] transition">התחברות</button></div>
+            <button onclick="toggleConfig()" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-400" title="הגדרות API וגוגל">
+                <i class="fas fa-cog text-xl"></i>
+            </button>
+            
+            <div id="authContainer">
+                <button onclick="requestToken()" class="bg-[#272727] hover:bg-[#3f3f3f] px-4 py-2 rounded-full text-sm font-bold border border-[#444] transition">
+                    התחברות
+                </button>
+            </div>
+            
             <div id="userDisplay" class="hidden flex items-center gap-3">
                 <span id="userName" class="text-xs font-bold hidden md:inline text-gray-400"></span>
                 <img id="userImg" class="w-8 h-8 rounded-full border border-gray-600">
-                <button onclick="handleLogout()" class="p-2 hover:bg-[#272727] rounded-full transition text-red-500"><i class="fas fa-sign-out-alt text-lg"></i></button>
+                <button onclick="handleLogout()" class="p-2 hover:bg-[#272727] rounded-full transition text-red-500" title="התנתק">
+                    <i class="fas fa-sign-out-alt text-lg"></i>
+                </button>
             </div>
         </div>
     </header>
@@ -74,27 +152,50 @@
     <div class="flex pt-16 min-h-screen">
         <aside class="w-64 fixed right-0 top-16 bottom-0 hidden lg:block bg-[#0f0f0f] border-l border-[#222] p-4 overflow-y-auto custom-scrollbar">
             <nav class="space-y-1">
-                <div onclick="loadHomePage()" class="sidebar-item active" id="navHome"><i class="fas fa-house text-lg"></i><span>דף הבית</span></div>
-                <div class="sidebar-item"><i class="fas fa-bolt text-lg"></i><span>Shorts</span></div>
-                <div class="sidebar-item"><i class="fas fa-layer-group text-lg"></i><span>מנויים</span></div>
+                <div onclick="loadHomePage()" class="sidebar-item active" id="navHome">
+                    <i class="fas fa-house text-lg"></i><span>דף הבית</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="fas fa-bolt text-lg"></i><span>Shorts</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="fas fa-layer-group text-lg"></i><span>מנויים</span>
+                </div>
                 <hr class="my-3 border-[#222]">
-                <div onclick="loadWatchHistory()" class="sidebar-item" id="navHistory"><i class="fas fa-history text-lg"></i><span>היסטוריה</span></div>
-                <div class="sidebar-item"><i class="fas fa-thumbs-up text-lg"></i><span>אהבתי</span></div>
+                <div onclick="loadWatchHistory()" class="sidebar-item" id="navHistory">
+                    <i class="fas fa-history text-lg"></i><span>היסטוריית צפייה</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="fas fa-thumbs-up text-lg"></i><span>סרטונים שאהבתי</span>
+                </div>
             </nav>
-            <div class="mt-8"><h4 class="px-3 text-xs font-bold text-gray-500 mb-4 uppercase text-right">ניתוח נתונים</h4><div class="chart-container"><canvas id="statsChart"></canvas></div></div>
+            
+            <div class="mt-8">
+                <h4 class="px-3 text-xs font-bold text-gray-500 mb-4 uppercase tracking-wider text-right">ניתוח נתונים</h4>
+                <div class="chart-container">
+                    <canvas id="statsChart"></canvas>
+                </div>
+            </div>
         </aside>
 
         <main class="flex-1 lg:mr-64 p-6">
-            <h2 id="sectionTitle" class="text-2xl font-bold mb-6 hidden">מומלצים</h2>
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="sectionTitle" class="text-2xl font-bold hidden">מומלצים</h2>
+            </div>
+
             <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                 <div class="col-span-full flex flex-col items-center justify-center py-32 opacity-20 text-center">
                     <i class="fab fa-youtube text-[120px] mb-6"></i>
-                    <h3 class="text-2xl font-bold italic">ברוכים הבאים</h3>
-                    <p class="text-sm mt-2">הגדר מפתח API כדי להתחיל</p>
+                    <h3 class="text-2xl font-bold italic">ברוכים הבאים ל-YouTube Search Hub</h3>
+                    <p class="text-sm mt-2">הגדר מפתח API כדי להתחיל לחקור</p>
                 </div>
             </div>
+
             <div id="pagination" class="hidden mt-12 mb-20 flex justify-center">
-                <button id="loadMoreBtn" onclick="performSearch(true)" class="bg-white text-black px-12 py-3 rounded-full font-bold hover:bg-gray-200 transition shadow-lg">טען עוד</button>
+                <button id="loadMoreBtn" onclick="performSearch(true)" 
+                    class="bg-white text-black px-12 py-3 rounded-full font-bold hover:bg-gray-200 transition shadow-lg">
+                    טען תוצאות נוספות
+                </button>
             </div>
         </main>
     </div>
@@ -104,255 +205,513 @@
         <div class="relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333] shadow-2xl">
             <div class="p-4 flex justify-between items-center border-b border-[#222]">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2"></h3>
-                <button onclick="closePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition"><i class="fas fa-times text-xl"></i></button>
+                <button onclick="closePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
             </div>
             <div class="flex-1 overflow-y-auto custom-scrollbar">
-                <div class="aspect-video w-full bg-black"><iframe id="playerFrame" class="w-full h-full" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe></div>
-                <div class="p-8"><h2 id="fullTitle" class="text-2xl font-bold mb-4"></h2><div class="bg-[#222] p-5 rounded-2xl"><p id="modalStats" class="text-sm font-bold mb-3 text-gray-300"></p><div id="modalDesc" class="text-sm text-gray-400 whitespace-pre-wrap leading-relaxed"></div></div></div>
+                <div class="aspect-video w-full bg-black">
+                    <iframe id="playerFrame" class="w-full h-full" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                </div>
+                <div class="p-8">
+                    <h2 id="fullTitle" class="text-2xl font-bold mb-4"></h2>
+                    <div class="bg-[#222] p-5 rounded-2xl">
+                        <p id="modalStats" class="text-sm font-bold mb-3 text-gray-300"></p>
+                        <div id="modalDesc" class="text-sm text-gray-400 whitespace-pre-wrap leading-relaxed"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <div id="configModal" class="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center p-4">
         <div class="bg-[#1a1a1a] p-8 rounded-3xl w-full max-w-md border border-[#333] shadow-2xl">
-            <h2 class="text-2xl font-bold mb-2 text-center text-white">הגדרות</h2>
+            <h2 class="text-2xl font-bold mb-2 text-center text-white">הגדרות מערכת</h2>
+            <p class="text-gray-500 text-xs text-center mb-6">כאן תוכל לעדכן את מפתחות הגישה שלך</p>
             <div class="space-y-5 text-right">
-                <input type="password" id="apiKeyInput" placeholder="YouTube Data API Key" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 text-white">
-                <input type="text" id="clientIdInput" placeholder="Google Client ID" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 text-white">
-                <button onclick="saveAndStart()" class="w-full bg-white text-black py-4 rounded-xl font-bold">שמור והפעל</button>
-                <button onclick="toggleConfig()" class="w-full bg-[#222] text-white py-4 rounded-xl font-bold">ביטול</button>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">YouTube Data API Key</label>
+                    <input type="password" id="apiKeyInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-red-600 transition text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Google Client ID</label>
+                    <input type="text" id="clientIdInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-blue-600 transition text-white">
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button onclick="saveAndStart()" class="flex-1 bg-white text-black py-4 rounded-xl font-bold hover:bg-gray-200 transition">שמור והפעל</button>
+                    <button onclick="toggleConfig()" class="px-6 bg-[#222] text-white py-4 rounded-xl font-bold transition">ביטול</button>
+                </div>
             </div>
         </div>
     </div>
-    <div id="toast" class="copy-toast">הקישור הועתק!</div>
+
+    <div id="toast" class="copy-toast">הקישור הועתק ללוח!</div>
 
     <script>
-        let appState = { apiKey: localStorage.getItem('yt_api_key')||"", clientId: localStorage.getItem('yt_client_id')||"", pageToken: "", query: "", chart: null, token: null, tokenClient: null };
-
-        window.onload = () => {
-            if(appState.apiKey) { document.getElementById('apiKeyInput').value = appState.apiKey; document.getElementById('clientIdInput').value = appState.clientId; saveAndStart(); }
-            else toggleConfig();
+        let appState = {
+            apiKey: "",
+            clientId: "",
+            pageToken: "",
+            query: "",
+            chart: null,
+            token: null,
+            tokenClient: null,
+            searchContext: 'general'
         };
 
-        function toggleConfig() { const m = document.getElementById('configModal'); m.style.display = (m.style.display === 'flex') ? 'none' : 'flex'; }
-        
+        // --- Helper Functions for Formatting (New) ---
+        function formatCount(num) {
+            const n = parseInt(num);
+            if (!n) return '0';
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+            return n.toLocaleString();
+        }
+
+        function timeSince(date) {
+            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+            let interval = seconds / 31536000;
+
+            if (interval > 1) return "לפני " + Math.floor(interval) + " שנים";
+            interval = seconds / 2592000;
+            if (interval > 1) return "לפני " + Math.floor(interval) + " חודשים";
+            interval = seconds / 86400;
+            if (interval > 1) return "לפני " + Math.floor(interval) + " ימים";
+            interval = seconds / 3600;
+            if (interval > 1) return "לפני " + Math.floor(interval) + " שעות";
+            interval = seconds / 60;
+            if (interval > 1) return "לפני " + Math.floor(interval) + " דקות";
+            return "ממש עכשיו";
+        }
+
+        // UI Helpers
+        function toggleConfig() {
+            const modal = document.getElementById('configModal');
+            modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+        }
+
         function saveAndStart() {
-            appState.apiKey = document.getElementById('apiKeyInput').value.trim();
-            appState.clientId = document.getElementById('clientIdInput').value.trim();
-            if(!appState.apiKey) return alert("חובה להזין API Key");
+            const newKey = document.getElementById('apiKeyInput').value.trim();
+            const newClientId = document.getElementById('clientIdInput').value.trim();
+            
+            if (!newKey) return alert("נא להזין API Key לפחות.");
+            
+            appState.apiKey = newKey;
+            appState.clientId = newClientId;
+            
             localStorage.setItem('yt_api_key', appState.apiKey);
             localStorage.setItem('yt_client_id', appState.clientId);
+            
             document.getElementById('configModal').style.display = 'none';
-            if(appState.clientId) initAuth();
-            try { initChart(); } catch(e){}
+            
+            if (appState.clientId) initAuth();
+            initChart();
             loadHomePage();
         }
 
-        async function performSearch(loadMore) {
-            const query = document.getElementById('searchInput').value.trim();
-            const order = document.getElementById('filterOrder').value;
-            const duration = document.getElementById('filterDuration').value;
-            const date = document.getElementById('filterDate').value;
-
-            if (!query) return loadHomePage();
-            if (!loadMore) { appState.query = query; appState.pageToken = ""; document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>'; }
-
-            try {
-                let type = (duration !== 'any' || date !== 'any') ? 'video' : 'video,channel';
-                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=12&q=${encodeURIComponent(appState.query)}&type=${type}&order=${order}&key=${appState.apiKey}`;
-                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
-                if (duration !== 'any') url += `&videoDuration=${duration}`;
-                if (date !== 'any') {
-                    const now = new Date();
-                    if (date === 'today') now.setDate(now.getDate() - 1);
-                    if (date === 'week') now.setDate(now.getDate() - 7);
-                    if (date === 'month') now.setMonth(now.getMonth() - 1);
-                    url += `&publishedAfter=${now.toISOString()}`;
-                }
-
-                const res = await fetch(url);
-                const data = await res.json();
-                if (data.error) throw data.error;
-
-                appState.pageToken = data.nextPageToken || "";
-                document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
-
-                const items = data.items || [];
-                // שליפת IDים לצורך סטטיסטיקות
-                const videoIds = items.filter(i => i.id.kind === 'youtube#video').map(i => i.id.videoId);
-                
-                let statsMap = {};
-                if(videoIds.length > 0) {
-                    try {
-                        const sRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoIds.join(',')}&key=${appState.apiKey}`);
-                        const sData = await sRes.json();
-                        sData.items?.forEach(i => statsMap[i.id] = i.statistics); // שימוש ב-i.id (מחרוזת) כמפתח
-                    } catch(e){}
-                }
-
-                // מיזוג תוצאות
-                const finalItems = items.map(item => {
-                    if(item.id.kind === 'youtube#video') {
-                        return { ...item, statistics: statsMap[item.id.videoId] }; // שימוש ב-videoId כמפתח לשליפה
-                    }
-                    return item;
+        function handleLogout() {
+            if (appState.token) {
+                google.accounts.oauth2.revoke(appState.token, () => {
+                    console.log('Token revoked.');
                 });
-
-                if(finalItems.length === 0) document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center opacity-50">לא נמצאו תוצאות</div>';
-                else renderResults(finalItems, !loadMore);
-
-                if(videoIds.length > 0) updateChart(Object.values(statsMap).map(s => ({statistics: s, snippet: {title: "Stat"}}))); // Placeholder for chart
-
-            } catch (err) { console.error(err); document.getElementById('resultsGrid').innerHTML = 'שגיאה בחיפוש'; }
+            }
+            appState.token = null;
+            document.getElementById('authContainer').classList.remove('hidden');
+            document.getElementById('userDisplay').classList.add('hidden');
+            document.getElementById('userName').innerText = '';
+            document.getElementById('userImg').src = '';
+            loadHomePage(); 
         }
 
-        async function loadChannelVideos(channelId, title) {
-            document.getElementById('searchInput').value = `ערוץ: ${title}`;
-            appState.query = title; // For context
-            appState.pageToken = "";
-            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען את הערוץ...</div>';
+        window.onload = () => {
+            const savedKey = localStorage.getItem('yt_api_key');
+            const savedClient = localStorage.getItem('yt_client_id');
+            if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
+            if(savedClient) document.getElementById('clientIdInput').value = savedClient;
             
+            if(savedKey) {
+                appState.apiKey = savedKey;
+                appState.clientId = savedClient;
+                saveAndStart();
+            } else {
+                toggleConfig();
+            }
+        };
+
+        function initAuth() {
             try {
-                // חיפוש סרטונים מהערוץ הספציפי
-                const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=12&order=date&type=video&key=${appState.apiKey}`;
-                const res = await fetch(url);
-                const data = await res.json();
-                
-                const items = data.items || [];
-                const videoIds = items.map(i => i.id.videoId);
-                let statsMap = {};
-
-                if(videoIds.length > 0) {
-                    const sRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoIds.join(',')}&key=${appState.apiKey}`);
-                    const sData = await sRes.json();
-                    sData.items?.forEach(i => statsMap[i.id] = i.statistics);
-                }
-
-                const finalItems = items.map(item => ({ ...item, statistics: statsMap[item.id.videoId] }));
-                
-                if(finalItems.length === 0) document.getElementById('resultsGrid').innerHTML = 'הערוץ ריק';
-                else renderResults(finalItems, true);
-
-            } catch(e) { console.error(e); alert("שגיאה בטעינת הערוץ"); }
+                appState.tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: appState.clientId,
+                    scope: 'https://www.googleapis.com/auth/youtube.readonly',
+                    callback: (tokenResponse) => {
+                        if (tokenResponse.error !== undefined) throw (tokenResponse);
+                        appState.token = tokenResponse.access_token;
+                        updateUserInfo();
+                        loadHomePage();
+                    },
+                });
+            } catch (e) { console.error("Auth init error", e); }
         }
 
-        function renderResults(items, clear) {
-            const grid = document.getElementById('resultsGrid');
-            if (clear) grid.innerHTML = '';
+        function requestToken() {
+            if (appState.tokenClient) {
+                appState.tokenClient.requestAccessToken();
+            } else {
+                alert("אנא הגדר Client ID תקין בהגדרות כדי להתחבר.");
+                toggleConfig();
+            }
+        }
 
-            items.forEach(item => {
-                const snip = item.snippet;
-                const isChan = (item.id.kind === 'youtube#channel');
-                const id = isChan ? item.id.channelId : (item.id.videoId || item.id);
-                const stats = item.statistics || { viewCount: 0, likeCount: 0 };
-                
-                const card = document.createElement('div');
-                card.className = "video-card group flex flex-col cursor-pointer";
-                
-                if (isChan) {
-                    card.innerHTML = `
-                        <div class="flex flex-col items-center py-6 bg-[#1a1a1a] rounded-2xl border border-[#333] hover:border-red-600 transition h-full" 
-                             onclick="loadChannelVideos('${id}', '${snip.title.replace(/'/g, "\\'")}')">
-                            <img src="${snip.thumbnails.high.url}" class="w-24 h-24 rounded-full mb-4 border-2 border-[#333] object-cover">
-                            <h3 class="font-bold text-md text-white text-center px-4 line-clamp-1">${snip.title}</h3>
-                            <span class="bg-[#272727] text-gray-400 text-[10px] px-3 py-1 rounded-full mt-3 font-bold">ערוץ - לחץ לכניסה</span>
-                        </div>`;
-                } else {
-                    card.innerHTML = `
-                        <div class="relative mb-4" onclick="openPlayer('${id}', '${snip.title.replace(/'/g, "\\'")}')">
-                            <img src="${snip.thumbnails.high.url}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
-                        </div>
-                        <div class="flex gap-3 px-1 text-right" dir="rtl">
-                            <div class="w-9 h-9 rounded-full bg-gray-800 flex-shrink-0 border border-[#333] flex items-center justify-center">
-                                <i class="fas fa-video text-[10px] opacity-30"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <h3 class="font-bold text-[14px] leading-tight line-clamp-2 mb-1 text-white" onclick="openPlayer('${id}', '${snip.title.replace(/'/g, "\\'")}')">${snip.title}</h3>
-                                <p class="text-gray-500 text-[11px]">${snip.channelTitle}</p>
-                                <div class="flex gap-3 mt-2 text-gray-400 text-[11px] font-bold">
-                                    <span><i class="fas fa-eye ml-1"></i> ${formatNum(stats.viewCount)}</span>
-                                    <span><i class="fas fa-thumbs-up ml-1"></i> ${formatNum(stats.likeCount)}</span>
-                                </div>
-                                <button onclick="event.stopPropagation(); copyLink('${id}')" class="mt-2 flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit mr-auto">
-                                    <i class="fas fa-link"></i> העתק קישור
-                                </button>
-                            </div>
-                        </div>`;
+        async function updateUserInfo() {
+            try {
+                const res = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, {
+                    headers: { Authorization: `Bearer ${appState.token}` }
+                });
+                const data = await res.json();
+                document.getElementById('authContainer').classList.add('hidden');
+                document.getElementById('userDisplay').classList.remove('hidden');
+                document.getElementById('userImg').src = data.picture;
+                document.getElementById('userName').innerText = data.name;
+            } catch(e) { console.error("UserInfo fetch error", e); }
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('statsChart').getContext('2d');
+            if(appState.chart) appState.chart.destroy();
+            appState.chart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ data: [], backgroundColor: '#ff0000', borderRadius: 4 }] },
+                options: { 
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }, 
+                    scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#555', font: { size: 8 } } } } 
                 }
-                grid.appendChild(card);
             });
         }
 
         async function loadHomePage() {
             setActiveNavItem('navHome');
+            appState.searchContext = 'general';
             document.getElementById('searchInput').value = "";
             appState.pageToken = "";
-            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען מומלצים...</div>';
-            document.getElementById('sectionTitle').classList.remove('hidden');
+            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען...</div>';
+            document.getElementById('pagination').classList.add('hidden');
+            
+            const titleEl = document.getElementById('sectionTitle');
+            titleEl.classList.remove('hidden');
+            titleEl.innerText = appState.token ? "מומלצים עבורך" : "סרטונים פופולריים בישראל";
 
             try {
                 let url = appState.token 
                     ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=12&key=${appState.apiKey}`
                     : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=IL&maxResults=12&key=${appState.apiKey}`;
 
-                const res = await fetch(url, { headers: appState.token ? { Authorization: `Bearer ${appState.token}` } : {} });
+                const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
+                const res = await fetch(url, { headers });
                 const data = await res.json();
                 
-                let items = data.items || [];
-                // אם זה Home רגיל (popular), המבנה של ID הוא מחרוזת, צריך לנרמל כדי שrenderResults יעבוד
-                if (!appState.token) {
-                    // המרת מבנה פופולרי למבנה אחיד
-                    items = items.map(i => ({...i, id: {kind: 'youtube#video', videoId: i.id}}));
-                } else {
-                    // טיפול בפעילות משתמש (activity) - נדרש שליפה נוספת לסטטיסטיקות
-                    const ids = items.map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId).filter(Boolean);
-                    if(ids.length) {
-                         const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids.join(',')}&key=${appState.apiKey}`);
-                         const vData = await vRes.json();
-                         items = vData.items.map(i => ({...i, id: {kind: 'youtube#video', videoId: i.id}}));
-                    }
+                let videoIds = [];
+                if (appState.token && data.items) {
+                    videoIds = data.items
+                        .filter(i => i.contentDetails.upload || i.contentDetails.playlistItem)
+                        .map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId)
+                        .filter(Boolean);
+                } else if (data.items) {
+                    videoIds = data.items.map(i => i.id);
                 }
-                
-                renderResults(items, true);
-                updateChart(items);
+
+                if (videoIds.length > 0) {
+                    fetchAndRenderVideos(videoIds, true);
+                } else {
+                    document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים להצגה.</div>';
+                }
             } catch (err) { console.error(err); }
         }
 
-        function formatNum(n) { const num = parseInt(n) || 0; if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'; if (num >= 1000) return (num / 1000).toFixed(1) + 'K'; return num.toLocaleString(); }
-        function updateChart(items) { if (!appState.chart || !items.length) return; appState.chart.data.labels = items.slice(0, 5).map(v => v.snippet.title.substring(0, 8) + '..'); appState.chart.data.datasets[0].data = items.slice(0, 5).map(v => parseInt(v.statistics?.likeCount || 0)); appState.chart.update(); }
-        function initChart() { const ctx = document.getElementById('statsChart').getContext('2d'); if(appState.chart) appState.chart.destroy(); appState.chart = new Chart(ctx, { type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: '#ff0000', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#555', font: { size: 8 } } } } } }); }
-        
-        // Auth & Helpers
-        function handleLogout() { if (appState.token) google.accounts.oauth2.revoke(appState.token); appState.token = null; document.getElementById('authContainer').classList.remove('hidden'); document.getElementById('userDisplay').classList.add('hidden'); loadHomePage(); }
-        function initAuth() { try { appState.tokenClient = google.accounts.oauth2.initTokenClient({ client_id: appState.clientId, scope: 'https://www.googleapis.com/auth/youtube.readonly', callback: (res) => { appState.token = res.access_token; updateUserInfo(); loadHomePage(); }}); } catch (e) {} }
-        function requestToken() { if (appState.tokenClient) appState.tokenClient.requestAccessToken(); else toggleConfig(); }
-        async function updateUserInfo() { const res = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, { headers: { Authorization: `Bearer ${appState.token}` } }); const data = await res.json(); document.getElementById('authContainer').classList.add('hidden'); document.getElementById('userDisplay').classList.remove('hidden'); document.getElementById('userImg').src = data.picture; document.getElementById('userName').innerText = data.name; }
-        
         async function loadWatchHistory() {
-            if (!appState.token) return alert("נדרש חשבון גוגל");
+            if (!appState.token) return alert("יש להתחבר לחשבון גוגל.");
             setActiveNavItem('navHistory');
-            document.getElementById('resultsGrid').innerHTML = 'טוען...';
+            appState.searchContext = 'general';
+            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">טוען פעילות...</div>';
+            document.getElementById('pagination').classList.add('hidden');
+            
+            const titleEl = document.getElementById('sectionTitle');
+            titleEl.classList.remove('hidden');
+            titleEl.innerText = "פעילות אחרונה בחשבון";
+
             try {
                 const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=20&key=${appState.apiKey}`;
                 const res = await fetch(url, { headers: { Authorization: `Bearer ${appState.token}` } });
                 const data = await res.json();
-                const ids = data.items.map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId).filter(Boolean);
-                if(ids.length) {
-                    const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids.join(',')}&key=${appState.apiKey}`);
-                    const vData = await vRes.json();
-                    renderResults(vData.items.map(i => ({...i, id: {kind: 'youtube#video', videoId: i.id}})), true);
-                }
-            } catch(e){}
+
+                const videoIds = (data.items || [])
+                    .map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId || i.contentDetails.like?.resourceId?.videoId)
+                    .filter(Boolean);
+
+                if(videoIds.length > 0) fetchAndRenderVideos(videoIds, true);
+                else document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאה פעילות אחרונה.</div>';
+            } catch(e) { console.error(e); }
         }
 
-        function setActiveNavItem(id) { document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active')); if(id) document.getElementById(id).classList.add('active'); }
-        async function openPlayer(id, title) {
-            const modal = document.getElementById('videoModal'); document.getElementById('modalTitle').innerText = title; document.getElementById('fullTitle').innerText = title; document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1`;
-            try { const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${id}&key=${appState.apiKey}`); const data = await res.json(); if (data.items?.[0]) { const item = data.items[0]; document.getElementById('modalDesc').innerText = item.snippet.description; document.getElementById('modalStats').innerText = `${parseInt(item.statistics.viewCount).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`; } } catch(e){}
-            modal.style.display = 'flex';
+        async function performSearch(loadMore) {
+            const query = document.getElementById('searchInput').value.trim();
+            const order = document.getElementById('searchOrder').value;
+            const type = document.getElementById('searchType').value || 'video,channel';
+
+            if (!query && appState.searchContext !== 'channel') return loadHomePage();
+
+            if (appState.searchContext === 'channel' && loadMore) {
+                return loadChannelVideos(null, true);
+            }
+
+            appState.searchContext = 'general';
+            setActiveNavItem('');
+            document.getElementById('sectionTitle').classList.remove('hidden');
+            document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
+
+            if (!loadMore) {
+                appState.query = query;
+                appState.pageToken = "";
+                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>';
+            }
+
+            try {
+                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=12&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
+                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                appState.pageToken = data.nextPageToken || "";
+                document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
+
+                const items = data.items || [];
+                
+                // For search results, we render immediately but then fetch stats
+                // To support the new detailed view, we need to fetch stats BEFORE rendering if possible, 
+                // OR render then update. The best UX is to fetch details then render.
+                
+                const videoIds = items.filter(i => i.id.kind === 'youtube#video').map(i => i.id.videoId);
+                const channelItems = items.filter(i => i.id.kind === 'youtube#channel');
+                
+                // If we have videos, fetch their details (stats)
+                if (videoIds.length > 0) {
+                     const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds.join(',')}&key=${appState.apiKey}`);
+                     const statsData = await statsRes.json();
+                     
+                     // Combine channel items with fetched video details
+                     const combinedItems = [...channelItems, ...statsData.items.map(i => ({
+                         id: { kind: 'youtube#video', videoId: i.id },
+                         snippet: i.snippet,
+                         statistics: i.statistics
+                     }))];
+                     
+                     renderResults(combinedItems, !loadMore);
+                     updateChart(statsData.items || []);
+                } else {
+                    renderResults(channelItems, !loadMore);
+                }
+
+            } catch (err) { console.error(err); }
         }
-        function closePlayer() { document.getElementById('videoModal').style.display = 'none'; document.getElementById('playerFrame').src = ''; }
-        function copyLink(id) { const url = `https://www.youtube.com/watch?v=${id}`; navigator.clipboard.writeText(url); const toast = document.getElementById('toast'); toast.className = "copy-toast show"; setTimeout(() => { toast.className = "copy-toast"; }, 3000); }
+
+        async function fetchAndRenderVideos(ids, clear) {
+            if (!ids.length) return;
+            try {
+                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids.join(',')}&key=${appState.apiKey}`);
+                const data = await res.json();
+                const formatted = data.items.map(item => ({
+                    id: { kind: 'youtube#video', videoId: item.id },
+                    snippet: item.snippet,
+                    statistics: item.statistics
+                }));
+                renderResults(formatted, clear);
+                updateChart(data.items || []);
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadChannelVideos(channelId, loadMore = false) {
+            if (!channelId && !appState.query) return;
+            
+            if (!loadMore) {
+                try {
+                    document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען ערוץ...</div>';
+                    document.getElementById('sectionTitle').innerText = "טוען...";
+                    
+                    const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet&id=${channelId}&key=${appState.apiKey}`);
+                    const data = await res.json();
+                    
+                    if (!data.items || !data.items.length) return;
+                    
+                    const channel = data.items[0];
+                    const uploadsPlaylistId = channel.contentDetails.relatedPlaylists.uploads;
+                    
+                    appState.query = uploadsPlaylistId; 
+                    appState.searchContext = 'channel';
+                    appState.pageToken = "";
+                    
+                    document.getElementById('sectionTitle').innerText = `סרטונים מאת: ${channel.snippet.title}`;
+                } catch(e) { console.error(e); return; }
+            }
+
+            try {
+                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=12&playlistId=${appState.query}&key=${appState.apiKey}`;
+                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
+
+                const res = await fetch(url);
+                const data = await res.json();
+
+                appState.pageToken = data.nextPageToken || "";
+                document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
+
+                // Need to fetch stats for playlist items
+                const videoIds = data.items.map(item => item.snippet.resourceId.videoId).join(',');
+                if(videoIds) {
+                    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}&key=${appState.apiKey}`);
+                    const statsData = await statsRes.json();
+                     const formatted = statsData.items.map(item => ({
+                        id: { kind: 'youtube#video', videoId: item.id },
+                        snippet: item.snippet,
+                        statistics: item.statistics
+                    }));
+                    renderResults(formatted, !loadMore);
+                    updateChart(statsData.items);
+                }
+
+            } catch(e) { console.error(e); }
+        }
+
+        // --- Modified Render Function with Requested Logic ---
+        function renderResults(items, clear) {
+            const grid = document.getElementById('resultsGrid');
+            if (clear) grid.innerHTML = '';
+
+            items.forEach(item => {
+                const snip = item.snippet;
+                const kind = item.id.kind;
+                
+                // --- Channel Card ---
+                if (kind === 'youtube#channel') {
+                    const channelId = item.id.channelId;
+                    const card = document.createElement('div');
+                    card.className = "video-card group flex flex-col items-center p-4 bg-[#1a1a1a] rounded-2xl cursor-pointer hover:bg-[#252525] transition border border-[#222]";
+                    card.onclick = () => loadChannelVideos(channelId);
+                    card.innerHTML = `
+                        <div class="mb-4">
+                            <img src="${snip.thumbnails.high?.url || snip.thumbnails.medium.url}" class="w-32 h-32 rounded-full object-cover border-2 border-[#333]">
+                        </div>
+                        <h3 class="font-bold text-lg text-center mb-1">${snip.title}</h3>
+                        <p class="text-gray-500 text-xs text-center mb-3">ערוץ</p>
+                        <button class="bg-[#cc0000] text-white text-xs font-bold px-4 py-2 rounded-full hover:bg-red-700 transition">
+                            צפה בסרטונים
+                        </button>
+                    `;
+                    grid.appendChild(card);
+                    return;
+                }
+
+                // --- Video Card ---
+                const videoId = item.id.videoId;
+                if (!videoId) return;
+
+                // --- INTEGRATED LOGIC START ---
+                let viewsText = '';
+                let likesText = '';
+                let timeText = '';
+                const title = snip.title.replace(/'/g, "\\'");
+                const channelTitle = snip.channelTitle;
+
+                // Check if we have statistics (Video object)
+                if (item.statistics) {
+                    const views = item.statistics.viewCount;
+                    const likes = item.statistics.likeCount;
+                    const date = snip.publishedAt;
+                    
+                    if(views) viewsText = `${formatCount(views)} צפיות`;
+                    if(likes) likesText = ` • ${formatCount(likes)} לייקים`;
+                    if(date) timeText = ` • ${timeSince(date)}`;
+                }
+                // --- INTEGRATED LOGIC END ---
+
+                const card = document.createElement('div');
+                card.className = "video-card group flex flex-col cursor-pointer";
+                card.innerHTML = `
+                    <div class="relative mb-4" onclick="openPlayer('${videoId}', '${title}')">
+                        <img src="${snip.thumbnails.high?.url || snip.thumbnails.medium?.url}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
+                    </div>
+                    <div class="flex gap-3 px-1">
+                        <div class="w-9 h-9 rounded-full bg-gray-800 flex-shrink-0 border border-[#333] flex items-center justify-center">
+                            <i class="fas fa-play text-[10px] opacity-30"></i>
+                        </div>
+                        
+                        <div class="flex-1">
+                            <h3 class="text-white font-semibold text-base leading-snug line-clamp-2" title="${snip.title}" onclick="openPlayer('${videoId}', '${title}')">${snip.title}</h3>
+                            <div class="text-[#aaaaaa] text-sm mt-1">
+                                <p class="hover:text-white transition-colors" onclick="loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
+                                <p>${viewsText}${likesText}${timeText}</p> 
+                            </div>
+                            
+                            <button onclick="event.stopPropagation(); copyLink('${videoId}')" class="mt-3 flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit mr-auto">
+                                <i class="fas fa-link"></i> העתק קישור
+                            </button>
+                        </div>
+                    </div>`;
+                grid.appendChild(card);
+            });
+        }
+
+        function updateChart(items) {
+            if (!appState.chart || !items.length) return;
+            const videoItems = items.filter(v => v.statistics);
+            appState.chart.data.labels = videoItems.slice(0, 5).map(v => v.snippet.title.substring(0, 8) + '..');
+            appState.chart.data.datasets[0].data = videoItems.slice(0, 5).map(v => parseInt(v.statistics?.likeCount || 0));
+            appState.chart.update();
+        }
+
+        function setActiveNavItem(id) {
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+            if(id) document.getElementById(id).classList.add('active');
+        }
+
+        async function openPlayer(id, title) {
+            const modal = document.getElementById('videoModal');
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('fullTitle').innerText = title;
+            document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1`;
+            
+            try {
+                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${id}&key=${appState.apiKey}`);
+                const data = await res.json();
+                const item = data.items[0];
+                if (item) {
+                    document.getElementById('modalDesc').innerText = item.snippet.description;
+                    document.getElementById('modalStats').innerText = `${parseInt(item.statistics.viewCount).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`;
+                }
+            } catch(e) {}
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closePlayer() {
+            document.getElementById('videoModal').style.display = 'none';
+            document.getElementById('playerFrame').src = '';
+            document.body.style.overflow = 'auto';
+        }
+
+        function copyLink(id) {
+            const url = `https://www.youtube.com/watch?v=${id}`;
+            const dummy = document.createElement("input");
+            document.body.appendChild(dummy);
+            dummy.value = url;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            
+            const toast = document.getElementById('toast');
+            toast.className = "copy-toast show";
+            setTimeout(() => { toast.className = "copy-toast"; }, 3000);
+        }
+
         document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') performSearch(false); });
     </script>
 </body>
