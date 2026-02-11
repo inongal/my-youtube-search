@@ -106,7 +106,7 @@
             height: 100% !important;
             max-width: none !important;
             max-height: none !important;
-            resize: none; /* Changed from 'both' to 'none' */
+            resize: none; 
             overflow: hidden;
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
@@ -310,6 +310,9 @@
         <main class="flex-1 lg:mr-64 p-6">
             <div class="flex justify-between items-center mb-6">
                 <h2 id="sectionTitle" class="text-2xl font-bold hidden">מומלצים</h2>
+                <button id="downloadUrlsBtn" onclick="downloadUrls()" class="hidden flex items-center gap-2 bg-[#272727] hover:bg-[#3f3f3f] text-white px-4 py-2 rounded-full text-sm font-bold border border-[#444] transition">
+                    <i class="fas fa-download"></i> הורד כתובות
+                </button>
             </div>
 
             <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
@@ -386,6 +389,10 @@
                     <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Google Client ID</label>
                     <input type="text" id="clientIdInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-blue-600 transition text-white">
                 </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">מספר תוצאות לחיפוש (1-50)</label>
+                    <input type="number" id="maxResultsInput" min="1" max="50" value="12" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-green-600 transition text-white">
+                </div>
                 <div class="flex gap-3 pt-4">
                     <button onclick="saveAndStart()" class="flex-1 bg-white text-black py-4 rounded-xl font-bold hover:bg-gray-200 transition">שמור והפעל</button>
                     <button onclick="toggleConfig()" class="px-6 bg-[#222] text-white py-4 rounded-xl font-bold transition">ביטול</button>
@@ -408,7 +415,9 @@
             searchContext: 'general',
             currentVideoId: null,
             isVideoPaused: false,
-            isFloating: false 
+            isFloating: false,
+            maxResults: 12, // ברירת מחדל חדשה
+            currentDisplayedVideos: [] // מערך לשמירת תוצאות להורדה
         };
 
         // --- משתני ניהול היסטוריה ---
@@ -553,14 +562,17 @@
         function saveAndStart() {
             const newKey = document.getElementById('apiKeyInput').value.trim();
             const newClientId = document.getElementById('clientIdInput').value.trim();
-            
+            const newMaxResults = document.getElementById('maxResultsInput').value;
+
             if (!newKey) return alert("נא להזין API Key לפחות.");
             
             appState.apiKey = newKey;
             appState.clientId = newClientId;
+            appState.maxResults = newMaxResults ? parseInt(newMaxResults) : 12;
             
             localStorage.setItem('yt_api_key', appState.apiKey);
             localStorage.setItem('yt_client_id', appState.clientId);
+            localStorage.setItem('yt_max_results', appState.maxResults); // שמירה ב-LocalStorage
             
             document.getElementById('configModal').style.display = 'none';
             
@@ -586,8 +598,14 @@
         window.onload = () => {
             const savedKey = localStorage.getItem('yt_api_key');
             const savedClient = localStorage.getItem('yt_client_id');
+            const savedMaxResults = localStorage.getItem('yt_max_results');
+
             if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
+            if(savedMaxResults) {
+                document.getElementById('maxResultsInput').value = savedMaxResults;
+                appState.maxResults = parseInt(savedMaxResults);
+            }
             
             if(savedKey) {
                 appState.apiKey = savedKey;
@@ -668,11 +686,14 @@
             const titleEl = document.getElementById('sectionTitle');
             titleEl.classList.remove('hidden');
             titleEl.innerText = appState.token ? "מומלצים עבורך" : "סרטונים פופולריים בישראל";
+            
+            // הסתרת כפתור הורדה בטעינה ראשונית
+            document.getElementById('downloadUrlsBtn').classList.add('hidden');
 
             try {
                 let url = appState.token 
-                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=12&key=${appState.apiKey}`
-                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=IL&maxResults=12&key=${appState.apiKey}`;
+                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=${appState.maxResults}&key=${appState.apiKey}`
+                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=IL&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
 
                 const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
                 const res = await fetch(url, { headers });
@@ -713,9 +734,11 @@
             const titleEl = document.getElementById('sectionTitle');
             titleEl.classList.remove('hidden');
             titleEl.innerText = "פעילות אחרונה בחשבון";
+            document.getElementById('downloadUrlsBtn').classList.add('hidden');
 
             try {
-                const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=20&key=${appState.apiKey}`;
+                // כאן אין שליטה על MaxResults ב-API של activities באותה צורה, אבל הוספתי בכל זאת
+                const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
                 const res = await fetch(url, { headers: { Authorization: `Bearer ${appState.token}` } });
                 const data = await res.json();
 
@@ -766,7 +789,7 @@
             }
 
             try {
-                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=12&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
+                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${appState.maxResults}&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
                 const response = await fetch(url);
@@ -841,7 +864,7 @@
             }
 
             try {
-                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=12&playlistId=${appState.query}&key=${appState.apiKey}`;
+                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${appState.maxResults}&playlistId=${appState.query}&key=${appState.apiKey}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
                 const res = await fetch(url);
@@ -868,7 +891,24 @@
 
         function renderResults(items, clear) {
             const grid = document.getElementById('resultsGrid');
-            if (clear) grid.innerHTML = '';
+            if (clear) {
+                grid.innerHTML = '';
+                appState.currentDisplayedVideos = []; // איפוס הרשימה אם זה חיפוש חדש
+            }
+            
+            // עדכון רשימת הסרטונים הנוכחית (עבור כפתור ההורדה)
+            if (items && items.length > 0) {
+                appState.currentDisplayedVideos.push(...items);
+            }
+            
+            // הצגת/הסתרת כפתור הורדה
+            const downloadBtn = document.getElementById('downloadUrlsBtn');
+            const hasVideos = appState.currentDisplayedVideos.some(i => i.id.kind === 'youtube#video');
+            if (hasVideos) {
+                downloadBtn.classList.remove('hidden');
+            } else {
+                downloadBtn.classList.add('hidden');
+            }
 
             items.forEach(item => {
                 const snip = item.snippet;
@@ -935,6 +975,30 @@
                     </div>`;
                 grid.appendChild(card);
             });
+        }
+        
+        // --- פונקציה חדשה להורדת קישורים ---
+        function downloadUrls() {
+            const videos = appState.currentDisplayedVideos.filter(i => i.id.kind === 'youtube#video');
+            
+            if (!videos.length) {
+                return alert('אין סרטונים להורדה ברשימה הנוכחית.');
+            }
+            
+            const urlList = videos.map(item => {
+                return `https://www.youtube.com/watch?v=${item.id.videoId}`;
+            }).join('\n');
+            
+            const blob = new Blob([urlList], { type: 'text/plain;charset=utf-8' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `youtube_links_${new Date().toISOString().slice(0,10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
         }
 
         function updateChart(items) {
