@@ -562,6 +562,27 @@
                 loadPlaylistsToSidebar(); 
             },
 
+            renamePlaylist: (oldName, newName) => {
+                if (!newName || oldName === newName) return;
+                const playlists = PlaylistManager.getPlaylists();
+                if (playlists[newName]) return alert('שם זה כבר קיים לרשימה אחרת');
+                
+                playlists[newName] = playlists[oldName];
+                delete playlists[oldName];
+                PlaylistManager.savePlaylists(playlists);
+                loadPlaylistsToSidebar();
+                loadPlaylistView(newName); // טען מחדש עם השם החדש
+            },
+
+            deletePlaylist: (name) => {
+                if (!confirm(`האם אתה בטוח שברצונך למחוק את הרשימה "${name}"?`)) return;
+                const playlists = PlaylistManager.getPlaylists();
+                delete playlists[name];
+                PlaylistManager.savePlaylists(playlists);
+                loadPlaylistsToSidebar();
+                loadHomePage(); // חזור לדף הבית
+            },
+
             addToPlaylist: (playlistName, video) => {
                 const playlists = PlaylistManager.getPlaylists();
                 if (!playlists[playlistName]) playlists[playlistName] = [];
@@ -623,8 +644,29 @@
             
             if (!isInternal) pushHistory({ type: 'playlist', playlistName: name });
 
-            document.getElementById('sectionTitle').innerText = name === 'Watch Later' ? 'צפייה בהמשך' : `רשימת השמעה: ${name}`;
-            document.getElementById('sectionTitle').classList.remove('hidden');
+            const titleEl = document.getElementById('sectionTitle');
+            const isWatchLater = name === 'Watch Later';
+            const safeName = name.replace(/"/g, "&quot;");
+            
+            let titleHTML = isWatchLater ? 'צפייה בהמשך' : `רשימת השמעה: ${safeName}`;
+            
+            if (!isWatchLater) {
+                titleHTML += `
+                    <span class="mr-4 text-sm font-normal">
+                        <button onclick="const newName = prompt('שם חדש:', '${safeName}'); if(newName) PlaylistManager.renamePlaylist('${safeName}', newName)" 
+                            class="mx-1 text-blue-400 hover:text-blue-300" title="שנה שם">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="PlaylistManager.deletePlaylist('${safeName}')" 
+                            class="mx-1 text-red-500 hover:text-red-400" title="מחק רשימה">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </span>
+                `;
+            }
+
+            titleEl.innerHTML = titleHTML;
+            titleEl.classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
             
             if (appState.currentVideoId) minimizePlayer();
