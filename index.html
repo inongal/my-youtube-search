@@ -307,6 +307,14 @@
                 <div class="sidebar-item">
                     <i class="fas fa-thumbs-up text-lg"></i><span>סרטונים שאהבתי</span>
                 </div>
+                
+                <hr class="my-3 border-[#222]">
+                <div class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">הרשימות שלי</div>
+                <div id="playlistsNavContainer">
+                    </div>
+                <div onclick="const n=prompt('שם הרשימה החדשה:'); if(n) PlaylistManager.createPlaylist(n);" class="sidebar-item text-blue-400">
+                    <i class="fas fa-plus text-lg"></i><span>צור רשימה חדשה</span>
+                </div>
             </nav>
             
             <div class="mt-8">
@@ -356,7 +364,10 @@
             <div class="player-header p-4 flex justify-between items-center border-b border-[#222]">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2"></h3>
                 <div class="flex gap-2">
-                    <button onclick="toggleFloatingMode()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="חלון צף">
+                    <button onclick="toggleExternalPip()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="פתח בחלון צף חיצוני (PiP)">
+                        <i class="fas fa-external-link-alt text-gray-400"></i>
+                    </button>
+                    <button onclick="toggleFloatingMode()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="נגן צף באתר">
                         <i class="fas fa-clone text-gray-400"></i>
                     </button>
                     <button onclick="minimizePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="מזער והמשך לשמוע ברקע">
@@ -396,6 +407,20 @@
                     <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Google Client ID</label>
                     <input type="text" id="clientIdInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-blue-600 transition text-white">
                 </div>
+                
+                <div class="mt-4 border-t border-[#333] pt-4">
+                    <h3 class="text-sm font-bold text-gray-400 mb-3">ניהול נתונים (גיבוי ושחזור)</h3>
+                    <div class="flex gap-3">
+                        <button onclick="exportData()" class="flex-1 bg-[#222] hover:bg-[#333] text-white py-2 rounded-lg text-xs font-bold border border-[#444] transition">
+                            <i class="fas fa-download mb-1 block"></i> ייצוא נתונים
+                        </button>
+                        <label class="flex-1 bg-[#222] hover:bg-[#333] text-white py-2 rounded-lg text-xs font-bold border border-[#444] cursor-pointer text-center transition">
+                            <i class="fas fa-upload mb-1 block"></i> ייבוא נתונים
+                            <input type="file" onchange="importData(this)" class="hidden" accept=".json">
+                        </label>
+                    </div>
+                </div>
+
                 <div class="flex gap-3 pt-4">
                     <button onclick="saveAndStart()" class="flex-1 bg-white text-black py-4 rounded-xl font-bold hover:bg-gray-200 transition">שמור והפעל</button>
                     <button onclick="toggleConfig()" class="px-6 bg-[#222] text-white py-4 rounded-xl font-bold transition">ביטול</button>
@@ -472,6 +497,8 @@
                 loadWatchHistory(true);
             } else if (state.type === 'local_history') {
                 loadLocalHistory(true);
+            } else if (state.type === 'playlist') {
+                loadPlaylistView(state.playlistName, true);
             }
         }
 
@@ -504,6 +531,173 @@
             return safeText.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors">$1</a>');
         }
 
+        function parseDuration(duration) {
+            if (!duration) return "";
+            const matches = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+            if (!matches) return "";
+            const hours = (matches[1] || '').replace('H', '');
+            const minutes = (matches[2] || '').replace('M', '');
+            const seconds = (matches[3] || '').replace('S', '');
+            
+            let result = [];
+            if (hours) result.push(hours);
+            result.push(minutes ? (minutes.length === 1 && hours ? '0' + minutes : minutes) : (hours ? '00' : '0'));
+            result.push(seconds ? (seconds.length === 1 ? '0' + seconds : seconds) : '00');
+            
+            return result.join(':');
+        }
+
+        // --- Playlist & Local Storage Logic ---
+        const PlaylistManager = {
+            getPlaylists: () => JSON.parse(localStorage.getItem('yt_playlists') || '{"Watch Later": []}'),
+            
+            savePlaylists: (playlists) => localStorage.setItem('yt_playlists', JSON.stringify(playlists)),
+            
+            createPlaylist: (name) => {
+                if (!name) return;
+                const playlists = PlaylistManager.getPlaylists();
+                if (playlists[name]) return alert('רשימה זו כבר קיימת');
+                playlists[name] = [];
+                PlaylistManager.savePlaylists(playlists);
+                loadPlaylistsToSidebar(); 
+            },
+
+            addToPlaylist: (playlistName, video) => {
+                const playlists = PlaylistManager.getPlaylists();
+                if (!playlists[playlistName]) playlists[playlistName] = [];
+                
+                // בדיקה אם הסרטון כבר קיים
+                if (playlists[playlistName].some(v => v.id === video.id)) {
+                    return alert('הסרטון כבר נמצא ברשימה זו');
+                }
+                
+                playlists[playlistName].push({
+                    id: video.id,
+                    title: video.title,
+                    thumbnail: video.thumbnail,
+                    channel: video.channel,
+                    duration: video.duration,
+                    addedAt: new Date().toISOString()
+                });
+                PlaylistManager.savePlaylists(playlists);
+                
+                // Toast הודעה
+                const toast = document.getElementById('toast');
+                toast.innerText = `נוסף ל-${playlistName === 'Watch Later' ? 'צפייה בהמשך' : playlistName}`;
+                toast.className = "copy-toast show";
+                setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
+            },
+
+            removeFromPlaylist: (playlistName, videoId) => {
+                const playlists = PlaylistManager.getPlaylists();
+                if (playlists[playlistName]) {
+                    playlists[playlistName] = playlists[playlistName].filter(v => v.id !== videoId);
+                    PlaylistManager.savePlaylists(playlists);
+                    loadPlaylistView(playlistName, true); // רענון תצוגה
+                }
+            }
+        };
+
+        function loadPlaylistsToSidebar() {
+            const playlists = PlaylistManager.getPlaylists();
+            const container = document.getElementById('playlistsNavContainer'); 
+            if(!container) return;
+            
+            container.innerHTML = '';
+            Object.keys(playlists).forEach(name => {
+                const div = document.createElement('div');
+                div.className = 'sidebar-item';
+                div.onclick = () => loadPlaylistView(name);
+                // אייקון שונה לצפייה בהמשך
+                const icon = name === 'Watch Later' ? 'fa-clock' : 'fa-list';
+                const label = name === 'Watch Later' ? 'צפייה בהמשך' : name;
+                
+                div.innerHTML = `<i class="fas ${icon} text-lg"></i><span>${label}</span>`;
+                container.appendChild(div);
+            });
+        }
+
+        function loadPlaylistView(name, isInternal = false) {
+            setActiveNavItem(''); 
+            appState.searchContext = 'playlist_' + name;
+            
+            if (!isInternal) pushHistory({ type: 'playlist', playlistName: name });
+
+            document.getElementById('sectionTitle').innerText = name === 'Watch Later' ? 'צפייה בהמשך' : `רשימת השמעה: ${name}`;
+            document.getElementById('sectionTitle').classList.remove('hidden');
+            document.getElementById('pagination').classList.add('hidden');
+            
+            if (appState.currentVideoId) minimizePlayer();
+
+            const playlists = PlaylistManager.getPlaylists();
+            const videos = playlists[name] || [];
+
+            if (videos.length === 0) {
+                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">הרשימה ריקה.</div>';
+                return;
+            }
+
+            // המרה לפורמט שה-renderResults מכיר
+            const formattedItems = videos.map(item => ({
+                id: { kind: 'youtube#video', videoId: item.id },
+                snippet: {
+                    title: item.title,
+                    channelTitle: item.channel,
+                    thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } },
+                    publishedAt: item.addedAt
+                },
+                contentDetails: { duration: item.duration }, 
+                statistics: { viewCount: 0 } // דמה
+            }));
+
+            renderResults(formattedItems, true);
+        }
+
+        // --- Export / Import ---
+        function exportData() {
+            const data = {
+                history: localStorage.getItem('yt_local_history'),
+                playlists: localStorage.getItem('yt_playlists'),
+                settings: {
+                    apiKey: localStorage.getItem('yt_api_key'),
+                    clientId: localStorage.getItem('yt_client_id')
+                }
+            };
+            
+            const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `yt_backup_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(inputElement) {
+            const file = inputElement.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(data.history) localStorage.setItem('yt_local_history', data.history);
+                    if(data.playlists) localStorage.setItem('yt_playlists', data.playlists);
+                    if(data.settings) {
+                        if(data.settings.apiKey) localStorage.setItem('yt_api_key', data.settings.apiKey);
+                    }
+                    alert('הנתונים שוחזרו בהצלחה! הדף יתרענן כעת.');
+                    location.reload();
+                } catch(err) {
+                    alert('שגיאה בקריאת הקובץ');
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        }
+
         // --- Local History Logic (UPDATED) ---
         function saveToLocalHistory(id, title, thumbnail, channelName) {
             if (!id) return;
@@ -522,7 +716,7 @@
 
         function loadLocalHistory(isHistoryNav = false) {
             setActiveNavItem('navLocalHistory');
-            appState.searchContext = 'local_history'; // Ensure context is set
+            appState.searchContext = 'local_history'; 
             
             if (!isHistoryNav) pushHistory({ type: 'local_history' });
 
@@ -576,7 +770,58 @@
                 let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
                 history = history.filter(item => item.id !== id);
                 localStorage.setItem('yt_local_history', JSON.stringify(history));
-                loadLocalHistory(true); // Refresh
+                loadLocalHistory(true); 
+            }
+        }
+
+        // --- PiP Logic ---
+        async function toggleExternalPip() {
+            const playerContainer = document.querySelector('.player-container');
+            const watchView = document.getElementById('watchView');
+
+            if (!('documentPictureInPicture' in window)) {
+                alert("הדפדפן שלך לא תומך במצב PiP חיצוני מלא (Document PiP).");
+                return;
+            }
+
+            try {
+                if (window.documentPictureInPicture.window) {
+                    window.documentPictureInPicture.window.close();
+                    return;
+                }
+
+                const pipWindow = await window.documentPictureInPicture.requestWindow({
+                    width: playerContainer.clientWidth,
+                    height: playerContainer.clientHeight,
+                });
+
+                [...document.styleSheets].forEach((styleSheet) => {
+                    try {
+                        const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
+                        const style = document.createElement('style');
+                        style.textContent = cssRules;
+                        pipWindow.document.head.appendChild(style);
+                    } catch (e) {
+                        const link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.type = styleSheet.type;
+                        link.media = styleSheet.media;
+                        link.href = styleSheet.href;
+                        pipWindow.document.head.appendChild(link);
+                    }
+                });
+
+                pipWindow.document.body.append(playerContainer);
+                playerContainer.classList.add('h-screen', 'w-screen');
+                
+                pipWindow.addEventListener("pagehide", (event) => {
+                     const watchViewInner = document.getElementById('watchView');
+                     watchViewInner.append(playerContainer);
+                     playerContainer.classList.remove('h-screen', 'w-screen');
+                });
+
+            } catch (err) {
+                console.error("PiP Error:", err);
             }
         }
 
@@ -678,6 +923,8 @@
             if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
             
+            loadPlaylistsToSidebar();
+
             if(savedKey) {
                 appState.apiKey = savedKey;
                 appState.clientId = savedClient;
@@ -761,7 +1008,7 @@
             try {
                 let url = appState.token 
                     ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=12&key=${appState.apiKey}`
-                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=IL&maxResults=12&key=${appState.apiKey}`;
+                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=12&key=${appState.apiKey}`;
 
                 const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
                 const res = await fetch(url, { headers });
@@ -774,6 +1021,9 @@
                         .map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId)
                         .filter(Boolean);
                 } else if (data.items) {
+                    // For Popular videos (no token), we already have the items with contentDetails
+                    // But to keep consistency with the renderer, we can just pass them or extract IDs.
+                    // The fetchAndRenderVideos handles "statistics" and "contentDetails" again to be sure.
                     videoIds = data.items.map(i => i.id);
                 }
 
@@ -878,12 +1128,14 @@
                 const channelItems = items.filter(i => i.id.kind === 'youtube#channel');
                 
                 if (videoIds.length > 0) {
-                     const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds.join(',')}&key=${appState.apiKey}`);
+                     // Updated to fetch contentDetails as well
+                     const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds.join(',')}&key=${appState.apiKey}`);
                      const statsData = await statsRes.json();
                      const combinedItems = [...channelItems, ...statsData.items.map(i => ({
                          id: { kind: 'youtube#video', videoId: i.id },
                          snippet: i.snippet,
-                         statistics: i.statistics
+                         statistics: i.statistics,
+                         contentDetails: i.contentDetails
                      }))];
                      renderResults(combinedItems, !loadMore);
                      updateChart(statsData.items || []);
@@ -896,12 +1148,13 @@
         async function fetchAndRenderVideos(ids, clear) {
             if (!ids.length) return;
             try {
-                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${ids.join(',')}&key=${appState.apiKey}`);
+                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids.join(',')}&key=${appState.apiKey}`);
                 const data = await res.json();
                 const formatted = data.items.map(item => ({
                     id: { kind: 'youtube#video', videoId: item.id },
                     snippet: item.snippet,
-                    statistics: item.statistics
+                    statistics: item.statistics,
+                    contentDetails: item.contentDetails
                 }));
                 renderResults(formatted, clear);
                 updateChart(data.items || []);
@@ -950,12 +1203,13 @@
 
                 const videoIds = data.items.map(item => item.snippet.resourceId.videoId).join(',');
                 if(videoIds) {
-                    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoIds}&key=${appState.apiKey}`);
+                    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${appState.apiKey}`);
                     const statsData = await statsRes.json();
                      const formatted = statsData.items.map(item => ({
                         id: { kind: 'youtube#video', videoId: item.id },
                         snippet: item.snippet,
-                        statistics: item.statistics
+                        statistics: item.statistics,
+                        contentDetails: item.contentDetails
                     }));
                     renderResults(formatted, !loadMore);
                     updateChart(statsData.items);
@@ -999,10 +1253,12 @@
                 let viewsText = '';
                 let likesText = '';
                 let timeText = '';
-                const title = snip.title.replace(/'/g, "\\'");
+                let durationText = '';
+
+                const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
                 const channelTitle = snip.channelTitle || '';
                 const thumbUrl = snip.thumbnails.high?.url || snip.thumbnails.medium?.url || '';
-                const safeChannel = channelTitle.replace(/'/g, "\\'");
+                const safeChannel = channelTitle.replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
                 if (item.statistics) {
                     const views = item.statistics.viewCount;
@@ -1014,12 +1270,25 @@
                     if(date) timeText = ` • ${timeSince(date)}`;
                 }
 
+                if (item.contentDetails && item.contentDetails.duration) {
+                    durationText = `<span class="absolute bottom-2 left-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-bold">${parseDuration(item.contentDetails.duration)}</span>`;
+                }
+
                 const card = document.createElement('div');
                 card.className = "video-card group flex flex-col cursor-pointer";
                 
+                // Construct safe strings for JS calls
+                const durationForSave = item.contentDetails?.duration || '';
+                
                 card.innerHTML = `
-                    <div class="relative mb-4" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}')">
+                    <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}')">
                         <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
+                        ${durationText}
+                        
+                        <button onclick="event.stopPropagation(); PlaylistManager.addToPlaylist('Watch Later', {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'})" 
+                            class="absolute top-2 left-2 bg-black/60 hover:bg-blue-600 text-white p-1.5 rounded-lg opacity-0 group-hover/img:opacity-100 transition backdrop-blur-sm shadow-lg" title="צפייה בהמשך">
+                            <i class="fas fa-clock"></i>
+                        </button>
                     </div>
                     <div class="flex gap-3 px-1">
                         <div class="w-9 h-9 rounded-full bg-gray-800 flex-shrink-0 border border-[#333] flex items-center justify-center">
@@ -1031,13 +1300,26 @@
                                 <p class="hover:text-white transition-colors" onclick="loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
                                 <p>${viewsText}${likesText}${timeText}</p> 
                             </div>
-                            <div class="flex items-center gap-2 mt-3">
-                                <button onclick="event.stopPropagation(); copyLink('${videoId}')" class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit">
-                                    <i class="fas fa-link"></i> העתק קישור
+                            <div class="flex items-center gap-2 mt-3 flex-wrap">
+                                <button onclick="event.stopPropagation(); copyLink('${videoId}')" class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]">
+                                    <i class="fas fa-link"></i>
                                 </button>
+                                
+                                <button onclick="event.stopPropagation(); const name = prompt('הכנס שם רשימה (למשל: מוזיקה, הרצאות):'); if(name) PlaylistManager.addToPlaylist(name, {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'})" 
+                                    class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]" title="שמור לרשימה">
+                                    <i class="fas fa-list-ul"></i> שמירה
+                                </button>
+
                                 ${isLocal ? `
                                 <button onclick="removeFromLocalHistory('${videoId}', event)" class="flex items-center justify-center text-[10px] bg-[#330000] text-red-400 hover:bg-red-900 px-3 py-1.5 rounded-full transition w-fit border border-red-900/50" title="הסר מההיסטוריה">
                                     <i class="fas fa-trash-alt"></i>
+                                </button>
+                                ` : ''}
+
+                                ${appState.searchContext.startsWith('playlist_') ? `
+                                <button onclick="event.stopPropagation(); PlaylistManager.removeFromPlaylist('${appState.searchContext.replace('playlist_', '')}', '${videoId}')" 
+                                    class="text-[10px] bg-red-900/50 hover:bg-red-800 text-red-300 px-3 py-1.5 rounded-full border border-red-900/50 transition" title="הסר מרשימה">
+                                    <i class="fas fa-trash"></i>
                                 </button>
                                 ` : ''}
                             </div>
