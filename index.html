@@ -10,6 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://www.youtube.com/iframe_api"></script> 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
@@ -241,7 +242,8 @@
                 <option value="">הכל</option>
                 <option value="video">סרטונים</option>
                 <option value="channel">ערוצים</option>
-                <option value="playlist">פלייליסטים</option> </select>
+                <option value="playlist">פלייליסטים</option>
+            </select>
             
             <select id="searchDuration" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="משך">
                 <option value="">כל אורך</option>
@@ -383,7 +385,7 @@
 
             <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                 <div class="aspect-video w-full bg-black flex-shrink-0 relative">
-                    <iframe id="playerFrame" class="w-full h-full absolute inset-0" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                    <div id="playerFrame" class="w-full h-full absolute inset-0"></div>
                 </div>
                 <div class="p-8 player-info-section">
                     <h2 id="fullTitle" class="text-2xl font-bold mb-4"></h2>
@@ -446,8 +448,15 @@
             currentVideoId: null,
             isVideoPaused: false,
             isFloating: false,
-            activeChannelId: null // לזכור באיזה ערוץ אנחנו נמצאים
+            activeChannelId: null,
+            player: null, // אובייקט הנגן
+            currentVideoList: [] // רשימת הסרטונים הנוכחית להמשך ניגון
         };
+
+        // --- YouTube API Loading ---
+        function onYouTubeIframeAPIReady() {
+            console.log("YouTube API Ready");
+        }
 
         // --- משתני ניהול היסטוריה ---
         let navHistory = [];
@@ -485,7 +494,7 @@
 
         function restoreState(state) {
             appState.searchContext = state.context || 'general';
-            document.getElementById('channelFilterContainer').classList.add('hidden'); // ברירת מחדל נסתר
+            document.getElementById('channelFilterContainer').classList.add('hidden'); 
             
             if (state.type === 'home') {
                 document.getElementById('searchInput').value = "";
@@ -682,6 +691,7 @@
 
             if (videos.length === 0) {
                 document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">הרשימה ריקה.</div>';
+                appState.currentVideoList = []; // רשימה ריקה
                 return;
             }
 
@@ -779,6 +789,7 @@
             
             if (history.length === 0) {
                 document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">עדיין אין היסטוריה מקומית.<br>צפה בסרטונים כדי לראות אותם כאן.</div>';
+                appState.currentVideoList = [];
                 return;
             }
 
@@ -878,15 +889,17 @@
         const returnToVideoBtn = document.getElementById('return-to-video-btn');
         const globalPauseBtn = document.getElementById('global-pause-btn');
         const watchView = document.getElementById('watchView');
-        const playerFrame = document.getElementById('playerFrame');
+        // playerFrame is now handled by YT API
 
         globalPauseBtn.addEventListener('click', () => {
+            if (!appState.player) return;
+            
             if (appState.isVideoPaused) {
-                playerFrame.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+                appState.player.playVideo();
                 globalPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
                 appState.isVideoPaused = false;
             } else {
-                playerFrame.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+                appState.player.pauseVideo();
                 globalPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
                 appState.isVideoPaused = true;
             }
@@ -1082,6 +1095,7 @@
                     fetchAndRenderVideos(videoIds, true);
                 } else {
                     document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים להצגה.</div>';
+                    appState.currentVideoList = [];
                 }
             } catch (err) { console.error(err); }
         }
@@ -1115,14 +1129,17 @@
                     .filter(Boolean);
 
                 if(videoIds.length > 0) fetchAndRenderVideos(videoIds, true);
-                else document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאה פעילות אחרונה.</div>';
+                else {
+                    document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאה פעילות אחרונה.</div>';
+                    appState.currentVideoList = [];
+                }
             } catch(e) { console.error(e); }
         }
 
         async function performSearch(loadMore, isHistoryNav = false) {
             const query = document.getElementById('searchInput').value.trim();
             const order = document.getElementById('searchOrder').value;
-            let type = document.getElementById('searchType').value || 'video,channel,playlist'; // תמיכה בפלייליסט
+            let type = document.getElementById('searchType').value || 'video,channel,playlist'; 
             const duration = document.getElementById('searchDuration').value;
 
             // אם אנחנו בחיפוש ערוץ (סרטונים או פלייליסטים)
@@ -1218,7 +1235,6 @@
         }
 
         // --- פונקציה לטעינת סרטונים של ערוץ (או פלייליסט כללי) ---
-        // שינוי: הוספנו תמיכה בטעינת UI של הערוץ
         async function loadChannelVideos(channelId, loadMore = false, isHistoryNav = false) {
             if (!channelId && !appState.query) return;
             
@@ -1233,17 +1249,11 @@
                     document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען ערוץ...</div>';
                     document.getElementById('sectionTitle').innerText = "טוען...";
                     
-                    // בדיקה אם זה ID של פלייליסט (שנפתח מחיפוש) או ערוץ אמיתי
-                    // נניח שזה ערוץ, אלא אם כן נזהה אחרת. אבל הקריאה לפונקציה הזו מגיעה בדרך כלל עם ChannelID.
-                    // אם אנו רוצים לפתוח פלייליסט סתם, נשתמש בטכניקה אחרת, אבל הפונקציה הזו כרגע מותאמת לערוץ.
-                    
                     const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet&id=${channelId}&key=${appState.apiKey}`);
                     const data = await res.json();
                     
                     if (!data.items || !data.items.length) {
                         // ייתכן שזה פלייליסט? (במקרה של קריאה מתוך renderResults של פלייליסט)
-                        // נטפל בזה בפונקציה נפרדת עבור פלייליסטים, או כאן. 
-                        // כרגע הפונקציה הזו מיועדת לערוצים.
                         return;
                     }
                     
@@ -1252,12 +1262,11 @@
                     
                     appState.query = uploadsPlaylistId; 
                     appState.searchContext = 'channel';
-                    appState.activeChannelId = channelId; // שמירת מזהה הערוץ
+                    appState.activeChannelId = channelId; 
                     appState.pageToken = "";
                     
                     document.getElementById('sectionTitle').innerText = `סרטונים מאת: ${channel.snippet.title}`;
 
-                    // --- הוספת כפתורי ניווט לערוץ (סרטונים / פלייליסטים) ---
                     const filterContainer = document.getElementById('channelFilterContainer');
                     filterContainer.innerHTML = `
                         <button onclick="loadChannelVideos('${channelId}')" class="bg-white text-black px-4 py-1.5 rounded-full text-sm font-bold">סרטונים</button>
@@ -1302,7 +1311,6 @@
                 appState.activeChannelId = channelId;
                 appState.pageToken = "";
                 
-                // עדכון כפתורי ניווט
                 const filterContainer = document.getElementById('channelFilterContainer');
                 filterContainer.innerHTML = `
                     <button onclick="loadChannelVideos('${channelId}')" class="bg-[#222] hover:bg-[#333] text-white px-4 py-1.5 rounded-full text-sm font-bold border border-[#333] transition">סרטונים</button>
@@ -1323,7 +1331,7 @@
                 document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
 
                 const formatted = data.items.map(item => ({
-                    id: { kind: 'youtube#playlist', playlistId: item.id }, // ציון שזה פלייליסט
+                    id: { kind: 'youtube#playlist', playlistId: item.id }, 
                     snippet: item.snippet,
                     contentDetails: item.contentDetails
                 }));
@@ -1336,22 +1344,28 @@
         // --- פונקציה לפתיחת פלייליסט חיצוני (מתוך חיפוש או ערוץ) ---
         async function openExternalPlaylist(playlistId, title) {
             appState.query = playlistId;
-            appState.searchContext = 'channel'; // משתמשים בלוגיקה של ערוץ (טעינת פריטים מרשימה)
+            appState.searchContext = 'channel'; 
             appState.pageToken = "";
-            appState.activeChannelId = null; // אנחנו לא בתוך ערוץ ספציפי אלא בפלייליסט
+            appState.activeChannelId = null; 
             
             document.getElementById('channelFilterContainer').classList.add('hidden');
             document.getElementById('sectionTitle').innerText = `פלייליסט: ${title}`;
             document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים...</div>';
             
-            // שימוש בלוגיקה הקיימת של loadChannelVideos (החלק השני שלה) לטעינת הפריטים
-            // אנו קוראים לפונקציה עם null כדי שתדלג על חלק טעינת פרטי הערוץ ותלך ישר ל-fetch items
             loadChannelVideos(null, true); 
         }
 
         function renderResults(items, clear) {
             const grid = document.getElementById('resultsGrid');
-            if (clear) grid.innerHTML = '';
+            if (clear) {
+                grid.innerHTML = '';
+                appState.currentVideoList = []; // איפוס רשימה בטעינה חדשה
+            }
+
+            // הוספת הפריטים החדשים לרשימה הנוכחית (עבור Auto-Play)
+            // אנחנו שומרים רק סרטונים (לא ערוצים ולא פלייליסטים)
+            const newVideos = items.filter(item => item.id.kind === 'youtube#video');
+            appState.currentVideoList = [...appState.currentVideoList, ...newVideos];
             
             const isLocal = appState.searchContext === 'local_history';
 
@@ -1507,6 +1521,7 @@
             if(id) document.getElementById(id).classList.add('active');
         }
 
+        // --- פונקציית נגן מעודכנת עם API של יוטיוב ---
         async function openPlayer(id, title, thumbnail = '', channel = '') {
             saveToLocalHistory(id, title, thumbnail, channel);
 
@@ -1518,7 +1533,23 @@
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('fullTitle').innerText = title;
             
-            document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1`;
+            // שימוש ב-API במקום iframe.src
+            if (appState.player) {
+                appState.player.loadVideoById(id);
+            } else {
+                appState.player = new YT.Player('playerFrame', {
+                    height: '100%',
+                    width: '100%',
+                    videoId: id,
+                    playerVars: {
+                        'autoplay': 1,
+                        'playsinline': 1
+                    },
+                    events: {
+                        'onStateChange': onPlayerStateChange
+                    }
+                });
+            }
             
             appState.currentVideoId = id;
             appState.isVideoPaused = false;
@@ -1542,13 +1573,46 @@
             document.body.style.overflow = 'hidden';
         }
 
+        // --- לוגיקת מעבר לשיר הבא ---
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.ENDED) {
+                playNextVideo();
+            }
+        }
+
+        function playNextVideo() {
+            const list = appState.currentVideoList;
+            if (!list || list.length === 0) return;
+
+            // מציאת האינדקס של הסרטון הנוכחי
+            const currentIndex = list.findIndex(item => item.id.videoId === appState.currentVideoId);
+            
+            // אם נמצא והוא לא האחרון
+            if (currentIndex !== -1 && currentIndex < list.length - 1) {
+                const nextVideo = list[currentIndex + 1];
+                const snip = nextVideo.snippet;
+                const channel = snip.channelTitle || '';
+                const thumb = snip.thumbnails.high?.url || snip.thumbnails.medium?.url || '';
+                
+                // הודעת טוסט קטנה (אופציונלי, כאן לדיבוג ויזואלי)
+                console.log("Playing next:", snip.title);
+                
+                openPlayer(nextVideo.id.videoId, snip.title, thumb, channel);
+            } else {
+                // אם הגענו לסוף הרשימה ועדיין יש token (למשל בחיפוש) אפשר לטעון עוד?
+                // כרגע נעצור בסוף הרשימה הנטענת.
+            }
+        }
+
         function closePlayer() {
+            if (appState.player) {
+                appState.player.stopVideo();
+            }
             document.getElementById('watchView').classList.remove('active');
             document.getElementById('watchView').classList.add('hidden');
             document.getElementById('watchView').classList.remove('floating-mode'); 
             appState.isFloating = false;
             
-            document.getElementById('playerFrame').src = '';
             document.body.style.overflow = 'auto'; // מבטיח גלילה בעת סגירה
             
             appState.currentVideoId = null;
