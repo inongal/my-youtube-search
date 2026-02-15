@@ -488,24 +488,33 @@
         function playNextVideo() {
             const currentList = appState.currentRenderedItems;
             const currentId = appState.currentVideoId;
+            
             if (!currentList || !currentId) return;
 
+            // Find current index
             const idx = currentList.findIndex(item => {
-                const itemId = item.id.videoId || item.id;
+                const itemId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
                 return itemId === currentId;
             });
 
-            if (idx > -1 && idx < currentList.length - 1) {
-                const nextItem = currentList[idx + 1];
-                const nextId = nextItem.id.videoId || nextItem.id;
-                const snip = nextItem.snippet;
-                
-                const title = snip.title; 
-                const thumb = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url || '';
-                const channel = snip.channelTitle || '';
-                const duration = nextItem.contentDetails?.duration || '';
-                
-                openPlayer(nextId, title, thumb, channel, duration);
+            // Loop forward to find the next actual video (skip channels/playlists)
+            if (idx > -1) {
+                for (let i = idx + 1; i < currentList.length; i++) {
+                    const nextItem = currentList[i];
+                    // Normalize ID extraction
+                    const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
+                    
+                    if (nextId) {
+                        const snip = nextItem.snippet;
+                        const title = snip.title; 
+                        const thumb = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url || '';
+                        const channel = snip.channelTitle || '';
+                        const duration = nextItem.contentDetails?.duration || '';
+                        
+                        openPlayer(nextId, title, thumb, channel, duration);
+                        return;
+                    }
+                }
             }
         }
 
