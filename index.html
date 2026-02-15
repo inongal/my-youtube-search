@@ -564,6 +564,7 @@
             return result.join(':');
         }
 
+        // --- שינוי: פונקציה להורדת כתובות ---
         function downloadUrls() {
             if (!appState.currentRenderedItems || appState.currentRenderedItems.length === 0) {
                 alert('אין תוצאות להורדה כרגע.');
@@ -581,7 +582,7 @@
                     url = `https://www.youtube.com/playlist?list=${item.id.playlistId}`;
                 } else if (item.id.channelId) {
                     url = `https://www.youtube.com/channel/${item.id.channelId}`;
-                } else if (typeof item.id === 'string') { 
+                } else if (typeof item.id === 'string') { // Fallback
                     url = `https://www.youtube.com/watch?v=${item.id}`;
                 }
 
@@ -638,6 +639,7 @@
                 const playlists = PlaylistManager.getPlaylists();
                 if (!playlists[playlistName]) playlists[playlistName] = [];
                 
+                // בדיקה אם הסרטון כבר קיים
                 if (playlists[playlistName].some(v => v.id === video.id)) {
                     return alert('הסרטון כבר נמצא ברשימה זו');
                 }
@@ -652,6 +654,7 @@
                 });
                 PlaylistManager.savePlaylists(playlists);
                 
+                // Toast הודעה
                 const toast = document.getElementById('toast');
                 toast.innerText = `נוסף ל-${playlistName === 'Watch Later' ? 'צפייה בהמשך' : playlistName}`;
                 toast.className = "copy-toast show";
@@ -663,11 +666,12 @@
                 if (playlists[playlistName]) {
                     playlists[playlistName] = playlists[playlistName].filter(v => v.id !== videoId);
                     PlaylistManager.savePlaylists(playlists);
-                    loadPlaylistView(playlistName, true); 
+                    loadPlaylistView(playlistName, true); // רענון תצוגה
                 }
             }
         };
 
+        // --- שינוי: מנהל לייקים מקומי ---
         const LocalLikesManager = {
             getLikes: () => JSON.parse(localStorage.getItem('yt_local_likes') || '[]'),
             
@@ -699,30 +703,46 @@
             }
         };
 
+        // --- שינוי: פונקציה לשינוי מצב לייק ---
         function toggleLocalLike() {
             if (!appState.currentVideoId || !appState.currentVideoDetails) return;
             
             const isLiked = LocalLikesManager.toggleLike(appState.currentVideoDetails);
             updateLikeButtonUI(isLiked);
             
+            // אם אנחנו במסך סרטונים שאהבתי, רענן אותו כדי שהסרטון יוסר מהתצוגה אם הוסר
             if (appState.searchContext === 'liked') {
                 loadLikedVideos(true);
             }
         }
 
-        // פונקציה חדשה לניהול לייק ישירות מהכרטיסייה (ללא פתיחת נגן)
+        // פונקציה חדשה: החלפת מצב לייק מכרטיסיית סרטון
         function toggleLikeBtn(btn, id, title, thumb, channel, duration) {
-             const isLiked = LocalLikesManager.toggleLike({id, title, thumbnail: thumb, channel, duration});
+             const video = {id, title, thumbnail: thumb, channel, duration};
+             const isLiked = LocalLikesManager.toggleLike(video);
              const icon = btn.querySelector('i');
+             
              if (isLiked) {
                  icon.className = 'fas fa-heart text-red-500';
              } else {
                  icon.className = 'far fa-heart';
-                 // אם אנחנו במסך המועדפים, נרענן כדי להסיר
-                 if (appState.searchContext === 'liked') {
-                     loadLikedVideos(true);
-                 }
              }
+             
+             // אם אנחנו במסך "סרטונים שאהבתי", רענן כדי להסיר
+             if (appState.searchContext === 'liked') {
+                 loadLikedVideos(true);
+             }
+        }
+
+        // פונקציה חדשה: ניגון אקראי מפלייליסט
+        function playRandomFromPlaylist(playlistName) {
+            const playlists = PlaylistManager.getPlaylists();
+            const videos = playlists[playlistName] || [];
+            
+            if (videos.length === 0) return alert('הפלייליסט ריק');
+            
+            const randomVideo = videos[Math.floor(Math.random() * videos.length)];
+            openPlayer(randomVideo.id, randomVideo.title, randomVideo.thumbnail, randomVideo.channel, randomVideo.duration);
         }
 
         function updateLikeButtonUI(isLiked) {
@@ -741,6 +761,7 @@
             }
         }
 
+        // --- שינוי: פונקציה לטעינת דף "אהבתי" ---
         function loadLikedVideos(isHistoryNav = false) {
             setActiveNavItem('navLiked');
             appState.searchContext = 'liked';
@@ -752,18 +773,19 @@
             titleEl.innerText = "סרטונים שאהבתי (מקומי)";
             titleEl.classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
             
             if (appState.currentVideoId) minimizePlayer();
 
             const likes = LocalLikesManager.getLikes();
 
             if (likes.length === 0) {
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">עדיין לא סימנת סרטונים ב"אהבתי".<br>לחץ על כפתור הלב בנגן או ברשימה כדי להוסיף.</div>';
+                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">עדיין לא סימנת סרטונים ב"אהבתי".<br>לחץ על כפתור הלב בנגן כדי להוסיף.</div>';
                 appState.currentRenderedItems = [];
                 return;
             }
 
+            // המרה לפורמט renderResults
             const formattedItems = likes.map(item => ({
                 id: { kind: 'youtube#video', videoId: item.id },
                 snippet: {
@@ -789,6 +811,7 @@
                 const div = document.createElement('div');
                 div.className = 'sidebar-item';
                 div.onclick = () => loadPlaylistView(name);
+                // אייקון שונה לצפייה בהמשך
                 const icon = name === 'Watch Later' ? 'fa-clock' : 'fa-list';
                 const label = name === 'Watch Later' ? 'צפייה בהמשך' : name;
                 
@@ -824,11 +847,19 @@
                     </span>
                 `;
             }
+            
+            // הוספת כפתור ניגון אקראי
+            titleHTML += `
+                <button onclick="playRandomFromPlaylist('${safeName}')" 
+                    class="mr-4 bg-[#cc0000] text-white text-xs px-3 py-1.5 rounded-full font-bold hover:bg-red-700 transition inline-flex items-center gap-2">
+                    <i class="fas fa-random"></i> נגן באקראי
+                </button>
+            `;
 
             titleEl.innerHTML = titleHTML;
             titleEl.classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
             
             if (appState.currentVideoId) minimizePlayer();
 
@@ -841,6 +872,7 @@
                 return;
             }
 
+            // המרה לפורמט שה-renderResults מכיר
             const formattedItems = videos.map(item => ({
                 id: { kind: 'youtube#video', videoId: item.id },
                 snippet: {
@@ -850,17 +882,18 @@
                     publishedAt: item.addedAt
                 },
                 contentDetails: { duration: item.duration }, 
-                statistics: { viewCount: 0 } 
+                statistics: { viewCount: 0 } // דמה
             }));
 
             renderResults(formattedItems, true);
         }
 
+        // --- Export / Import ---
         function exportData() {
             const data = {
                 history: localStorage.getItem('yt_local_history'),
                 playlists: localStorage.getItem('yt_playlists'),
-                likes: localStorage.getItem('yt_local_likes'), 
+                likes: localStorage.getItem('yt_local_likes'), // שינוי: גיבוי לייקים
                 settings: {
                     apiKey: localStorage.getItem('yt_api_key'),
                     clientId: localStorage.getItem('yt_client_id')
@@ -888,7 +921,7 @@
                     const data = JSON.parse(e.target.result);
                     if(data.history) localStorage.setItem('yt_local_history', data.history);
                     if(data.playlists) localStorage.setItem('yt_playlists', data.playlists);
-                    if(data.likes) localStorage.setItem('yt_local_likes', data.likes); 
+                    if(data.likes) localStorage.setItem('yt_local_likes', data.likes); // שינוי: שחזור לייקים
                     if(data.settings) {
                         if(data.settings.apiKey) localStorage.setItem('yt_api_key', data.settings.apiKey);
                     }
@@ -902,6 +935,7 @@
             reader.readAsText(file);
         }
 
+        // --- Local History Logic (UPDATED) ---
         function saveToLocalHistory(id, title, thumbnail, channelName) {
             if (!id) return;
             let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
@@ -927,7 +961,7 @@
             document.getElementById('sectionTitle').innerText = "היסטוריית צפייה מקומית (מהמחשב הזה)";
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
             
             if (appState.currentVideoId) minimizePlayer();
 
@@ -980,6 +1014,7 @@
             }
         }
 
+        // --- PiP Logic ---
         async function toggleExternalPip() {
             const playerContainer = document.querySelector('.player-container');
             const watchView = document.getElementById('watchView');
@@ -1030,6 +1065,7 @@
             }
         }
 
+        // --- Control Logic ---
         const returnToVideoBtn = document.getElementById('return-to-video-btn');
         const globalPauseBtn = document.getElementById('global-pause-btn');
         const watchView = document.getElementById('watchView');
@@ -1063,10 +1099,10 @@
             
             if (appState.isFloating) {
                 view.classList.add('floating-mode');
-                document.body.style.overflow = 'auto'; 
+                document.body.style.overflow = 'auto'; // תיקון באג גלילה - מצב צף משחרר גלילה
             } else {
                 view.classList.remove('floating-mode');
-                document.body.style.overflow = 'hidden'; 
+                document.body.style.overflow = 'hidden'; // החזרת נעילה אם זה לא צף
             }
         }
 
@@ -1075,17 +1111,18 @@
                 const view = document.getElementById('watchView');
                 view.classList.add('hidden'); 
                 returnToVideoBtn.classList.remove('hidden');
-                document.body.style.overflow = 'auto'; 
+                document.body.style.overflow = 'auto'; // תיקון באג גלילה
             } else if (appState.currentVideoId) {
                 watchView.classList.remove('active');
                 watchView.classList.add('hidden');
                 returnToVideoBtn.classList.remove('hidden');
-                document.body.style.overflow = 'auto'; 
+                document.body.style.overflow = 'auto'; // תיקון באג גלילה
             } else {
                 closePlayer();
             }
         }
 
+        // --- Config & Auth ---
         function toggleConfig() {
             const modal = document.getElementById('configModal');
             modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
@@ -1212,7 +1249,7 @@
             const titleEl = document.getElementById('sectionTitle');
             titleEl.classList.remove('hidden');
             titleEl.innerText = appState.token ? "מומלצים עבורך" : "סרטונים פופולריים בישראל";
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
 
             try {
                 let url = appState.token 
@@ -1260,7 +1297,7 @@
             const titleEl = document.getElementById('sectionTitle');
             titleEl.classList.remove('hidden');
             titleEl.innerText = "פעילות אחרונה בחשבון";
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
 
             try {
                 const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=20&key=${appState.apiKey}`;
@@ -1282,9 +1319,10 @@
         async function performSearch(loadMore, isHistoryNav = false) {
             const query = document.getElementById('searchInput').value.trim();
             const order = document.getElementById('searchOrder').value;
-            let type = document.getElementById('searchType').value || 'video,channel,playlist'; 
+            let type = document.getElementById('searchType').value || 'video,channel,playlist'; // תמיכה בפלייליסט
             const duration = document.getElementById('searchDuration').value;
 
+            // אם אנחנו בחיפוש ערוץ (סרטונים או פלייליסטים)
             if (!query && appState.searchContext === 'channel' && loadMore) {
                 return loadChannelVideos(null, true); 
             }
@@ -1294,6 +1332,7 @@
 
             if (!query) return loadHomePage();
 
+            // אם נבחר משך זמן, חייבים לסנן רק סרטונים (מגבלת API)
             if (duration) {
                 type = 'video';
                 document.getElementById('searchType').value = 'video';
@@ -1304,7 +1343,7 @@
             setActiveNavItem('');
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
 
             if (!loadMore) {
                 appState.query = query;
@@ -1341,7 +1380,7 @@
 
                 const items = data.items || [];
                 const videoIds = items.filter(i => i.id.kind === 'youtube#video').map(i => i.id.videoId);
-                const otherItems = items.filter(i => i.id.kind !== 'youtube#video'); 
+                const otherItems = items.filter(i => i.id.kind !== 'youtube#video'); // Channels and Playlists
                 
                 if (videoIds.length > 0) {
                      const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds.join(',')}&key=${appState.apiKey}`);
@@ -1376,6 +1415,7 @@
             } catch (e) { console.error(e); }
         }
 
+        // --- פונקציה לטעינת סרטונים של ערוץ (או פלייליסט כללי) ---
         async function loadChannelVideos(channelId, loadMore = false, isHistoryNav = false) {
             if (!channelId && !appState.query) return;
             
@@ -1389,7 +1429,7 @@
                 try {
                     document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען ערוץ...</div>';
                     document.getElementById('sectionTitle').innerText = "טוען...";
-                    document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+                    document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
                     
                     const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet&id=${channelId}&key=${appState.apiKey}`);
                     const data = await res.json();
@@ -1403,11 +1443,12 @@
                     
                     appState.query = uploadsPlaylistId; 
                     appState.searchContext = 'channel';
-                    appState.activeChannelId = channelId; 
+                    appState.activeChannelId = channelId; // שמירת מזהה הערוץ
                     appState.pageToken = "";
                     
                     document.getElementById('sectionTitle').innerText = `סרטונים מאת: ${channel.snippet.title}`;
 
+                    // --- הוספת כפתורי ניווט לערוץ (סרטונים / פלייליסטים) ---
                     const filterContainer = document.getElementById('channelFilterContainer');
                     filterContainer.innerHTML = `
                         <button onclick="loadChannelVideos('${channelId}')" class="bg-white text-black px-4 py-1.5 rounded-full text-sm font-bold">סרטונים</button>
@@ -1452,6 +1493,7 @@
                 appState.activeChannelId = channelId;
                 appState.pageToken = "";
                 
+                // עדכון כפתורי ניווט
                 const filterContainer = document.getElementById('channelFilterContainer');
                 filterContainer.innerHTML = `
                     <button onclick="loadChannelVideos('${channelId}')" class="bg-[#222] hover:bg-[#333] text-white px-4 py-1.5 rounded-full text-sm font-bold border border-[#333] transition">סרטונים</button>
@@ -1491,17 +1533,20 @@
             }
         }
 
+        // --- פונקציה לפתיחת פלייליסט חיצוני (מתוך חיפוש או ערוץ) ---
         async function openExternalPlaylist(playlistId, title) {
             appState.query = playlistId;
-            appState.searchContext = 'channel'; 
+            appState.searchContext = 'channel'; // משתמשים בלוגיקה של ערוץ (טעינת פריטים מרשימה)
             appState.pageToken = "";
-            appState.activeChannelId = null; 
+            appState.activeChannelId = null; // אנחנו לא בתוך ערוץ ספציפי אלא בפלייליסט
             
             document.getElementById('channelFilterContainer').classList.add('hidden');
             document.getElementById('sectionTitle').innerText = `פלייליסט: ${title}`;
             document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים...</div>';
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
             
+            // שימוש בלוגיקה הקיימת של loadChannelVideos (החלק השני שלה) לטעינת הפריטים
+            // אנו קוראים לפונקציה עם null כדי שתדלג על חלק טעינת פרטי הערוץ ותלך ישר ל-fetch items
             loadChannelVideos(null, true); 
         }
 
@@ -1509,11 +1554,14 @@
             const grid = document.getElementById('resultsGrid');
             if (clear) {
                 grid.innerHTML = '';
-                appState.currentRenderedItems = []; 
+                appState.currentRenderedItems = []; // איפוס רשימה להורדה
             }
             
+            // שינוי: הוספת פריטים לרשימת ההורדה
             appState.currentRenderedItems = [...appState.currentRenderedItems, ...items];
             
+            const isLocal = appState.searchContext === 'local_history' || appState.searchContext === 'liked';
+
             items.forEach(item => {
                 const snip = item.snippet;
                 const kind = item.id.kind;
@@ -1606,6 +1654,7 @@
                 const card = document.createElement('div');
                 card.className = "video-card group flex flex-col cursor-pointer";
                 
+                // Construct safe strings for JS calls
                 const durationForSave = item.contentDetails?.duration || '';
                 
                 // בדיקת לייק מקומי
@@ -1690,6 +1739,7 @@
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('fullTitle').innerText = title;
             
+            // שינוי: עדכון כפתור הלייק במודל
             appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
             updateLikeButtonUI(LocalLikesManager.isLiked(id));
 
@@ -1724,7 +1774,7 @@
             appState.isFloating = false;
             
             document.getElementById('playerFrame').src = '';
-            document.body.style.overflow = 'auto'; 
+            document.body.style.overflow = 'auto'; // מבטיח גלילה בעת סגירה
             
             appState.currentVideoId = null;
             appState.isVideoPaused = false;
