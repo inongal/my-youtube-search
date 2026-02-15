@@ -710,6 +710,21 @@
             }
         }
 
+        // פונקציה חדשה לניהול לייק ישירות מהכרטיסייה (ללא פתיחת נגן)
+        function toggleLikeBtn(btn, id, title, thumb, channel, duration) {
+             const isLiked = LocalLikesManager.toggleLike({id, title, thumbnail: thumb, channel, duration});
+             const icon = btn.querySelector('i');
+             if (isLiked) {
+                 icon.className = 'fas fa-heart text-red-500';
+             } else {
+                 icon.className = 'far fa-heart';
+                 // אם אנחנו במסך המועדפים, נרענן כדי להסיר
+                 if (appState.searchContext === 'liked') {
+                     loadLikedVideos(true);
+                 }
+             }
+        }
+
         function updateLikeButtonUI(isLiked) {
             const btn = document.getElementById('playerLikeBtn');
             const icon = btn.querySelector('i');
@@ -744,7 +759,7 @@
             const likes = LocalLikesManager.getLikes();
 
             if (likes.length === 0) {
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">עדיין לא סימנת סרטונים ב"אהבתי".<br>לחץ על כפתור הלב בנגן כדי להוסיף.</div>';
+                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">עדיין לא סימנת סרטונים ב"אהבתי".<br>לחץ על כפתור הלב בנגן או ברשימה כדי להוסיף.</div>';
                 appState.currentRenderedItems = [];
                 return;
             }
@@ -1461,7 +1476,7 @@
                     return;
                 }
 
-                // תיקון קריטי להמרה
+                // תיקון: מיפוי נכון של האובייקטים והגנה מפני שדות חסרים
                 const formatted = data.items.map(item => ({
                     id: { kind: 'youtube#playlist', playlistId: item.id }, 
                     snippet: item.snippet,
@@ -1511,7 +1526,7 @@
                     card.onclick = () => loadChannelVideos(channelId);
                     card.innerHTML = `
                         <div class="mb-4">
-                            <img src="${snip.thumbnails.high?.url || snip.thumbnails.medium?.url || snip.thumbnails.default?.url}" class="w-32 h-32 rounded-full object-cover border-2 border-[#333]">
+                            <img src="${snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url}" class="w-32 h-32 rounded-full object-cover border-2 border-[#333]">
                         </div>
                         <h3 class="font-bold text-lg text-center mb-1">${snip.title}</h3>
                         <p class="text-gray-500 text-xs text-center mb-3">ערוץ</p>
@@ -1530,7 +1545,7 @@
                     card.className = "video-card group flex flex-col cursor-pointer";
                     const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     // תמונת ברירת מחדל אם אין בינונית/גבוהה
-                    const thumbUrl = snip.thumbnails.medium?.url || snip.thumbnails.high?.url || snip.thumbnails.default?.url || '';
+                    const thumbUrl = snip.thumbnails?.medium?.url || snip.thumbnails?.high?.url || snip.thumbnails?.default?.url || '';
                     const channelTitle = snip.channelTitle || '';
                     
                     card.innerHTML = `
@@ -1551,7 +1566,9 @@
                             <p class="text-[#aaaaaa] text-sm hover:text-white transition-colors" onclick="event.stopPropagation(); loadChannelVideos('${snip.channelId}')">
                                 ${channelTitle}
                             </p>
-                            <p class="text-gray-500 text-xs mt-1">פלייליסט</p>
+                            <button onclick="event.stopPropagation(); openExternalPlaylist('${playlistId}', '${title}')" class="mt-2 bg-[#cc0000] text-white text-xs px-3 py-1.5 rounded-full font-bold hover:bg-red-700 transition flex items-center gap-2 w-fit">
+                                <i class="fas fa-play"></i> נגן הכל
+                            </button>
                         </div>
                     `;
                     grid.appendChild(card);
@@ -1569,7 +1586,7 @@
 
                 const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
                 const channelTitle = snip.channelTitle || '';
-                const thumbUrl = snip.thumbnails.high?.url || snip.thumbnails.medium?.url || snip.thumbnails.default?.url || '';
+                const thumbUrl = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url || '';
                 const safeChannel = channelTitle.replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
                 if (item.statistics) {
@@ -1590,6 +1607,10 @@
                 card.className = "video-card group flex flex-col cursor-pointer";
                 
                 const durationForSave = item.contentDetails?.duration || '';
+                
+                // בדיקת לייק מקומי
+                const isLiked = LocalLikesManager.isLiked(videoId);
+                const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
                 
                 card.innerHTML = `
                     <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">
@@ -1616,6 +1637,11 @@
                                     <i class="fas fa-link"></i>
                                 </button>
                                 
+                                <button onclick="event.stopPropagation(); toggleLikeBtn(this, '${videoId}', '${title.replace(/'/g, "\\'")}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')" 
+                                    class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]" title="אהבתי">
+                                    <i class="${likeIconClass}"></i>
+                                </button>
+                                
                                 <button onclick="event.stopPropagation(); const name = prompt('הכנס שם רשימה (למשל: מוזיקה, הרצאות):'); if(name) PlaylistManager.addToPlaylist(name, {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'})" 
                                     class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]" title="שמור לרשימה">
                                     <i class="fas fa-list-ul"></i> שמירה
@@ -1631,13 +1657,6 @@
                                 <button onclick="event.stopPropagation(); PlaylistManager.removeFromPlaylist('${appState.searchContext.replace('playlist_', '')}', '${videoId}')" 
                                     class="text-[10px] bg-red-900/50 hover:bg-red-800 text-red-300 px-3 py-1.5 rounded-full border border-red-900/50 transition" title="הסר מרשימה">
                                     <i class="fas fa-trash"></i>
-                                </button>
-                                ` : ''}
-
-                                ${appState.searchContext === 'liked' ? `
-                                <button onclick="event.stopPropagation(); LocalLikesManager.toggleLike({id: '${videoId}'}); loadLikedVideos(true);" 
-                                    class="text-[10px] bg-red-900/50 hover:bg-red-800 text-red-300 px-3 py-1.5 rounded-full border border-red-900/50 transition" title="הסר מהמועדפים">
-                                    <i class="fas fa-heart-broken"></i>
                                 </button>
                                 ` : ''}
                             </div>
