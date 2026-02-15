@@ -452,11 +452,11 @@
             tokenClient: null,
             searchContext: 'general',
             currentVideoId: null,
-            currentVideoDetails: null, // שמירת פרטי הסרטון הנוכחי ללייק
+            currentVideoDetails: null, // שינוי: שמירת פרטי סרטון ללייק
             isVideoPaused: false,
             isFloating: false,
             activeChannelId: null,
-            currentRenderedItems: [] // שמירת הפריטים המוצגים להורדה
+            currentRenderedItems: [] // שינוי: מערך לשמירת התוצאות להורדה
         };
 
         // --- משתני ניהול היסטוריה ---
@@ -514,7 +514,7 @@
                 loadLocalHistory(true);
             } else if (state.type === 'playlist') {
                 loadPlaylistView(state.playlistName, true);
-            } else if (state.type === 'liked') {
+            } else if (state.type === 'liked') { // שינוי: תמיכה בניווט היסטוריה ל"אהבתי"
                 loadLikedVideos(true);
             }
         }
@@ -564,7 +564,7 @@
             return result.join(':');
         }
 
-        // --- EXPORT FUNCTIONALITY ---
+        // --- שינוי: פונקציה להורדת כתובות ---
         function downloadUrls() {
             if (!appState.currentRenderedItems || appState.currentRenderedItems.length === 0) {
                 alert('אין תוצאות להורדה כרגע.');
@@ -671,7 +671,7 @@
             }
         };
 
-        // --- NEW LOCAL LIKES MANAGER ---
+        // --- שינוי: מנהל לייקים מקומי ---
         const LocalLikesManager = {
             getLikes: () => JSON.parse(localStorage.getItem('yt_local_likes') || '[]'),
             
@@ -703,13 +703,14 @@
             }
         };
 
+        // --- שינוי: פונקציה לשינוי מצב לייק ---
         function toggleLocalLike() {
             if (!appState.currentVideoId || !appState.currentVideoDetails) return;
             
             const isLiked = LocalLikesManager.toggleLike(appState.currentVideoDetails);
             updateLikeButtonUI(isLiked);
             
-            // אם אנחנו במסך סרטונים שאהבתי, רענן אותו
+            // אם אנחנו במסך סרטונים שאהבתי, רענן אותו כדי שהסרטון יוסר מהתצוגה אם הוסר
             if (appState.searchContext === 'liked') {
                 loadLikedVideos(true);
             }
@@ -731,6 +732,7 @@
             }
         }
 
+        // --- שינוי: פונקציה לטעינת דף "אהבתי" ---
         function loadLikedVideos(isHistoryNav = false) {
             setActiveNavItem('navLiked');
             appState.searchContext = 'liked';
@@ -742,7 +744,7 @@
             titleEl.innerText = "סרטונים שאהבתי (מקומי)";
             titleEl.classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
             
             if (appState.currentVideoId) minimizePlayer();
 
@@ -754,6 +756,7 @@
                 return;
             }
 
+            // המרה לפורמט renderResults
             const formattedItems = likes.map(item => ({
                 id: { kind: 'youtube#video', videoId: item.id },
                 snippet: {
@@ -819,7 +822,7 @@
             titleEl.innerHTML = titleHTML;
             titleEl.classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.remove('hidden');
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
             
             if (appState.currentVideoId) minimizePlayer();
 
@@ -853,7 +856,7 @@
             const data = {
                 history: localStorage.getItem('yt_local_history'),
                 playlists: localStorage.getItem('yt_playlists'),
-                likes: localStorage.getItem('yt_local_likes'),
+                likes: localStorage.getItem('yt_local_likes'), // שינוי: גיבוי לייקים
                 settings: {
                     apiKey: localStorage.getItem('yt_api_key'),
                     clientId: localStorage.getItem('yt_client_id')
@@ -881,7 +884,7 @@
                     const data = JSON.parse(e.target.result);
                     if(data.history) localStorage.setItem('yt_local_history', data.history);
                     if(data.playlists) localStorage.setItem('yt_playlists', data.playlists);
-                    if(data.likes) localStorage.setItem('yt_local_likes', data.likes);
+                    if(data.likes) localStorage.setItem('yt_local_likes', data.likes); // שינוי: שחזור לייקים
                     if(data.settings) {
                         if(data.settings.apiKey) localStorage.setItem('yt_api_key', data.settings.apiKey);
                     }
@@ -921,7 +924,7 @@
             document.getElementById('sectionTitle').innerText = "היסטוריית צפייה מקומית (מהמחשב הזה)";
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.remove('hidden');
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
             
             if (appState.currentVideoId) minimizePlayer();
 
@@ -1209,7 +1212,7 @@
             const titleEl = document.getElementById('sectionTitle');
             titleEl.classList.remove('hidden');
             titleEl.innerText = appState.token ? "מומלצים עבורך" : "סרטונים פופולריים בישראל";
-            document.getElementById('exportUrlsBtn').classList.remove('hidden');
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
 
             try {
                 let url = appState.token 
@@ -1257,7 +1260,7 @@
             const titleEl = document.getElementById('sectionTitle');
             titleEl.classList.remove('hidden');
             titleEl.innerText = "פעילות אחרונה בחשבון";
-            document.getElementById('exportUrlsBtn').classList.remove('hidden');
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
 
             try {
                 const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=20&key=${appState.apiKey}`;
@@ -1303,7 +1306,7 @@
             setActiveNavItem('');
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
-            document.getElementById('exportUrlsBtn').classList.remove('hidden');
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
 
             if (!loadMore) {
                 appState.query = query;
@@ -1389,7 +1392,7 @@
                 try {
                     document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען ערוץ...</div>';
                     document.getElementById('sectionTitle').innerText = "טוען...";
-                    document.getElementById('exportUrlsBtn').classList.remove('hidden');
+                    document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
                     
                     const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet&id=${channelId}&key=${appState.apiKey}`);
                     const data = await res.json();
@@ -1446,7 +1449,7 @@
             } catch(e) { console.error(e); }
         }
 
-        // --- FIXED FUNCTION: Load Channel Playlists ---
+        // --- שינוי: תיקון פונקציה לטעינת פלייליסטים של ערוץ ---
         async function loadChannelPlaylists(channelId, loadMore = false) {
              if (!loadMore) {
                 appState.searchContext = 'channel_playlists';
@@ -1478,7 +1481,7 @@
                     return;
                 }
 
-                // FIX: Ensure ID structure matches what renderResults expects
+                // תיקון קריטי: המרה למבנה שהפונקציה renderResults מצפה לו
                 const formatted = data.items.map(item => ({
                     id: { kind: 'youtube#playlist', playlistId: item.id }, 
                     snippet: item.snippet,
@@ -1500,7 +1503,7 @@
             document.getElementById('channelFilterContainer').classList.add('hidden');
             document.getElementById('sectionTitle').innerText = `פלייליסט: ${title}`;
             document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים...</div>';
-            document.getElementById('exportUrlsBtn').classList.remove('hidden');
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); // הצגת כפתור הורדה
             
             // שימוש בלוגיקה הקיימת של loadChannelVideos (החלק השני שלה) לטעינת הפריטים
             // אנו קוראים לפונקציה עם null כדי שתדלג על חלק טעינת פרטי הערוץ ותלך ישר ל-fetch items
@@ -1511,10 +1514,10 @@
             const grid = document.getElementById('resultsGrid');
             if (clear) {
                 grid.innerHTML = '';
-                appState.currentRenderedItems = [];
+                appState.currentRenderedItems = []; // איפוס רשימה להורדה
             }
             
-            // Add items to current list for export
+            // שינוי: הוספת פריטים לרשימת ההורדה
             appState.currentRenderedItems = [...appState.currentRenderedItems, ...items];
             
             const isLocal = appState.searchContext === 'local_history' || appState.searchContext === 'liked';
@@ -1689,7 +1692,7 @@
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('fullTitle').innerText = title;
             
-            // עדכון כפתור הלייק במודל
+            // שינוי: עדכון כפתור הלייק במודל
             appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
             updateLikeButtonUI(LocalLikesManager.isLiked(id));
 
