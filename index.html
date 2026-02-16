@@ -483,12 +483,13 @@
             searchContext: 'general',
             currentVideoId: null,
             currentVideoDetails: null, 
+            nextVideoId: null, // NEW: Pre-calculated next video
             isVideoPaused: false,
             isFloating: false,
             activeChannelId: null,
             currentRenderedItems: [],
             maxResults: 12,
-            progressInterval: null // For saving time
+            progressInterval: null 
         };
 
         // --- YouTube Player API ---
@@ -506,7 +507,25 @@
             // YT.PlayerState.ENDED = 0
             if (event.data === 0) {
                 stopProgressTracking();
-                playNextVideo();
+                
+                // NEW: Auto-play using pre-calculated ID
+                if (appState.nextVideoId) {
+                    const nextItem = appState.currentRenderedItems.find(i => {
+                         const id = i.id?.videoId || (typeof i.id === 'string' ? i.id : null);
+                         return id === appState.nextVideoId;
+                    });
+                    
+                    if (nextItem) {
+                        const snip = nextItem.snippet;
+                        // Toast
+                        const toast = document.getElementById('toast');
+                        toast.innerText = "מנגן את הסרטון הבא...";
+                        toast.className = "copy-toast show";
+                        setTimeout(() => { toast.className = "copy-toast"; }, 2000);
+
+                        openPlayer(appState.nextVideoId, snip.title, snip.thumbnails?.high?.url, snip.channelTitle, nextItem.contentDetails?.duration);
+                    }
+                }
             }
             // Playing = 1
             else if (event.data === 1) { 
@@ -518,7 +537,7 @@
             else if (event.data === 2) { 
                 appState.isVideoPaused = true;
                 document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-play"></i>';
-                saveCurrentProgress(); // Save immediately on pause
+                saveCurrentProgress(); 
                 stopProgressTracking();
             }
         }
@@ -540,44 +559,9 @@
 
         function saveCurrentProgress() {
             if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function' && appState.currentVideoId) {
-                const time = ytPlayer.getCurrentTime();
+                const time = Math.floor(ytPlayer.getCurrentTime());
                 if (time > 5) { // Only save if watched more than 5 seconds
                     LocalContinueWatchingManager.updateProgress(appState.currentVideoId, time);
-                }
-            }
-        }
-
-        function playNextVideo() {
-            if (!appState.currentRenderedItems || appState.currentRenderedItems.length === 0 || !appState.currentVideoId) return;
-
-            const currentId = String(appState.currentVideoId);
-            const currentIndex = appState.currentRenderedItems.findIndex(item => {
-                const id = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
-                return String(id) === currentId;
-            });
-
-            if (currentIndex === -1) return; 
-
-            // Loop to find next VALID video
-            for (let i = currentIndex + 1; i < appState.currentRenderedItems.length; i++) {
-                const nextItem = appState.currentRenderedItems[i];
-                const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
-
-                if (nextId) {
-                    const snip = nextItem.snippet;
-                    const title = snip.title;
-                    const thumb = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || '';
-                    const channel = snip.channelTitle || '';
-                    const duration = nextItem.contentDetails?.duration || '';
-
-                    // Toast
-                    const toast = document.getElementById('toast');
-                    toast.innerText = "מנגן את הסרטון הבא...";
-                    toast.className = "copy-toast show";
-                    setTimeout(() => { toast.className = "copy-toast"; }, 2000);
-
-                    openPlayer(nextId, title, thumb, channel, duration);
-                    return;
                 }
             }
         }
@@ -846,9 +830,13 @@
                 return list.some(v => v.id === videoId);
             },
 
-            getTime: (videoId) => {
+            getTimeFromUrl: (videoId) => {
                 const list = LocalContinueWatchingManager.getList();
                 const item = list.find(v => v.id === videoId);
+                if (item && item.resumeUrl) {
+                    const match = item.resumeUrl.match(/[?&]t=(\d+)/);
+                    if (match) return parseInt(match[1]);
+                }
                 return item ? (item.timestamp || 0) : 0;
             },
             
@@ -867,7 +855,8 @@
                         thumbnail: video.thumbnail,
                         channel: video.channel,
                         duration: video.duration,
-                        timestamp: 0, // Init with 0
+                        timestamp: 0,
+                        resumeUrl: `https://youtu.be/${video.id}?t=0`, // Init URL
                         addedAt: new Date().toISOString()
                     });
                     localStorage.setItem('yt_continue_watching', JSON.stringify(list));
@@ -880,8 +869,8 @@
                 const index = list.findIndex(v => v.id === videoId);
                 if (index > -1) {
                     list[index].timestamp = time;
-                    // Move to top if updated? Optional.
-                    // list.unshift(list.splice(index, 1)[0]); 
+                    // SAVE URL FORMAT
+                    list[index].resumeUrl = `https://youtu.be/${videoId}?t=${time}`;
                     localStorage.setItem('yt_continue_watching', JSON.stringify(list));
                 }
             }
@@ -2031,12 +2020,30 @@
             
             appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
             
+            // --- NEW: Calculate Next Video Immediately ---
+            appState.nextVideoId = null; // Reset
+            if (appState.currentRenderedItems) {
+                 const currentId = String(id);
+                 const idx = appState.currentRenderedItems.findIndex(item => {
+                    const iId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
+                    return String(iId) === currentId;
+                 });
+                 
+                 // If found and there is a next item
+                 if (idx > -1 && idx + 1 < appState.currentRenderedItems.length) {
+                     const nextItem = appState.currentRenderedItems[idx + 1];
+                     const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
+                     if (nextId) appState.nextVideoId = nextId;
+                 }
+            }
+            // ---------------------------------------------
+
             // Update UI buttons
             updateLikeButtonUI(LocalLikesManager.isLiked(id));
             updateContinueButtonUI(LocalContinueWatchingManager.isInList(id));
 
-            // Determine start time
-            const startTime = LocalContinueWatchingManager.getTime(id);
+            // Determine start time from URL
+            const startTime = LocalContinueWatchingManager.getTimeFromUrl(id);
 
             // Use API if ready
             if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
@@ -2088,6 +2095,7 @@
             document.body.style.overflow = 'auto'; 
             
             appState.currentVideoId = null;
+            appState.nextVideoId = null; // Clear next video
             appState.isVideoPaused = false;
             document.getElementById('global-pause-btn').classList.add('hidden');
             document.getElementById('return-to-video-btn').classList.add('hidden');
