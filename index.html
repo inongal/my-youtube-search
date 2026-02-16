@@ -482,8 +482,8 @@
             tokenClient: null,
             searchContext: 'general',
             currentVideoId: null,
+            currentVideoIndex: -1, // NEW: Track index for autoplay
             currentVideoDetails: null, 
-            nextVideoId: null, // NEW: Pre-calculated next video
             isVideoPaused: false,
             isFloating: false,
             activeChannelId: null,
@@ -507,25 +507,7 @@
             // YT.PlayerState.ENDED = 0
             if (event.data === 0) {
                 stopProgressTracking();
-                
-                // NEW: Auto-play using pre-calculated ID
-                if (appState.nextVideoId) {
-                    const nextItem = appState.currentRenderedItems.find(i => {
-                         const id = i.id?.videoId || (typeof i.id === 'string' ? i.id : null);
-                         return id === appState.nextVideoId;
-                    });
-                    
-                    if (nextItem) {
-                        const snip = nextItem.snippet;
-                        // Toast
-                        const toast = document.getElementById('toast');
-                        toast.innerText = "מנגן את הסרטון הבא...";
-                        toast.className = "copy-toast show";
-                        setTimeout(() => { toast.className = "copy-toast"; }, 2000);
-
-                        openPlayer(appState.nextVideoId, snip.title, snip.thumbnails?.high?.url, snip.channelTitle, nextItem.contentDetails?.duration);
-                    }
-                }
+                playNextVideo(); // Trigger next video
             }
             // Playing = 1
             else if (event.data === 1) { 
@@ -562,6 +544,30 @@
                 const time = Math.floor(ytPlayer.getCurrentTime());
                 if (time > 5) { // Only save if watched more than 5 seconds
                     LocalContinueWatchingManager.updateProgress(appState.currentVideoId, time);
+                }
+            }
+        }
+
+        // --- NEW: Autoplay Logic based on Index ---
+        function playNextVideo() {
+            if (!appState.currentRenderedItems || appState.currentVideoIndex === -1) return;
+
+            // Check if there is a next item
+            const nextIndex = appState.currentVideoIndex + 1;
+            if (nextIndex < appState.currentRenderedItems.length) {
+                const nextItem = appState.currentRenderedItems[nextIndex];
+                const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
+                
+                if (nextId) {
+                    const snip = nextItem.snippet;
+                    // Toast
+                    const toast = document.getElementById('toast');
+                    toast.innerText = "מנגן את הסרטון הבא...";
+                    toast.className = "copy-toast show";
+                    setTimeout(() => { toast.className = "copy-toast"; }, 2000);
+
+                    // Pass the index to keep the chain going
+                    openPlayer(nextId, snip.title, snip.thumbnails?.high?.url, snip.channelTitle, nextItem.contentDetails?.duration, nextIndex);
                 }
             }
         }
@@ -821,7 +827,7 @@
             }
         };
 
-        // --- מנהל המשך צפייה (חדש) ---
+        // --- מנהל המשך צפייה (מעודכן: פורמט URL) ---
         const LocalContinueWatchingManager = {
             getList: () => JSON.parse(localStorage.getItem('yt_continue_watching') || '[]'),
             
@@ -834,6 +840,7 @@
                 const list = LocalContinueWatchingManager.getList();
                 const item = list.find(v => v.id === videoId);
                 if (item && item.resumeUrl) {
+                    // Extract ?t=123
                     const match = item.resumeUrl.match(/[?&]t=(\d+)/);
                     if (match) return parseInt(match[1]);
                 }
@@ -856,7 +863,7 @@
                         channel: video.channel,
                         duration: video.duration,
                         timestamp: 0,
-                        resumeUrl: `https://youtu.be/${video.id}?t=0`, // Init URL
+                        resumeUrl: `https://youtu.be/${video.id}?t=0`, // Save exact format
                         addedAt: new Date().toISOString()
                     });
                     localStorage.setItem('yt_continue_watching', JSON.stringify(list));
@@ -869,7 +876,7 @@
                 const index = list.findIndex(v => v.id === videoId);
                 if (index > -1) {
                     list[index].timestamp = time;
-                    // SAVE URL FORMAT
+                    // Update URL with new time
                     list[index].resumeUrl = `https://youtu.be/${videoId}?t=${time}`;
                     localStorage.setItem('yt_continue_watching', JSON.stringify(list));
                 }
@@ -1933,7 +1940,7 @@
                 const savedIconClass = isSaved ? 'fas fa-check text-blue-300' : 'fas fa-plus';
                 
                 card.innerHTML = `
-                    <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">
+                    <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}', ${appState.currentRenderedItems.indexOf(item)})">
                         <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
                         ${durationText}
                         ${progressHTML}
@@ -1948,7 +1955,7 @@
                             <i class="fas fa-play text-[10px] opacity-30"></i>
                         </div>
                         <div class="flex-1">
-                            <h3 class="text-white font-semibold text-base leading-snug line-clamp-2" title="${snip.title}" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">${snip.title}</h3>
+                            <h3 class="text-white font-semibold text-base leading-snug line-clamp-2" title="${snip.title}" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}', ${appState.currentRenderedItems.indexOf(item)})">${snip.title}</h3>
                             <div class="text-[#aaaaaa] text-sm mt-1">
                                 <p class="hover:text-white transition-colors" onclick="loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
                                 <p>${viewsText}${likesText}${timeText}</p> 
@@ -2007,7 +2014,7 @@
             if(id) document.getElementById(id).classList.add('active');
         }
 
-        async function openPlayer(id, title, thumbnail = '', channel = '', duration = '') {
+        async function openPlayer(id, title, thumbnail = '', channel = '', duration = '', index = -1) {
             saveToLocalHistory(id, title, thumbnail, channel);
 
             const view = document.getElementById('watchView');
@@ -2020,23 +2027,17 @@
             
             appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
             
-            // --- NEW: Calculate Next Video Immediately ---
-            appState.nextVideoId = null; // Reset
-            if (appState.currentRenderedItems) {
-                 const currentId = String(id);
-                 const idx = appState.currentRenderedItems.findIndex(item => {
+            // --- NEW: Save Index for Autoplay ---
+            if (index !== -1) {
+                appState.currentVideoIndex = index;
+            } else {
+                // Try to find if not provided
+                appState.currentVideoIndex = appState.currentRenderedItems.findIndex(item => {
                     const iId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
-                    return String(iId) === currentId;
-                 });
-                 
-                 // If found and there is a next item
-                 if (idx > -1 && idx + 1 < appState.currentRenderedItems.length) {
-                     const nextItem = appState.currentRenderedItems[idx + 1];
-                     const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
-                     if (nextId) appState.nextVideoId = nextId;
-                 }
+                    return String(iId) === String(id);
+                });
             }
-            // ---------------------------------------------
+            // ------------------------------------
 
             // Update UI buttons
             updateLikeButtonUI(LocalLikesManager.isLiked(id));
@@ -2095,7 +2096,7 @@
             document.body.style.overflow = 'auto'; 
             
             appState.currentVideoId = null;
-            appState.nextVideoId = null; // Clear next video
+            appState.currentVideoIndex = -1; // Reset index
             appState.isVideoPaused = false;
             document.getElementById('global-pause-btn').classList.add('hidden');
             document.getElementById('return-to-video-btn').classList.add('hidden');
