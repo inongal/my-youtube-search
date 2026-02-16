@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Search Hub - Pro Edition</title>
     
-    <link rel="icon" type="image/x-icon" href="https://www.youtube.com/s/desktop/28b67e7f/img/favicon_32x32.png">
+    <link rel="icon" type="image/png" href="https://www.gstatic.com/youtube/img/branding/favicon/favicon_144x144.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://www.youtube.com/iframe_api"></script> <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://www.youtube.com/iframe_api"></script> 
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap');
@@ -301,6 +302,9 @@
                 <div onclick="loadWatchHistory()" class="sidebar-item" id="navHistory">
                     <i class="fas fa-history text-lg"></i><span>היסטוריית צפייה</span>
                 </div>
+                <div onclick="loadContinueWatching()" class="sidebar-item" id="navContinueWatching">
+                    <i class="fas fa-step-forward text-lg"></i><span>המשך צפייה</span>
+                </div>
                 <div onclick="loadLocalHistory()" class="sidebar-item" id="navLocalHistory">
                     <i class="fas fa-hdd text-lg"></i><span>היסטוריה מקומית (PC)</span>
                 </div>
@@ -391,9 +395,15 @@
                 <div class="p-8 player-info-section">
                     <div class="flex justify-between items-start mb-4">
                         <h2 id="fullTitle" class="text-2xl font-bold flex-1"></h2>
-                        <button id="playerLikeBtn" onclick="toggleLocalLike()" class="ml-4 w-12 h-12 rounded-full bg-[#222] hover:bg-[#333] flex items-center justify-center transition text-gray-400" title="אהבתי">
-                            <i class="far fa-heart text-xl"></i>
-                        </button>
+                        <div class="flex gap-2 ml-4">
+                             <button id="playerContinueBtn" onclick="toggleContinueWatching()" class="w-12 h-12 rounded-full bg-[#222] hover:bg-[#333] flex items-center justify-center transition text-gray-400" title="הוסף להמשך צפייה">
+                                <i class="far fa-bookmark text-xl"></i>
+                            </button>
+
+                            <button id="playerLikeBtn" onclick="toggleLocalLike()" class="w-12 h-12 rounded-full bg-[#222] hover:bg-[#333] flex items-center justify-center transition text-gray-400" title="אהבתי">
+                                <i class="far fa-heart text-xl"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="bg-[#222] p-5 rounded-2xl">
                         <p id="modalStats" class="text-sm font-bold mb-3 text-gray-300"></p>
@@ -462,7 +472,7 @@
             isFloating: false,
             activeChannelId: null,
             currentRenderedItems: [],
-            maxResults: 12 // Default Value
+            maxResults: 12
         };
 
         // --- YouTube Player API ---
@@ -479,7 +489,8 @@
         function onPlayerStateChange(event) {
             // YT.PlayerState.ENDED = 0
             if (event.data === 0) {
-                playNextVideo();
+                // Delay slightly to ensure state is stable
+                setTimeout(() => playNextVideo(), 500);
             }
             // Update UI state based on player
             if (event.data === 1) { // Playing
@@ -492,40 +503,40 @@
         }
 
         function playNextVideo() {
-            const currentList = appState.currentRenderedItems;
-            const currentId = appState.currentVideoId;
-            
-            if (!currentList || !currentId) return;
+            if (!appState.currentRenderedItems || appState.currentRenderedItems.length === 0 || !appState.currentVideoId) return;
 
-            // Find current index
-            const idx = currentList.findIndex(item => {
-                const itemId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
-                return itemId === currentId;
+            // Normalize current ID for comparison
+            const currentId = String(appState.currentVideoId);
+
+            // Find index of current video in the list
+            const currentIndex = appState.currentRenderedItems.findIndex(item => {
+                const id = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
+                return String(id) === currentId;
             });
 
-            // Loop forward to find the next actual video (skip channels/playlists)
-            if (idx > -1) {
-                for (let i = idx + 1; i < currentList.length; i++) {
-                    const nextItem = currentList[i];
-                    // Normalize ID extraction
-                    const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
-                    
-                    if (nextId) {
-                        const snip = nextItem.snippet;
-                        const title = snip.title; 
-                        const thumb = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url || '';
-                        const channel = snip.channelTitle || '';
-                        const duration = nextItem.contentDetails?.duration || '';
-                        
-                        // Small UI feedback
-                        const toast = document.getElementById('toast');
-                        toast.innerText = "מנגן סרטון הבא...";
-                        toast.className = "copy-toast show";
-                        setTimeout(() => { toast.className = "copy-toast"; }, 2000);
+            if (currentIndex === -1) return; // Current video not found in list
 
-                        openPlayer(nextId, title, thumb, channel, duration);
-                        return;
-                    }
+            // Look for the next playable video
+            for (let i = currentIndex + 1; i < appState.currentRenderedItems.length; i++) {
+                const nextItem = appState.currentRenderedItems[i];
+                const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
+
+                // Check if it's a valid video (not a channel or playlist object without ID)
+                if (nextId) {
+                    const snip = nextItem.snippet;
+                    const title = snip.title;
+                    const thumb = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || '';
+                    const channel = snip.channelTitle || '';
+                    const duration = nextItem.contentDetails?.duration || '';
+
+                    // UI Toast
+                    const toast = document.getElementById('toast');
+                    toast.innerText = "מנגן את הסרטון הבא...";
+                    toast.className = "copy-toast show";
+                    setTimeout(() => { toast.className = "copy-toast"; }, 2000);
+
+                    openPlayer(nextId, title, thumb, channel, duration);
+                    return;
                 }
             }
         }
@@ -587,6 +598,8 @@
                 loadPlaylistView(state.playlistName, true);
             } else if (state.type === 'liked') { 
                 loadLikedVideos(true);
+            } else if (state.type === 'continue_watching') {
+                loadContinueWatching(true);
             }
         }
 
@@ -773,6 +786,109 @@
             }
         };
 
+        // --- מנהל המשך צפייה (חדש) ---
+        const LocalContinueWatchingManager = {
+            getList: () => JSON.parse(localStorage.getItem('yt_continue_watching') || '[]'),
+            
+            isInList: (videoId) => {
+                const list = LocalContinueWatchingManager.getList();
+                return list.some(v => v.id === videoId);
+            },
+            
+            toggle: (video) => {
+                let list = LocalContinueWatchingManager.getList();
+                const existingIndex = list.findIndex(v => v.id === video.id);
+                
+                if (existingIndex > -1) {
+                    list.splice(existingIndex, 1);
+                    localStorage.setItem('yt_continue_watching', JSON.stringify(list));
+                    return false; // Removed
+                } else {
+                    list.unshift({
+                        id: video.id,
+                        title: video.title,
+                        thumbnail: video.thumbnail,
+                        channel: video.channel,
+                        duration: video.duration,
+                        addedAt: new Date().toISOString()
+                    });
+                    localStorage.setItem('yt_continue_watching', JSON.stringify(list));
+                    return true; // Added
+                }
+            }
+        };
+
+        function toggleContinueWatching() {
+             if (!appState.currentVideoId || !appState.currentVideoDetails) return;
+            
+            const isAdded = LocalContinueWatchingManager.toggle(appState.currentVideoDetails);
+            updateContinueButtonUI(isAdded);
+            
+            if (appState.searchContext === 'continue_watching') {
+                loadContinueWatching(true);
+            }
+            
+            // Toast
+            const toast = document.getElementById('toast');
+            toast.innerText = isAdded ? 'נוסף להמשך צפייה' : 'הוסר מהמשך צפייה';
+            toast.className = "copy-toast show";
+            setTimeout(() => { toast.className = "copy-toast"; }, 3000);
+        }
+
+        function updateContinueButtonUI(isAdded) {
+            const btn = document.getElementById('playerContinueBtn');
+            const icon = btn.querySelector('i');
+            if (isAdded) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                icon.classList.add('text-blue-400');
+                btn.classList.add('text-white');
+            } else {
+                icon.classList.remove('fas');
+                icon.classList.remove('text-blue-400');
+                icon.classList.add('far');
+                btn.classList.remove('text-white');
+            }
+        }
+
+        function loadContinueWatching(isHistoryNav = false) {
+            setActiveNavItem('navContinueWatching');
+            appState.searchContext = 'continue_watching';
+            document.getElementById('channelFilterContainer').classList.add('hidden');
+            
+            if (!isHistoryNav) pushHistory({ type: 'continue_watching' });
+
+            const titleEl = document.getElementById('sectionTitle');
+            titleEl.innerText = "המשך צפייה";
+            titleEl.classList.remove('hidden');
+            document.getElementById('pagination').classList.add('hidden');
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+            
+            if (appState.currentVideoId) minimizePlayer();
+
+            const list = LocalContinueWatchingManager.getList();
+
+            if (list.length === 0) {
+                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">הרשימה ריקה.<br>סמן סרטונים בסימניה כדי לשמור אותם כאן.</div>';
+                appState.currentRenderedItems = [];
+                return;
+            }
+
+            const formattedItems = list.map(item => ({
+                id: { kind: 'youtube#video', videoId: item.id },
+                snippet: {
+                    title: item.title,
+                    channelTitle: item.channel,
+                    thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } },
+                    publishedAt: item.addedAt
+                },
+                contentDetails: { duration: item.duration },
+                statistics: { viewCount: 0 }
+            }));
+
+            renderResults(formattedItems, true);
+        }
+
         // --- פונקציה לשינוי מצב לייק ---
         function toggleLocalLike() {
             if (!appState.currentVideoId || !appState.currentVideoDetails) return;
@@ -957,6 +1073,7 @@
                 history: localStorage.getItem('yt_local_history'),
                 playlists: localStorage.getItem('yt_playlists'),
                 likes: localStorage.getItem('yt_local_likes'),
+                continue_watching: localStorage.getItem('yt_continue_watching'),
                 settings: {
                     apiKey: localStorage.getItem('yt_api_key'),
                     clientId: localStorage.getItem('yt_client_id')
@@ -985,6 +1102,7 @@
                     if(data.history) localStorage.setItem('yt_local_history', data.history);
                     if(data.playlists) localStorage.setItem('yt_playlists', data.playlists);
                     if(data.likes) localStorage.setItem('yt_local_likes', data.likes); 
+                    if(data.continue_watching) localStorage.setItem('yt_continue_watching', data.continue_watching);
                     if(data.settings) {
                         if(data.settings.apiKey) localStorage.setItem('yt_api_key', data.settings.apiKey);
                     }
@@ -1785,6 +1903,13 @@
                                     <i class="fas fa-trash"></i>
                                 </button>
                                 ` : ''}
+
+                                ${appState.searchContext === 'continue_watching' ? `
+                                <button onclick="event.stopPropagation(); LocalContinueWatchingManager.toggle({id: '${videoId}'}); loadContinueWatching(true);" 
+                                    class="text-[10px] bg-blue-900/50 hover:bg-blue-800 text-blue-300 px-3 py-1.5 rounded-full border border-blue-900/50 transition" title="הסר מהמשך צפייה">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                ` : ''}
                             </div>
                         </div>
                     </div>`;
@@ -1817,7 +1942,10 @@
             document.getElementById('fullTitle').innerText = title;
             
             appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
+            
+            // Update UI buttons
             updateLikeButtonUI(LocalLikesManager.isLiked(id));
+            updateContinueButtonUI(LocalContinueWatchingManager.isInList(id));
 
             // Use API if ready
             if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
