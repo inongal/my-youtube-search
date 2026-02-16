@@ -206,6 +206,21 @@
             background-size: 1.5em 1.5em;
             padding-left: 2.5rem;
         }
+
+        /* Progress Bar on Cards */
+        .progress-bar-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            z-index: 10;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: #cc0000;
+        }
     </style>
 </head>
 <body class="custom-scrollbar">
@@ -472,7 +487,8 @@
             isFloating: false,
             activeChannelId: null,
             currentRenderedItems: [],
-            maxResults: 12
+            maxResults: 12,
+            progressInterval: null // For saving time
         };
 
         // --- YouTube Player API ---
@@ -489,39 +505,64 @@
         function onPlayerStateChange(event) {
             // YT.PlayerState.ENDED = 0
             if (event.data === 0) {
-                // Delay slightly to ensure state is stable
-                setTimeout(() => playNextVideo(), 500);
+                stopProgressTracking();
+                playNextVideo();
             }
-            // Update UI state based on player
-            if (event.data === 1) { // Playing
+            // Playing = 1
+            else if (event.data === 1) { 
                 appState.isVideoPaused = false;
                 document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
-            } else if (event.data === 2) { // Paused
+                startProgressTracking();
+            } 
+            // Paused = 2
+            else if (event.data === 2) { 
                 appState.isVideoPaused = true;
                 document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-play"></i>';
+                saveCurrentProgress(); // Save immediately on pause
+                stopProgressTracking();
+            }
+        }
+
+        // --- Progress Tracking Logic ---
+        function startProgressTracking() {
+            stopProgressTracking(); // Clear existing
+            appState.progressInterval = setInterval(() => {
+                saveCurrentProgress();
+            }, 5000); // Save every 5 seconds
+        }
+
+        function stopProgressTracking() {
+            if (appState.progressInterval) {
+                clearInterval(appState.progressInterval);
+                appState.progressInterval = null;
+            }
+        }
+
+        function saveCurrentProgress() {
+            if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function' && appState.currentVideoId) {
+                const time = ytPlayer.getCurrentTime();
+                if (time > 5) { // Only save if watched more than 5 seconds
+                    LocalContinueWatchingManager.updateProgress(appState.currentVideoId, time);
+                }
             }
         }
 
         function playNextVideo() {
             if (!appState.currentRenderedItems || appState.currentRenderedItems.length === 0 || !appState.currentVideoId) return;
 
-            // Normalize current ID for comparison
             const currentId = String(appState.currentVideoId);
-
-            // Find index of current video in the list
             const currentIndex = appState.currentRenderedItems.findIndex(item => {
                 const id = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
                 return String(id) === currentId;
             });
 
-            if (currentIndex === -1) return; // Current video not found in list
+            if (currentIndex === -1) return; 
 
-            // Look for the next playable video
+            // Loop to find next VALID video
             for (let i = currentIndex + 1; i < appState.currentRenderedItems.length; i++) {
                 const nextItem = appState.currentRenderedItems[i];
                 const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
 
-                // Check if it's a valid video (not a channel or playlist object without ID)
                 if (nextId) {
                     const snip = nextItem.snippet;
                     const title = snip.title;
@@ -529,7 +570,7 @@
                     const channel = snip.channelTitle || '';
                     const duration = nextItem.contentDetails?.duration || '';
 
-                    // UI Toast
+                    // Toast
                     const toast = document.getElementById('toast');
                     toast.innerText = "מנגן את הסרטון הבא...";
                     toast.className = "copy-toast show";
@@ -646,6 +687,16 @@
             result.push(seconds ? (seconds.length === 1 ? '0' + seconds : seconds) : '00');
             
             return result.join(':');
+        }
+
+        function parseDurationToSeconds(duration) {
+            if (!duration) return 0;
+            const matches = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+            if (!matches) return 0;
+            const hours = parseInt((matches[1] || '').replace('H', '')) || 0;
+            const minutes = parseInt((matches[2] || '').replace('M', '')) || 0;
+            const seconds = parseInt((matches[3] || '').replace('S', '')) || 0;
+            return (hours * 3600) + (minutes * 60) + seconds;
         }
 
         function downloadUrls() {
@@ -794,6 +845,12 @@
                 const list = LocalContinueWatchingManager.getList();
                 return list.some(v => v.id === videoId);
             },
+
+            getTime: (videoId) => {
+                const list = LocalContinueWatchingManager.getList();
+                const item = list.find(v => v.id === videoId);
+                return item ? (item.timestamp || 0) : 0;
+            },
             
             toggle: (video) => {
                 let list = LocalContinueWatchingManager.getList();
@@ -810,10 +867,22 @@
                         thumbnail: video.thumbnail,
                         channel: video.channel,
                         duration: video.duration,
+                        timestamp: 0, // Init with 0
                         addedAt: new Date().toISOString()
                     });
                     localStorage.setItem('yt_continue_watching', JSON.stringify(list));
                     return true; // Added
+                }
+            },
+
+            updateProgress: (videoId, time) => {
+                let list = LocalContinueWatchingManager.getList();
+                const index = list.findIndex(v => v.id === videoId);
+                if (index > -1) {
+                    list[index].timestamp = time;
+                    // Move to top if updated? Optional.
+                    // list.unshift(list.splice(index, 1)[0]); 
+                    localStorage.setItem('yt_continue_watching', JSON.stringify(list));
                 }
             }
         };
@@ -883,7 +952,8 @@
                     publishedAt: item.addedAt
                 },
                 contentDetails: { duration: item.duration },
-                statistics: { viewCount: 0 }
+                statistics: { viewCount: 0 },
+                timestamp: item.timestamp // Pass timestamp for rendering
             }));
 
             renderResults(formattedItems, true);
@@ -1295,6 +1365,7 @@
         }
 
         function minimizePlayer() {
+            saveCurrentProgress(); // Save before hiding
             if (appState.isFloating) {
                 const view = document.getElementById('watchView');
                 view.classList.add('hidden'); 
@@ -1828,6 +1899,7 @@
                 let likesText = '';
                 let timeText = '';
                 let durationText = '';
+                let progressHTML = '';
 
                 const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
                 const channelTitle = snip.channelTitle || '';
@@ -1846,6 +1918,19 @@
 
                 if (item.contentDetails && item.contentDetails.duration) {
                     durationText = `<span class="absolute bottom-2 left-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-bold">${parseDuration(item.contentDetails.duration)}</span>`;
+                    
+                    // Show progress bar if we have timestamp and duration
+                    if (item.timestamp && item.timestamp > 0) {
+                        const totalSeconds = parseDurationToSeconds(item.contentDetails.duration);
+                        if (totalSeconds > 0) {
+                            const percent = Math.min((item.timestamp / totalSeconds) * 100, 100);
+                            progressHTML = `
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar-fill" style="width: ${percent}%"></div>
+                                </div>
+                            `;
+                        }
+                    }
                 }
 
                 const card = document.createElement('div');
@@ -1855,11 +1940,14 @@
                 
                 const isLiked = LocalLikesManager.isLiked(videoId);
                 const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
+                const isSaved = LocalContinueWatchingManager.isInList(videoId);
+                const savedIconClass = isSaved ? 'fas fa-check text-blue-300' : 'fas fa-plus';
                 
                 card.innerHTML = `
                     <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">
                         <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
                         ${durationText}
+                        ${progressHTML}
                         
                         <button onclick="event.stopPropagation(); PlaylistManager.addToPlaylist('Watch Later', {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'})" 
                             class="absolute top-2 left-2 bg-black/60 hover:bg-blue-600 text-white p-1.5 rounded-lg opacity-0 group-hover/img:opacity-100 transition backdrop-blur-sm shadow-lg" title="צפייה בהמשך">
@@ -1947,11 +2035,16 @@
             updateLikeButtonUI(LocalLikesManager.isLiked(id));
             updateContinueButtonUI(LocalContinueWatchingManager.isInList(id));
 
+            // Determine start time
+            const startTime = LocalContinueWatchingManager.getTime(id);
+
             // Use API if ready
             if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
-                ytPlayer.loadVideoById(id);
+                ytPlayer.loadVideoById({videoId: id, startSeconds: startTime});
             } else {
-                document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1`;
+                // If seeking is needed on iframe init, we append start param
+                const startParam = startTime > 0 ? `&start=${Math.floor(startTime)}` : '';
+                document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1${startParam}`;
             }
             
             appState.currentVideoId = id;
@@ -1977,6 +2070,9 @@
         }
 
         function closePlayer() {
+            stopProgressTracking();
+            saveCurrentProgress();
+
             if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
                 ytPlayer.stopVideo();
             }
@@ -1995,6 +2091,11 @@
             appState.isVideoPaused = false;
             document.getElementById('global-pause-btn').classList.add('hidden');
             document.getElementById('return-to-video-btn').classList.add('hidden');
+            
+            // Refresh grid if we are in Continue Watching view to update progress bars
+            if (appState.searchContext === 'continue_watching') {
+                loadContinueWatching(true);
+            }
         }
 
         function copyLink(id) {
