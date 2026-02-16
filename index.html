@@ -418,6 +418,11 @@
                     <input type="text" id="clientIdInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-blue-600 transition text-white">
                 </div>
                 
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">תוצאות בכל עמוד (1-50)</label>
+                    <input type="number" id="maxResultsInput" min="1" max="50" value="12" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-green-600 transition text-white">
+                </div>
+
                 <div class="mt-4 border-t border-[#333] pt-4">
                     <h3 class="text-sm font-bold text-gray-400 mb-3">ניהול נתונים (גיבוי ושחזור)</h3>
                     <div class="flex gap-3">
@@ -456,7 +461,8 @@
             isVideoPaused: false,
             isFloating: false,
             activeChannelId: null,
-            currentRenderedItems: [] 
+            currentRenderedItems: [],
+            maxResults: 12 // Default Value
         };
 
         // --- YouTube Player API ---
@@ -511,6 +517,12 @@
                         const channel = snip.channelTitle || '';
                         const duration = nextItem.contentDetails?.duration || '';
                         
+                        // Small UI feedback
+                        const toast = document.getElementById('toast');
+                        toast.innerText = "מנגן סרטון הבא...";
+                        toast.className = "copy-toast show";
+                        setTimeout(() => { toast.className = "copy-toast"; }, 2000);
+
                         openPlayer(nextId, title, thumb, channel, duration);
                         return;
                     }
@@ -1188,14 +1200,20 @@
         function saveAndStart() {
             const newKey = document.getElementById('apiKeyInput').value.trim();
             const newClientId = document.getElementById('clientIdInput').value.trim();
-            
+            const newMaxResults = document.getElementById('maxResultsInput').value.trim(); // NEW
+
             if (!newKey) return alert("נא להזין API Key לפחות.");
             
             appState.apiKey = newKey;
             appState.clientId = newClientId;
+            // Validate Max Results
+            appState.maxResults = newMaxResults ? parseInt(newMaxResults) : 12;
+            if (appState.maxResults < 1) appState.maxResults = 1;
+            if (appState.maxResults > 50) appState.maxResults = 50;
             
             localStorage.setItem('yt_api_key', appState.apiKey);
             localStorage.setItem('yt_client_id', appState.clientId);
+            localStorage.setItem('yt_max_results', appState.maxResults); // NEW
             
             document.getElementById('configModal').style.display = 'none';
             
@@ -1221,14 +1239,18 @@
         window.onload = () => {
             const savedKey = localStorage.getItem('yt_api_key');
             const savedClient = localStorage.getItem('yt_client_id');
+            const savedMaxResults = localStorage.getItem('yt_max_results'); // NEW
+
             if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
+            if(savedMaxResults) document.getElementById('maxResultsInput').value = savedMaxResults; // NEW
             
             loadPlaylistsToSidebar();
 
             if(savedKey) {
                 appState.apiKey = savedKey;
                 appState.clientId = savedClient;
+                appState.maxResults = savedMaxResults ? parseInt(savedMaxResults) : 12; // NEW
                 saveAndStart();
             } else {
                 toggleConfig();
@@ -1309,9 +1331,10 @@
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
 
             try {
+                // Use maxResults
                 let url = appState.token 
-                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=12&key=${appState.apiKey}`
-                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=12&key=${appState.apiKey}`;
+                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=${appState.maxResults}&key=${appState.apiKey}`
+                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
 
                 const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
                 const res = await fetch(url, { headers });
@@ -1357,6 +1380,7 @@
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
 
             try {
+                // maxResults logic could apply here too, but staying close to original intent of "history"
                 const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=20&key=${appState.apiKey}`;
                 const res = await fetch(url, { headers: { Authorization: `Bearer ${appState.token}` } });
                 const data = await res.json();
@@ -1375,16 +1399,21 @@
 
         async function performSearch(loadMore, isHistoryNav = false) {
             const query = document.getElementById('searchInput').value.trim();
+
+            // --- FIX: Redirect for Channel/Playlist Load More ---
+            if (loadMore) {
+                if (appState.searchContext === 'channel') {
+                    return loadChannelVideos(appState.activeChannelId, true);
+                }
+                if (appState.searchContext === 'channel_playlists') {
+                    return loadChannelPlaylists(appState.activeChannelId, true);
+                }
+            }
+            // ---------------------------------------------------
+
             const order = document.getElementById('searchOrder').value;
             let type = document.getElementById('searchType').value || 'video,channel,playlist'; 
             const duration = document.getElementById('searchDuration').value;
-
-            if (!query && appState.searchContext === 'channel' && loadMore) {
-                return loadChannelVideos(null, true); 
-            }
-            if (!query && appState.searchContext === 'channel_playlists' && loadMore) {
-                return loadChannelPlaylists(appState.activeChannelId, true);
-            }
 
             if (!query) return loadHomePage();
 
@@ -1393,14 +1422,14 @@
                 document.getElementById('searchType').value = 'video';
             }
 
-            appState.searchContext = 'general';
-            document.getElementById('channelFilterContainer').classList.add('hidden');
-            setActiveNavItem('');
-            document.getElementById('sectionTitle').classList.remove('hidden');
-            document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-
             if (!loadMore) {
+                appState.searchContext = 'general';
+                document.getElementById('channelFilterContainer').classList.add('hidden');
+                setActiveNavItem('');
+                document.getElementById('sectionTitle').classList.remove('hidden');
+                document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
+                document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+                
                 appState.query = query;
                 appState.pageToken = "";
                 
@@ -1423,7 +1452,8 @@
             }
 
             try {
-                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=12&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
+                // Use maxResults
+                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${appState.maxResults}&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
                 if (duration) url += `&videoDuration=${duration}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
@@ -1471,8 +1501,9 @@
         }
 
         async function loadChannelVideos(channelId, loadMore = false, isHistoryNav = false) {
-            if (!channelId && !appState.query) return;
-            
+            // Fix: ensure ID if loading more
+            if (loadMore && !channelId) channelId = appState.activeChannelId;
+
             if (!loadMore) {
                 if (appState.currentVideoId) minimizePlayer();
 
@@ -1513,7 +1544,8 @@
             }
 
             try {
-                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=12&playlistId=${appState.query}&key=${appState.apiKey}`;
+                // Use maxResults
+                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${appState.maxResults}&playlistId=${appState.query}&key=${appState.apiKey}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
                 const res = await fetch(url);
@@ -1540,6 +1572,9 @@
         }
 
         async function loadChannelPlaylists(channelId, loadMore = false) {
+             // Fix: ensure ID if loading more
+             if (loadMore && !channelId) channelId = appState.activeChannelId;
+
              if (!loadMore) {
                 appState.searchContext = 'channel_playlists';
                 appState.activeChannelId = channelId;
@@ -1555,7 +1590,8 @@
             }
 
             try {
-                let url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=12&key=${appState.apiKey}`;
+                // Use maxResults
+                let url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
                 const res = await fetch(url);
