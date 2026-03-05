@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Search Hub - Pro Edition</title>
     
-    <link rel="icon" type="image/x-icon" href="https://www.youtube.com/s/desktop/28b67e7f/img/favicon_32x32.png">
+    <link rel="icon" type="image/png" href="https://www.gstatic.com/youtube/img/branding/favicon/favicon_144x144.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://www.youtube.com/iframe_api"></script> <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://www.youtube.com/iframe_api"></script> 
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap');
@@ -472,7 +473,7 @@
 
     <script>
         let appState = {
-            apiKey: "AIzaSyCRiRT9ne_VaO1t3doer6hSp39sD0SAOwM",
+            apiKey: "",
             clientId: "",
             pageToken: "",
             query: "",
@@ -481,7 +482,7 @@
             tokenClient: null,
             searchContext: 'general',
             currentVideoId: null,
-            currentVideoIndex: -1,
+            currentVideoIndex: -1, // NEW: Track index for autoplay
             currentVideoDetails: null, 
             isVideoPaused: false,
             isFloating: false,
@@ -490,32 +491,6 @@
             maxResults: 12,
             progressInterval: null 
         };
-
-        // --- NEW: Secure Fetch via Google Apps Script Proxy ---
-        async function secureYoutubeFetch(endpoint, params) {
-            // הכתובת הייעודית של השרת הפרטי שלך בגוגל
-            const PROXY_URL = 'https://script.google.com/macros/s/AKfycbxYFl2r58zNWhwS8R_PxqiheIKf3fM7kR4_0YFab-qqIrqjGwS_qlg1aaOEvwdpLAZj/exec'; 
-            
-            try {
-                const response = await fetch(PROXY_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'text/plain;charset=utf-8',
-                    },
-                    body: JSON.stringify({
-                        endpoint: endpoint,
-                        params: params,
-                        apiKey: appState.apiKey,
-                        token: appState.token 
-                    })
-                });
-                
-                return await response.json();
-            } catch (error) {
-                console.error("Secure fetch failed:", error);
-                return null;
-            }
-        }
 
         // --- YouTube Player API ---
         let ytPlayer = null;
@@ -529,15 +504,18 @@
         }
 
         function onPlayerStateChange(event) {
+            // YT.PlayerState.ENDED = 0
             if (event.data === 0) {
                 stopProgressTracking();
-                playNextVideo(); 
+                playNextVideo(); // Trigger next video
             }
+            // Playing = 1
             else if (event.data === 1) { 
                 appState.isVideoPaused = false;
                 document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
                 startProgressTracking();
             } 
+            // Paused = 2
             else if (event.data === 2) { 
                 appState.isVideoPaused = true;
                 document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-play"></i>';
@@ -546,11 +524,12 @@
             }
         }
 
+        // --- Progress Tracking Logic ---
         function startProgressTracking() {
-            stopProgressTracking(); 
+            stopProgressTracking(); // Clear existing
             appState.progressInterval = setInterval(() => {
                 saveCurrentProgress();
-            }, 5000); 
+            }, 5000); // Save every 5 seconds
         }
 
         function stopProgressTracking() {
@@ -563,15 +542,17 @@
         function saveCurrentProgress() {
             if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function' && appState.currentVideoId) {
                 const time = Math.floor(ytPlayer.getCurrentTime());
-                if (time > 5) { 
+                if (time > 5) { // Only save if watched more than 5 seconds
                     LocalContinueWatchingManager.updateProgress(appState.currentVideoId, time);
                 }
             }
         }
 
+        // --- NEW: Autoplay Logic based on Index ---
         function playNextVideo() {
             if (!appState.currentRenderedItems || appState.currentVideoIndex === -1) return;
 
+            // Check if there is a next item
             const nextIndex = appState.currentVideoIndex + 1;
             if (nextIndex < appState.currentRenderedItems.length) {
                 const nextItem = appState.currentRenderedItems[nextIndex];
@@ -579,11 +560,13 @@
                 
                 if (nextId) {
                     const snip = nextItem.snippet;
+                    // Toast
                     const toast = document.getElementById('toast');
                     toast.innerText = "מנגן את הסרטון הבא...";
                     toast.className = "copy-toast show";
                     setTimeout(() => { toast.className = "copy-toast"; }, 2000);
 
+                    // Pass the index to keep the chain going
                     openPlayer(nextId, snip.title, snip.thumbnails?.high?.url, snip.channelTitle, nextItem.contentDetails?.duration, nextIndex);
                 }
             }
@@ -723,7 +706,7 @@
                     url = `https://www.youtube.com/playlist?list=${item.id.playlistId}`;
                 } else if (item.id.channelId) {
                     url = `https://www.youtube.com/channel/${item.id.channelId}`;
-                } else if (typeof item.id === 'string') { 
+                } else if (typeof item.id === 'string') { // Fallback
                     url = `https://www.youtube.com/watch?v=${item.id}`;
                 }
 
@@ -764,7 +747,7 @@
                 delete playlists[oldName];
                 PlaylistManager.savePlaylists(playlists);
                 loadPlaylistsToSidebar();
-                loadPlaylistView(newName); 
+                loadPlaylistView(newName); // טען מחדש עם השם החדש
             },
 
             deletePlaylist: (name) => {
@@ -773,13 +756,14 @@
                 delete playlists[name];
                 PlaylistManager.savePlaylists(playlists);
                 loadPlaylistsToSidebar();
-                loadHomePage(); 
+                loadHomePage(); // חזור לדף הבית
             },
 
             addToPlaylist: (playlistName, video) => {
                 const playlists = PlaylistManager.getPlaylists();
                 if (!playlists[playlistName]) playlists[playlistName] = [];
                 
+                // בדיקה אם הסרטון כבר קיים
                 if (playlists[playlistName].some(v => v.id === video.id)) {
                     return alert('הסרטון כבר נמצא ברשימה זו');
                 }
@@ -794,6 +778,7 @@
                 });
                 PlaylistManager.savePlaylists(playlists);
                 
+                // Toast הודעה
                 const toast = document.getElementById('toast');
                 toast.innerText = `נוסף ל-${playlistName === 'Watch Later' ? 'צפייה בהמשך' : playlistName}`;
                 toast.className = "copy-toast show";
@@ -805,11 +790,12 @@
                 if (playlists[playlistName]) {
                     playlists[playlistName] = playlists[playlistName].filter(v => v.id !== videoId);
                     PlaylistManager.savePlaylists(playlists);
-                    loadPlaylistView(playlistName, true); 
+                    loadPlaylistView(playlistName, true); // רענון תצוגה
                 }
             }
         };
 
+        // --- מנהל לייקים מקומי ---
         const LocalLikesManager = {
             getLikes: () => JSON.parse(localStorage.getItem('yt_local_likes') || '[]'),
             
@@ -825,7 +811,7 @@
                 if (existingIndex > -1) {
                     likes.splice(existingIndex, 1);
                     localStorage.setItem('yt_local_likes', JSON.stringify(likes));
-                    return false; 
+                    return false; // Removed
                 } else {
                     likes.unshift({
                         id: video.id,
@@ -836,11 +822,12 @@
                         addedAt: new Date().toISOString()
                     });
                     localStorage.setItem('yt_local_likes', JSON.stringify(likes));
-                    return true; 
+                    return true; // Added
                 }
             }
         };
 
+        // --- מנהל המשך צפייה (מעודכן: פורמט URL) ---
         const LocalContinueWatchingManager = {
             getList: () => JSON.parse(localStorage.getItem('yt_continue_watching') || '[]'),
             
@@ -853,6 +840,7 @@
                 const list = LocalContinueWatchingManager.getList();
                 const item = list.find(v => v.id === videoId);
                 if (item && item.resumeUrl) {
+                    // Extract ?t=123
                     const match = item.resumeUrl.match(/[?&]t=(\d+)/);
                     if (match) return parseInt(match[1]);
                 }
@@ -866,7 +854,7 @@
                 if (existingIndex > -1) {
                     list.splice(existingIndex, 1);
                     localStorage.setItem('yt_continue_watching', JSON.stringify(list));
-                    return false; 
+                    return false; // Removed
                 } else {
                     list.unshift({
                         id: video.id,
@@ -875,11 +863,11 @@
                         channel: video.channel,
                         duration: video.duration,
                         timestamp: 0,
-                        resumeUrl: `https://youtu.be/${video.id}?t=0`, 
+                        resumeUrl: `https://youtu.be/${video.id}?t=0`, // Save exact format
                         addedAt: new Date().toISOString()
                     });
                     localStorage.setItem('yt_continue_watching', JSON.stringify(list));
-                    return true; 
+                    return true; // Added
                 }
             },
 
@@ -888,6 +876,7 @@
                 const index = list.findIndex(v => v.id === videoId);
                 if (index > -1) {
                     list[index].timestamp = time;
+                    // Update URL with new time
                     list[index].resumeUrl = `https://youtu.be/${videoId}?t=${time}`;
                     localStorage.setItem('yt_continue_watching', JSON.stringify(list));
                 }
@@ -904,6 +893,7 @@
                 loadContinueWatching(true);
             }
             
+            // Toast
             const toast = document.getElementById('toast');
             toast.innerText = isAdded ? 'נוסף להמשך צפייה' : 'הוסר מהמשך צפייה';
             toast.className = "copy-toast show";
@@ -959,12 +949,13 @@
                 },
                 contentDetails: { duration: item.duration },
                 statistics: { viewCount: 0 },
-                timestamp: item.timestamp 
+                timestamp: item.timestamp // Pass timestamp for rendering
             }));
 
             renderResults(formattedItems, true);
         }
 
+        // --- פונקציה לשינוי מצב לייק ---
         function toggleLocalLike() {
             if (!appState.currentVideoId || !appState.currentVideoDetails) return;
             
@@ -976,6 +967,7 @@
             }
         }
 
+        // פונקציה: החלפת מצב לייק מכרטיסיית סרטון
         function toggleLikeBtn(btn, id, title, thumb, channel, duration) {
              const video = {id, title, thumbnail: thumb, channel, duration};
              const isLiked = LocalLikesManager.toggleLike(video);
@@ -992,6 +984,7 @@
              }
         }
 
+        // פונקציה: ניגון אקראי מפלייליסט
         function playRandomFromPlaylist(playlistName) {
             const playlists = PlaylistManager.getPlaylists();
             const videos = playlists[playlistName] || [];
@@ -1018,6 +1011,7 @@
             }
         }
 
+        // --- פונקציה לטעינת דף "אהבתי" ---
         function loadLikedVideos(isHistoryNav = false) {
             setActiveNavItem('navLiked');
             appState.searchContext = 'liked';
@@ -1324,12 +1318,13 @@
         globalPauseBtn.addEventListener('click', () => {
             if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
                 const state = ytPlayer.getPlayerState();
-                if (state === 1) { 
+                if (state === 1) { // Playing
                     ytPlayer.pauseVideo();
                 } else {
                     ytPlayer.playVideo();
                 }
             } else {
+                // Fallback if API not ready
                 if (appState.isVideoPaused) {
                     playerFrame.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
                     globalPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
@@ -1366,7 +1361,7 @@
         }
 
         function minimizePlayer() {
-            saveCurrentProgress(); 
+            saveCurrentProgress(); // Save before hiding
             if (appState.isFloating) {
                 const view = document.getElementById('watchView');
                 view.classList.add('hidden'); 
@@ -1390,19 +1385,20 @@
         function saveAndStart() {
             const newKey = document.getElementById('apiKeyInput').value.trim();
             const newClientId = document.getElementById('clientIdInput').value.trim();
-            const newMaxResults = document.getElementById('maxResultsInput').value.trim(); 
+            const newMaxResults = document.getElementById('maxResultsInput').value.trim(); // NEW
 
             if (!newKey) return alert("נא להזין API Key לפחות.");
             
             appState.apiKey = newKey;
             appState.clientId = newClientId;
+            // Validate Max Results
             appState.maxResults = newMaxResults ? parseInt(newMaxResults) : 12;
             if (appState.maxResults < 1) appState.maxResults = 1;
             if (appState.maxResults > 50) appState.maxResults = 50;
             
             localStorage.setItem('yt_api_key', appState.apiKey);
             localStorage.setItem('yt_client_id', appState.clientId);
-            localStorage.setItem('yt_max_results', appState.maxResults); 
+            localStorage.setItem('yt_max_results', appState.maxResults); // NEW
             
             document.getElementById('configModal').style.display = 'none';
             
@@ -1426,27 +1422,24 @@
         }
 
         window.onload = () => {
-            const hardcodedKey = "AIzaSyCRiRT9ne_VaO1t3doer6hSp39sD0SAOwM";
-            
+            const savedKey = localStorage.getItem('yt_api_key');
             const savedClient = localStorage.getItem('yt_client_id');
-            const savedMaxResults = localStorage.getItem('yt_max_results'); 
+            const savedMaxResults = localStorage.getItem('yt_max_results'); // NEW
 
-            document.getElementById('apiKeyInput').value = hardcodedKey;
+            if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
-            if(savedMaxResults) document.getElementById('maxResultsInput').value = savedMaxResults; 
+            if(savedMaxResults) document.getElementById('maxResultsInput').value = savedMaxResults; // NEW
             
             loadPlaylistsToSidebar();
 
-            appState.apiKey = hardcodedKey;
-            appState.clientId = savedClient || "";
-            appState.maxResults = savedMaxResults ? parseInt(savedMaxResults) : 12; 
-            
-            localStorage.setItem('yt_api_key', hardcodedKey);
-            document.getElementById('configModal').style.display = 'none';
-
-            if (appState.clientId) initAuth();
-            initChart();
-            loadHomePage();
+            if(savedKey) {
+                appState.apiKey = savedKey;
+                appState.clientId = savedClient;
+                appState.maxResults = savedMaxResults ? parseInt(savedMaxResults) : 12; // NEW
+                saveAndStart();
+            } else {
+                toggleConfig();
+            }
         };
 
         function initAuth() {
@@ -1523,19 +1516,14 @@
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
 
             try {
-                let endpoint = appState.token ? 'activities' : 'videos';
-                let params = appState.token ? {
-                    part: 'snippet,contentDetails',
-                    mine: true,
-                    maxResults: appState.maxResults
-                } : {
-                    part: 'snippet,statistics,contentDetails',
-                    chart: 'mostPopular',
-                    regionCode: 'IL',
-                    maxResults: appState.maxResults
-                };
+                // Use maxResults
+                let url = appState.token 
+                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=${appState.maxResults}&key=${appState.apiKey}`
+                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
 
-                const data = await secureYoutubeFetch(endpoint, params);
+                const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
+                const res = await fetch(url, { headers });
+                const data = await res.json();
                 
                 let videoIds = [];
                 if (appState.token && data.items) {
@@ -1577,11 +1565,10 @@
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
 
             try {
-                const data = await secureYoutubeFetch('activities', {
-                    part: 'snippet,contentDetails',
-                    mine: true,
-                    maxResults: 20
-                });
+                // maxResults logic could apply here too, but staying close to original intent of "history"
+                const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=20&key=${appState.apiKey}`;
+                const res = await fetch(url, { headers: { Authorization: `Bearer ${appState.token}` } });
+                const data = await res.json();
 
                 const videoIds = (data.items || [])
                     .map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId || i.contentDetails.like?.resourceId?.videoId)
@@ -1598,6 +1585,7 @@
         async function performSearch(loadMore, isHistoryNav = false) {
             const query = document.getElementById('searchInput').value.trim();
 
+            // --- FIX: Redirect for Channel/Playlist Load More ---
             if (loadMore) {
                 if (appState.searchContext === 'channel') {
                     return loadChannelVideos(appState.activeChannelId, true);
@@ -1606,6 +1594,7 @@
                     return loadChannelPlaylists(appState.activeChannelId, true);
                 }
             }
+            // ---------------------------------------------------
 
             const order = document.getElementById('searchOrder').value;
             let type = document.getElementById('searchType').value || 'video,channel,playlist'; 
@@ -1648,17 +1637,13 @@
             }
 
             try {
-                let params = {
-                    part: 'snippet',
-                    maxResults: appState.maxResults,
-                    q: appState.query,
-                    order: order,
-                    type: type
-                };
-                if (duration) params.videoDuration = duration;
-                if (appState.pageToken) params.pageToken = appState.pageToken;
+                // Use maxResults
+                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${appState.maxResults}&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
+                if (duration) url += `&videoDuration=${duration}`;
+                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
-                const data = await secureYoutubeFetch('search', params);
+                const response = await fetch(url);
+                const data = await response.json();
                 
                 appState.pageToken = data.nextPageToken || "";
                 document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
@@ -1668,10 +1653,8 @@
                 const otherItems = items.filter(i => i.id.kind !== 'youtube#video'); 
                 
                 if (videoIds.length > 0) {
-                     const statsData = await secureYoutubeFetch('videos', {
-                         part: 'snippet,statistics,contentDetails',
-                         id: videoIds.join(',')
-                     });
+                     const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds.join(',')}&key=${appState.apiKey}`);
+                     const statsData = await statsRes.json();
                      const combinedItems = [...otherItems, ...statsData.items.map(i => ({
                          id: { kind: 'youtube#video', videoId: i.id },
                          snippet: i.snippet,
@@ -1689,10 +1672,8 @@
         async function fetchAndRenderVideos(ids, clear) {
             if (!ids.length) return;
             try {
-                const data = await secureYoutubeFetch('videos', {
-                    part: 'snippet,statistics,contentDetails',
-                    id: ids.join(',')
-                });
+                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids.join(',')}&key=${appState.apiKey}`);
+                const data = await res.json();
                 const formatted = data.items.map(item => ({
                     id: { kind: 'youtube#video', videoId: item.id },
                     snippet: item.snippet,
@@ -1705,6 +1686,7 @@
         }
 
         async function loadChannelVideos(channelId, loadMore = false, isHistoryNav = false) {
+            // Fix: ensure ID if loading more
             if (loadMore && !channelId) channelId = appState.activeChannelId;
 
             if (!loadMore) {
@@ -1719,10 +1701,8 @@
                     document.getElementById('sectionTitle').innerText = "טוען...";
                     document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
                     
-                    const data = await secureYoutubeFetch('channels', {
-                        part: 'contentDetails,snippet',
-                        id: channelId
-                    });
+                    const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet&id=${channelId}&key=${appState.apiKey}`);
+                    const data = await res.json();
                     
                     if (!data.items || !data.items.length) {
                         return;
@@ -1749,25 +1729,21 @@
             }
 
             try {
-                let params = {
-                    part: 'snippet',
-                    maxResults: appState.maxResults,
-                    playlistId: appState.query
-                };
-                if (appState.pageToken) params.pageToken = appState.pageToken;
+                // Use maxResults
+                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${appState.maxResults}&playlistId=${appState.query}&key=${appState.apiKey}`;
+                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
-                const data = await secureYoutubeFetch('playlistItems', params);
+                const res = await fetch(url);
+                const data = await res.json();
 
                 appState.pageToken = data.nextPageToken || "";
                 document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
 
                 const videoIds = data.items.map(item => item.snippet.resourceId.videoId).join(',');
                 if(videoIds) {
-                    const statsData = await secureYoutubeFetch('videos', {
-                        part: 'snippet,statistics,contentDetails',
-                        id: videoIds
-                    });
-                    const formatted = statsData.items.map(item => ({
+                    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${appState.apiKey}`);
+                    const statsData = await statsRes.json();
+                     const formatted = statsData.items.map(item => ({
                         id: { kind: 'youtube#video', videoId: item.id },
                         snippet: item.snippet,
                         statistics: item.statistics,
@@ -1781,6 +1757,7 @@
         }
 
         async function loadChannelPlaylists(channelId, loadMore = false) {
+             // Fix: ensure ID if loading more
              if (loadMore && !channelId) channelId = appState.activeChannelId;
 
              if (!loadMore) {
@@ -1798,14 +1775,12 @@
             }
 
             try {
-                let params = {
-                    part: 'snippet,contentDetails',
-                    channelId: channelId,
-                    maxResults: appState.maxResults
-                };
-                if (appState.pageToken) params.pageToken = appState.pageToken;
+                // Use maxResults
+                let url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
+                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
-                const data = await secureYoutubeFetch('playlists', params);
+                const res = await fetch(url);
+                const data = await res.json();
 
                 appState.pageToken = data.nextPageToken || "";
                 document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
@@ -1856,6 +1831,7 @@
                 const snip = item.snippet;
                 const kind = item.id.kind;
                 
+                // --- עיבוד ערוץ ---
                 if (kind === 'youtube#channel') {
                     const channelId = item.id.channelId;
                     const card = document.createElement('div');
@@ -1875,6 +1851,7 @@
                     return;
                 }
 
+                // --- עיבוד פלייליסט ---
                 if (kind === 'youtube#playlist') {
                     const playlistId = item.id.playlistId;
                     const card = document.createElement('div');
@@ -1910,6 +1887,7 @@
                     return;
                 }
 
+                // --- עיבוד סרטון ---
                 const videoId = item.id.videoId;
                 if (!videoId) return;
 
@@ -1937,6 +1915,7 @@
                 if (item.contentDetails && item.contentDetails.duration) {
                     durationText = `<span class="absolute bottom-2 left-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-bold">${parseDuration(item.contentDetails.duration)}</span>`;
                     
+                    // Show progress bar if we have timestamp and duration
                     if (item.timestamp && item.timestamp > 0) {
                         const totalSeconds = parseDurationToSeconds(item.contentDetails.duration);
                         if (totalSeconds > 0) {
@@ -2048,23 +2027,30 @@
             
             appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
             
+            // --- NEW: Save Index for Autoplay ---
             if (index !== -1) {
                 appState.currentVideoIndex = index;
             } else {
+                // Try to find if not provided
                 appState.currentVideoIndex = appState.currentRenderedItems.findIndex(item => {
                     const iId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
                     return String(iId) === String(id);
                 });
             }
+            // ------------------------------------
 
+            // Update UI buttons
             updateLikeButtonUI(LocalLikesManager.isLiked(id));
             updateContinueButtonUI(LocalContinueWatchingManager.isInList(id));
 
+            // Determine start time from URL
             const startTime = LocalContinueWatchingManager.getTimeFromUrl(id);
 
+            // Use API if ready
             if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
                 ytPlayer.loadVideoById({videoId: id, startSeconds: startTime});
             } else {
+                // If seeking is needed on iframe init, we append start param
                 const startParam = startTime > 0 ? `&start=${Math.floor(startTime)}` : '';
                 document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1${startParam}`;
             }
@@ -2077,10 +2063,8 @@
             document.getElementById('return-to-video-btn').classList.add('hidden');
             
             try {
-                const data = await secureYoutubeFetch('videos', {
-                    part: 'snippet,statistics',
-                    id: id
-                });
+                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${id}&key=${appState.apiKey}`);
+                const data = await res.json();
                 const item = data.items[0];
                 if (item) {
                     document.getElementById('modalDesc').innerHTML = linkify(item.snippet.description);
@@ -2106,16 +2090,18 @@
             document.getElementById('watchView').classList.remove('floating-mode'); 
             appState.isFloating = false;
             
+            // Only clear src if API didn't handle it
             if (!ytPlayer) document.getElementById('playerFrame').src = '';
             
             document.body.style.overflow = 'auto'; 
             
             appState.currentVideoId = null;
-            appState.currentVideoIndex = -1; 
+            appState.currentVideoIndex = -1; // Reset index
             appState.isVideoPaused = false;
             document.getElementById('global-pause-btn').classList.add('hidden');
             document.getElementById('return-to-video-btn').classList.add('hidden');
             
+            // Refresh grid if we are in Continue Watching view to update progress bars
             if (appState.searchContext === 'continue_watching') {
                 loadContinueWatching(true);
             }
