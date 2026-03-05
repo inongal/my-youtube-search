@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Search Hub - Pro Edition</title>
     
-    <link rel="icon" type="image/png" href="https://www.gstatic.com/youtube/img/branding/favicon/favicon_144x144.png">
+    <link rel="icon" type="image/x-icon" href="https://www.youtube.com/s/desktop/28b67e7f/img/favicon_32x32.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://www.youtube.com/iframe_api"></script> 
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://www.youtube.com/iframe_api"></script> <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap');
@@ -138,7 +137,7 @@
             display: none;
         }
 
-        #watchView.floating-mode .player-container:hover .floating-controls {
+        #watchView.floating-mode .floating-controls {
             display: flex;
             position: absolute;
             top: 0;
@@ -147,11 +146,15 @@
             padding: 8px;
             background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
             z-index: 20;
-            opacity: 1;
+            opacity: 0;
             transition: opacity 0.3s ease;
             justify-content: flex-end;
             gap: 10px;
             cursor: move; 
+        }
+
+        #watchView.floating-mode .player-container:hover .floating-controls {
+            opacity: 1;
         }
 
         #configModal { display: none; backdrop-filter: blur(12px); }
@@ -469,7 +472,7 @@
 
     <script>
         let appState = {
-            apiKey: "AIzaSyCRiRT9ne_VaO1t3doer6hSp39sD0SAOwM", // המפתח הוטמע כאן
+            apiKey: "AIzaSyCRiRT9ne_VaO1t3doer6hSp39sD0SAOwM",
             clientId: "",
             pageToken: "",
             query: "",
@@ -488,22 +491,22 @@
             progressInterval: null 
         };
 
-        // --- NEW: Secure Fetch via Vercel Proxy ---
+        // --- NEW: Secure Fetch via Google Apps Script Proxy ---
         async function secureYoutubeFetch(endpoint, params) {
-            // שים לב: עליך להחליף את הכתובת הזו בכתובת האמיתית של פרויקט ה-Vercel שלך!
-            const PROXY_URL = 'https://my-youtube-search.vercel.app/'; 
+            // הכתובת הייעודית של השרת הפרטי שלך בגוגל
+            const PROXY_URL = 'https://script.google.com/macros/s/AKfycbxYFl2r58zNWhwS8R_PxqiheIKf3fM7kR4_0YFab-qqIrqjGwS_qlg1aaOEvwdpLAZj/exec'; 
             
             try {
                 const response = await fetch(PROXY_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'text/plain;charset=utf-8',
                     },
                     body: JSON.stringify({
                         endpoint: endpoint,
                         params: params,
                         apiKey: appState.apiKey,
-                        token: appState.token // נעביר את הטוקן למקרה של בקשות מאובטחות (כמו היסטוריה)
+                        token: appState.token 
                     })
                 });
                 
@@ -544,10 +547,10 @@
         }
 
         function startProgressTracking() {
-            stopProgressTracking();
+            stopProgressTracking(); 
             appState.progressInterval = setInterval(() => {
                 saveCurrentProgress();
-            }, 5000);
+            }, 5000); 
         }
 
         function stopProgressTracking() {
@@ -586,6 +589,7 @@
             }
         }
 
+        // --- משתני ניהול היסטוריה ---
         let navHistory = [];
         let navIndex = -1;
         let isInternalNav = false; 
@@ -647,6 +651,7 @@
             }
         }
 
+        // --- Helper Functions ---
         function formatCount(num) {
             const n = parseInt(num);
             if (!n) return '0';
@@ -718,7 +723,7 @@
                     url = `https://www.youtube.com/playlist?list=${item.id.playlistId}`;
                 } else if (item.id.channelId) {
                     url = `https://www.youtube.com/channel/${item.id.channelId}`;
-                } else if (typeof item.id === 'string') {
+                } else if (typeof item.id === 'string') { 
                     url = `https://www.youtube.com/watch?v=${item.id}`;
                 }
 
@@ -735,6 +740,7 @@
             window.URL.revokeObjectURL(anchor.href);
         }
 
+        // --- Playlist & Local Storage Logic ---
         const PlaylistManager = {
             getPlaylists: () => JSON.parse(localStorage.getItem('yt_playlists') || '{"Watch Later": []}'),
             
@@ -758,7 +764,7 @@
                 delete playlists[oldName];
                 PlaylistManager.savePlaylists(playlists);
                 loadPlaylistsToSidebar();
-                loadPlaylistView(newName);
+                loadPlaylistView(newName); 
             },
 
             deletePlaylist: (name) => {
@@ -1420,7 +1426,6 @@
         }
 
         window.onload = () => {
-            // הזרקת המפתח האוטומטית
             const hardcodedKey = "AIzaSyCRiRT9ne_VaO1t3doer6hSp39sD0SAOwM";
             
             const savedClient = localStorage.getItem('yt_client_id');
@@ -1436,10 +1441,7 @@
             appState.clientId = savedClient || "";
             appState.maxResults = savedMaxResults ? parseInt(savedMaxResults) : 12; 
             
-            // שמירה בזיכרון המקומי כדי שהמערכת לא תחפש מפתח חדש
             localStorage.setItem('yt_api_key', hardcodedKey);
-            
-            // הסתרת תפריט ההגדרות וטעינת האתר
             document.getElementById('configModal').style.display = 'none';
 
             if (appState.clientId) initAuth();
