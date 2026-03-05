@@ -469,7 +469,7 @@
 
     <script>
         let appState = {
-            apiKey: "",
+            apiKey: "AIzaSyCRiRT9ne_VaO1t3doer6hSp39sD0SAOwM", // המפתח הוטמע כאן
             clientId: "",
             pageToken: "",
             query: "",
@@ -491,10 +491,10 @@
         // --- NEW: Secure Fetch via Vercel Proxy ---
         async function secureYoutubeFetch(endpoint, params) {
             // שים לב: עליך להחליף את הכתובת הזו בכתובת האמיתית של פרויקט ה-Vercel שלך!
-            const PROXY_URL = 'https://YOUR-VERCEL-PROJECT.vercel.app/api/proxy'; 
+            const PROXY_URL = 'https://my-youtube-search.vercel.app/'; 
             
             try {
-                const PROXY_URL = 'https://my-youtube-search.vercel.app/api/proxy';
+                const response = await fetch(PROXY_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1420,24 +1420,31 @@
         }
 
         window.onload = () => {
-            const savedKey = localStorage.getItem('yt_api_key');
+            // הזרקת המפתח האוטומטית
+            const hardcodedKey = "AIzaSyCRiRT9ne_VaO1t3doer6hSp39sD0SAOwM";
+            
             const savedClient = localStorage.getItem('yt_client_id');
             const savedMaxResults = localStorage.getItem('yt_max_results'); 
 
-            if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
+            document.getElementById('apiKeyInput').value = hardcodedKey;
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
             if(savedMaxResults) document.getElementById('maxResultsInput').value = savedMaxResults; 
             
             loadPlaylistsToSidebar();
 
-            if(savedKey) {
-                appState.apiKey = savedKey;
-                appState.clientId = savedClient;
-                appState.maxResults = savedMaxResults ? parseInt(savedMaxResults) : 12; 
-                saveAndStart();
-            } else {
-                toggleConfig();
-            }
+            appState.apiKey = hardcodedKey;
+            appState.clientId = savedClient || "";
+            appState.maxResults = savedMaxResults ? parseInt(savedMaxResults) : 12; 
+            
+            // שמירה בזיכרון המקומי כדי שהמערכת לא תחפש מפתח חדש
+            localStorage.setItem('yt_api_key', hardcodedKey);
+            
+            // הסתרת תפריט ההגדרות וטעינת האתר
+            document.getElementById('configModal').style.display = 'none';
+
+            if (appState.clientId) initAuth();
+            initChart();
+            loadHomePage();
         };
 
         function initAuth() {
