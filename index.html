@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Search Hub - Pro Edition</title>
     
-    <link rel="icon" type="image/png" href="https://www.gstatic.com/youtube/img/branding/favicon/favicon_144x144.png">
+    <link rel="icon" type="image/x-icon" href="https://www.youtube.com/s/desktop/28b67e7f/img/favicon_32x32.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://www.youtube.com/iframe_api"></script> 
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://www.youtube.com/iframe_api"></script> <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap');
@@ -206,21 +205,6 @@
             background-size: 1.5em 1.5em;
             padding-left: 2.5rem;
         }
-
-        /* Progress Bar on Cards */
-        .progress-bar-container {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: rgba(255,255,255,0.2);
-            z-index: 10;
-        }
-        .progress-bar-fill {
-            height: 100%;
-            background: #cc0000;
-        }
     </style>
 </head>
 <body class="custom-scrollbar">
@@ -317,9 +301,6 @@
                 <div onclick="loadWatchHistory()" class="sidebar-item" id="navHistory">
                     <i class="fas fa-history text-lg"></i><span>היסטוריית צפייה</span>
                 </div>
-                <div onclick="loadContinueWatching()" class="sidebar-item" id="navContinueWatching">
-                    <i class="fas fa-step-forward text-lg"></i><span>המשך צפייה</span>
-                </div>
                 <div onclick="loadLocalHistory()" class="sidebar-item" id="navLocalHistory">
                     <i class="fas fa-hdd text-lg"></i><span>היסטוריה מקומית (PC)</span>
                 </div>
@@ -410,15 +391,9 @@
                 <div class="p-8 player-info-section">
                     <div class="flex justify-between items-start mb-4">
                         <h2 id="fullTitle" class="text-2xl font-bold flex-1"></h2>
-                        <div class="flex gap-2 ml-4">
-                             <button id="playerContinueBtn" onclick="toggleContinueWatching()" class="w-12 h-12 rounded-full bg-[#222] hover:bg-[#333] flex items-center justify-center transition text-gray-400" title="הוסף להמשך צפייה">
-                                <i class="far fa-bookmark text-xl"></i>
-                            </button>
-
-                            <button id="playerLikeBtn" onclick="toggleLocalLike()" class="w-12 h-12 rounded-full bg-[#222] hover:bg-[#333] flex items-center justify-center transition text-gray-400" title="אהבתי">
-                                <i class="far fa-heart text-xl"></i>
-                            </button>
-                        </div>
+                        <button id="playerLikeBtn" onclick="toggleLocalLike()" class="ml-4 w-12 h-12 rounded-full bg-[#222] hover:bg-[#333] flex items-center justify-center transition text-gray-400" title="אהבתי">
+                            <i class="far fa-heart text-xl"></i>
+                        </button>
                     </div>
                     <div class="bg-[#222] p-5 rounded-2xl">
                         <p id="modalStats" class="text-sm font-bold mb-3 text-gray-300"></p>
@@ -443,11 +418,6 @@
                     <input type="text" id="clientIdInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-blue-600 transition text-white">
                 </div>
                 
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">תוצאות בכל עמוד (1-50)</label>
-                    <input type="number" id="maxResultsInput" min="1" max="50" value="12" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-green-600 transition text-white">
-                </div>
-
                 <div class="mt-4 border-t border-[#333] pt-4">
                     <h3 class="text-sm font-bold text-gray-400 mb-3">ניהול נתונים (גיבוי ושחזור)</h3>
                     <div class="flex gap-3">
@@ -482,14 +452,11 @@
             tokenClient: null,
             searchContext: 'general',
             currentVideoId: null,
-            currentVideoIndex: -1, // NEW: Track index for autoplay
             currentVideoDetails: null, 
             isVideoPaused: false,
             isFloating: false,
             activeChannelId: null,
-            currentRenderedItems: [],
-            maxResults: 12,
-            progressInterval: null 
+            currentRenderedItems: [] 
         };
 
         // --- YouTube Player API ---
@@ -504,70 +471,44 @@
         }
 
         function onPlayerStateChange(event) {
-            // YT.PlayerState.ENDED = 0
             if (event.data === 0) {
-                stopProgressTracking();
-                playNextVideo(); // Trigger next video
+                playNextVideo();
             }
-            // Playing = 1
-            else if (event.data === 1) { 
+            if (event.data === 1) { 
                 appState.isVideoPaused = false;
                 document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
-                startProgressTracking();
-            } 
-            // Paused = 2
-            else if (event.data === 2) { 
+            } else if (event.data === 2) { 
                 appState.isVideoPaused = true;
                 document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-play"></i>';
-                saveCurrentProgress(); 
-                stopProgressTracking();
             }
         }
 
-        // --- Progress Tracking Logic ---
-        function startProgressTracking() {
-            stopProgressTracking(); // Clear existing
-            appState.progressInterval = setInterval(() => {
-                saveCurrentProgress();
-            }, 5000); // Save every 5 seconds
-        }
-
-        function stopProgressTracking() {
-            if (appState.progressInterval) {
-                clearInterval(appState.progressInterval);
-                appState.progressInterval = null;
-            }
-        }
-
-        function saveCurrentProgress() {
-            if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function' && appState.currentVideoId) {
-                const time = Math.floor(ytPlayer.getCurrentTime());
-                if (time > 5) { // Only save if watched more than 5 seconds
-                    LocalContinueWatchingManager.updateProgress(appState.currentVideoId, time);
-                }
-            }
-        }
-
-        // --- NEW: Autoplay Logic based on Index ---
         function playNextVideo() {
-            if (!appState.currentRenderedItems || appState.currentVideoIndex === -1) return;
+            const currentList = appState.currentRenderedItems;
+            const currentId = appState.currentVideoId;
+            
+            if (!currentList || !currentId) return;
 
-            // Check if there is a next item
-            const nextIndex = appState.currentVideoIndex + 1;
-            if (nextIndex < appState.currentRenderedItems.length) {
-                const nextItem = appState.currentRenderedItems[nextIndex];
-                const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
-                
-                if (nextId) {
-                    const snip = nextItem.snippet;
-                    // Toast
-                    const toast = document.getElementById('toast');
-                    toast.innerText = "מנגן את הסרטון הבא...";
-                    toast.className = "copy-toast show";
-                    setTimeout(() => { toast.className = "copy-toast"; }, 2000);
+            const idx = currentList.findIndex(item => {
+                const itemId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
+                return itemId === currentId;
+            });
 
-                    // Pass the index to keep the chain going
-                    openPlayer(nextId, snip.title, snip.thumbnails?.high?.url, snip.channelTitle, nextItem.contentDetails?.duration, nextIndex);
+            if (idx > -1) {
+                for (let i = idx + 1; i < currentList.length; i++) {
+                    const nextItem = currentList[i];
+                    const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
+                    
+                    if (nextId) {
+                        const snip = nextItem.snippet;
+                        const title = snip.title; 
+                        const thumb = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url || '';
+                        const channel = snip.channelTitle || '';
+                        const duration = nextItem.contentDetails?.duration || '';
+                        
+                        openPlayer(nextId, title, thumb, channel, duration);
+                        return;
+                    }
                 }
             }
         }
@@ -629,8 +570,6 @@
                 loadPlaylistView(state.playlistName, true);
             } else if (state.type === 'liked') { 
                 loadLikedVideos(true);
-            } else if (state.type === 'continue_watching') {
-                loadContinueWatching(true);
             }
         }
 
@@ -679,16 +618,6 @@
             return result.join(':');
         }
 
-        function parseDurationToSeconds(duration) {
-            if (!duration) return 0;
-            const matches = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
-            if (!matches) return 0;
-            const hours = parseInt((matches[1] || '').replace('H', '')) || 0;
-            const minutes = parseInt((matches[2] || '').replace('M', '')) || 0;
-            const seconds = parseInt((matches[3] || '').replace('S', '')) || 0;
-            return (hours * 3600) + (minutes * 60) + seconds;
-        }
-
         function downloadUrls() {
             if (!appState.currentRenderedItems || appState.currentRenderedItems.length === 0) {
                 alert('אין תוצאות להורדה כרגע.');
@@ -706,7 +635,7 @@
                     url = `https://www.youtube.com/playlist?list=${item.id.playlistId}`;
                 } else if (item.id.channelId) {
                     url = `https://www.youtube.com/channel/${item.id.channelId}`;
-                } else if (typeof item.id === 'string') { // Fallback
+                } else if (typeof item.id === 'string') { 
                     url = `https://www.youtube.com/watch?v=${item.id}`;
                 }
 
@@ -747,7 +676,7 @@
                 delete playlists[oldName];
                 PlaylistManager.savePlaylists(playlists);
                 loadPlaylistsToSidebar();
-                loadPlaylistView(newName); // טען מחדש עם השם החדש
+                loadPlaylistView(newName); 
             },
 
             deletePlaylist: (name) => {
@@ -756,14 +685,13 @@
                 delete playlists[name];
                 PlaylistManager.savePlaylists(playlists);
                 loadPlaylistsToSidebar();
-                loadHomePage(); // חזור לדף הבית
+                loadHomePage(); 
             },
 
             addToPlaylist: (playlistName, video) => {
                 const playlists = PlaylistManager.getPlaylists();
                 if (!playlists[playlistName]) playlists[playlistName] = [];
                 
-                // בדיקה אם הסרטון כבר קיים
                 if (playlists[playlistName].some(v => v.id === video.id)) {
                     return alert('הסרטון כבר נמצא ברשימה זו');
                 }
@@ -778,7 +706,6 @@
                 });
                 PlaylistManager.savePlaylists(playlists);
                 
-                // Toast הודעה
                 const toast = document.getElementById('toast');
                 toast.innerText = `נוסף ל-${playlistName === 'Watch Later' ? 'צפייה בהמשך' : playlistName}`;
                 toast.className = "copy-toast show";
@@ -790,7 +717,7 @@
                 if (playlists[playlistName]) {
                     playlists[playlistName] = playlists[playlistName].filter(v => v.id !== videoId);
                     PlaylistManager.savePlaylists(playlists);
-                    loadPlaylistView(playlistName, true); // רענון תצוגה
+                    loadPlaylistView(playlistName, true); 
                 }
             }
         };
@@ -811,7 +738,7 @@
                 if (existingIndex > -1) {
                     likes.splice(existingIndex, 1);
                     localStorage.setItem('yt_local_likes', JSON.stringify(likes));
-                    return false; // Removed
+                    return false; 
                 } else {
                     likes.unshift({
                         id: video.id,
@@ -822,140 +749,11 @@
                         addedAt: new Date().toISOString()
                     });
                     localStorage.setItem('yt_local_likes', JSON.stringify(likes));
-                    return true; // Added
+                    return true; 
                 }
             }
         };
 
-        // --- מנהל המשך צפייה (מעודכן: פורמט URL) ---
-        const LocalContinueWatchingManager = {
-            getList: () => JSON.parse(localStorage.getItem('yt_continue_watching') || '[]'),
-            
-            isInList: (videoId) => {
-                const list = LocalContinueWatchingManager.getList();
-                return list.some(v => v.id === videoId);
-            },
-
-            getTimeFromUrl: (videoId) => {
-                const list = LocalContinueWatchingManager.getList();
-                const item = list.find(v => v.id === videoId);
-                if (item && item.resumeUrl) {
-                    // Extract ?t=123
-                    const match = item.resumeUrl.match(/[?&]t=(\d+)/);
-                    if (match) return parseInt(match[1]);
-                }
-                return item ? (item.timestamp || 0) : 0;
-            },
-            
-            toggle: (video) => {
-                let list = LocalContinueWatchingManager.getList();
-                const existingIndex = list.findIndex(v => v.id === video.id);
-                
-                if (existingIndex > -1) {
-                    list.splice(existingIndex, 1);
-                    localStorage.setItem('yt_continue_watching', JSON.stringify(list));
-                    return false; // Removed
-                } else {
-                    list.unshift({
-                        id: video.id,
-                        title: video.title,
-                        thumbnail: video.thumbnail,
-                        channel: video.channel,
-                        duration: video.duration,
-                        timestamp: 0,
-                        resumeUrl: `https://youtu.be/${video.id}?t=0`, // Save exact format
-                        addedAt: new Date().toISOString()
-                    });
-                    localStorage.setItem('yt_continue_watching', JSON.stringify(list));
-                    return true; // Added
-                }
-            },
-
-            updateProgress: (videoId, time) => {
-                let list = LocalContinueWatchingManager.getList();
-                const index = list.findIndex(v => v.id === videoId);
-                if (index > -1) {
-                    list[index].timestamp = time;
-                    // Update URL with new time
-                    list[index].resumeUrl = `https://youtu.be/${videoId}?t=${time}`;
-                    localStorage.setItem('yt_continue_watching', JSON.stringify(list));
-                }
-            }
-        };
-
-        function toggleContinueWatching() {
-             if (!appState.currentVideoId || !appState.currentVideoDetails) return;
-            
-            const isAdded = LocalContinueWatchingManager.toggle(appState.currentVideoDetails);
-            updateContinueButtonUI(isAdded);
-            
-            if (appState.searchContext === 'continue_watching') {
-                loadContinueWatching(true);
-            }
-            
-            // Toast
-            const toast = document.getElementById('toast');
-            toast.innerText = isAdded ? 'נוסף להמשך צפייה' : 'הוסר מהמשך צפייה';
-            toast.className = "copy-toast show";
-            setTimeout(() => { toast.className = "copy-toast"; }, 3000);
-        }
-
-        function updateContinueButtonUI(isAdded) {
-            const btn = document.getElementById('playerContinueBtn');
-            const icon = btn.querySelector('i');
-            if (isAdded) {
-                icon.classList.remove('far');
-                icon.classList.add('fas');
-                icon.classList.add('text-blue-400');
-                btn.classList.add('text-white');
-            } else {
-                icon.classList.remove('fas');
-                icon.classList.remove('text-blue-400');
-                icon.classList.add('far');
-                btn.classList.remove('text-white');
-            }
-        }
-
-        function loadContinueWatching(isHistoryNav = false) {
-            setActiveNavItem('navContinueWatching');
-            appState.searchContext = 'continue_watching';
-            document.getElementById('channelFilterContainer').classList.add('hidden');
-            
-            if (!isHistoryNav) pushHistory({ type: 'continue_watching' });
-
-            const titleEl = document.getElementById('sectionTitle');
-            titleEl.innerText = "המשך צפייה";
-            titleEl.classList.remove('hidden');
-            document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-            
-            if (appState.currentVideoId) minimizePlayer();
-
-            const list = LocalContinueWatchingManager.getList();
-
-            if (list.length === 0) {
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">הרשימה ריקה.<br>סמן סרטונים בסימניה כדי לשמור אותם כאן.</div>';
-                appState.currentRenderedItems = [];
-                return;
-            }
-
-            const formattedItems = list.map(item => ({
-                id: { kind: 'youtube#video', videoId: item.id },
-                snippet: {
-                    title: item.title,
-                    channelTitle: item.channel,
-                    thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } },
-                    publishedAt: item.addedAt
-                },
-                contentDetails: { duration: item.duration },
-                statistics: { viewCount: 0 },
-                timestamp: item.timestamp // Pass timestamp for rendering
-            }));
-
-            renderResults(formattedItems, true);
-        }
-
-        // --- פונקציה לשינוי מצב לייק ---
         function toggleLocalLike() {
             if (!appState.currentVideoId || !appState.currentVideoDetails) return;
             
@@ -967,7 +765,6 @@
             }
         }
 
-        // פונקציה: החלפת מצב לייק מכרטיסיית סרטון
         function toggleLikeBtn(btn, id, title, thumb, channel, duration) {
              const video = {id, title, thumbnail: thumb, channel, duration};
              const isLiked = LocalLikesManager.toggleLike(video);
@@ -984,7 +781,6 @@
              }
         }
 
-        // פונקציה: ניגון אקראי מפלייליסט
         function playRandomFromPlaylist(playlistName) {
             const playlists = PlaylistManager.getPlaylists();
             const videos = playlists[playlistName] || [];
@@ -1011,7 +807,6 @@
             }
         }
 
-        // --- פונקציה לטעינת דף "אהבתי" ---
         function loadLikedVideos(isHistoryNav = false) {
             setActiveNavItem('navLiked');
             appState.searchContext = 'liked';
@@ -1139,7 +934,6 @@
                 history: localStorage.getItem('yt_local_history'),
                 playlists: localStorage.getItem('yt_playlists'),
                 likes: localStorage.getItem('yt_local_likes'),
-                continue_watching: localStorage.getItem('yt_continue_watching'),
                 settings: {
                     apiKey: localStorage.getItem('yt_api_key'),
                     clientId: localStorage.getItem('yt_client_id')
@@ -1168,7 +962,6 @@
                     if(data.history) localStorage.setItem('yt_local_history', data.history);
                     if(data.playlists) localStorage.setItem('yt_playlists', data.playlists);
                     if(data.likes) localStorage.setItem('yt_local_likes', data.likes); 
-                    if(data.continue_watching) localStorage.setItem('yt_continue_watching', data.continue_watching);
                     if(data.settings) {
                         if(data.settings.apiKey) localStorage.setItem('yt_api_key', data.settings.apiKey);
                     }
@@ -1318,13 +1111,12 @@
         globalPauseBtn.addEventListener('click', () => {
             if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
                 const state = ytPlayer.getPlayerState();
-                if (state === 1) { // Playing
+                if (state === 1) { 
                     ytPlayer.pauseVideo();
                 } else {
                     ytPlayer.playVideo();
                 }
             } else {
-                // Fallback if API not ready
                 if (appState.isVideoPaused) {
                     playerFrame.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
                     globalPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
@@ -1361,7 +1153,6 @@
         }
 
         function minimizePlayer() {
-            saveCurrentProgress(); // Save before hiding
             if (appState.isFloating) {
                 const view = document.getElementById('watchView');
                 view.classList.add('hidden'); 
@@ -1385,20 +1176,14 @@
         function saveAndStart() {
             const newKey = document.getElementById('apiKeyInput').value.trim();
             const newClientId = document.getElementById('clientIdInput').value.trim();
-            const newMaxResults = document.getElementById('maxResultsInput').value.trim(); // NEW
-
+            
             if (!newKey) return alert("נא להזין API Key לפחות.");
             
             appState.apiKey = newKey;
             appState.clientId = newClientId;
-            // Validate Max Results
-            appState.maxResults = newMaxResults ? parseInt(newMaxResults) : 12;
-            if (appState.maxResults < 1) appState.maxResults = 1;
-            if (appState.maxResults > 50) appState.maxResults = 50;
             
             localStorage.setItem('yt_api_key', appState.apiKey);
             localStorage.setItem('yt_client_id', appState.clientId);
-            localStorage.setItem('yt_max_results', appState.maxResults); // NEW
             
             document.getElementById('configModal').style.display = 'none';
             
@@ -1424,18 +1209,14 @@
         window.onload = () => {
             const savedKey = localStorage.getItem('yt_api_key');
             const savedClient = localStorage.getItem('yt_client_id');
-            const savedMaxResults = localStorage.getItem('yt_max_results'); // NEW
-
             if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
-            if(savedMaxResults) document.getElementById('maxResultsInput').value = savedMaxResults; // NEW
             
             loadPlaylistsToSidebar();
 
             if(savedKey) {
                 appState.apiKey = savedKey;
                 appState.clientId = savedClient;
-                appState.maxResults = savedMaxResults ? parseInt(savedMaxResults) : 12; // NEW
                 saveAndStart();
             } else {
                 toggleConfig();
@@ -1516,10 +1297,9 @@
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
 
             try {
-                // Use maxResults
                 let url = appState.token 
-                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=${appState.maxResults}&key=${appState.apiKey}`
-                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
+                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=12&key=${appState.apiKey}`
+                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=12&key=${appState.apiKey}`;
 
                 const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
                 const res = await fetch(url, { headers });
@@ -1565,7 +1345,6 @@
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
 
             try {
-                // maxResults logic could apply here too, but staying close to original intent of "history"
                 const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=20&key=${appState.apiKey}`;
                 const res = await fetch(url, { headers: { Authorization: `Bearer ${appState.token}` } });
                 const data = await res.json();
@@ -1584,21 +1363,16 @@
 
         async function performSearch(loadMore, isHistoryNav = false) {
             const query = document.getElementById('searchInput').value.trim();
-
-            // --- FIX: Redirect for Channel/Playlist Load More ---
-            if (loadMore) {
-                if (appState.searchContext === 'channel') {
-                    return loadChannelVideos(appState.activeChannelId, true);
-                }
-                if (appState.searchContext === 'channel_playlists') {
-                    return loadChannelPlaylists(appState.activeChannelId, true);
-                }
-            }
-            // ---------------------------------------------------
-
             const order = document.getElementById('searchOrder').value;
             let type = document.getElementById('searchType').value || 'video,channel,playlist'; 
             const duration = document.getElementById('searchDuration').value;
+
+            if (!query && appState.searchContext === 'channel' && loadMore) {
+                return loadChannelVideos(null, true); 
+            }
+            if (!query && appState.searchContext === 'channel_playlists' && loadMore) {
+                return loadChannelPlaylists(appState.activeChannelId, true);
+            }
 
             if (!query) return loadHomePage();
 
@@ -1607,14 +1381,14 @@
                 document.getElementById('searchType').value = 'video';
             }
 
+            appState.searchContext = 'general';
+            document.getElementById('channelFilterContainer').classList.add('hidden');
+            setActiveNavItem('');
+            document.getElementById('sectionTitle').classList.remove('hidden');
+            document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
+            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+
             if (!loadMore) {
-                appState.searchContext = 'general';
-                document.getElementById('channelFilterContainer').classList.add('hidden');
-                setActiveNavItem('');
-                document.getElementById('sectionTitle').classList.remove('hidden');
-                document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
-                document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-                
                 appState.query = query;
                 appState.pageToken = "";
                 
@@ -1637,8 +1411,7 @@
             }
 
             try {
-                // Use maxResults
-                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${appState.maxResults}&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
+                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=12&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
                 if (duration) url += `&videoDuration=${duration}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
@@ -1686,9 +1459,8 @@
         }
 
         async function loadChannelVideos(channelId, loadMore = false, isHistoryNav = false) {
-            // Fix: ensure ID if loading more
-            if (loadMore && !channelId) channelId = appState.activeChannelId;
-
+            if (!channelId && !appState.query) return;
+            
             if (!loadMore) {
                 if (appState.currentVideoId) minimizePlayer();
 
@@ -1729,8 +1501,7 @@
             }
 
             try {
-                // Use maxResults
-                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${appState.maxResults}&playlistId=${appState.query}&key=${appState.apiKey}`;
+                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=12&playlistId=${appState.query}&key=${appState.apiKey}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
                 const res = await fetch(url);
@@ -1757,9 +1528,6 @@
         }
 
         async function loadChannelPlaylists(channelId, loadMore = false) {
-             // Fix: ensure ID if loading more
-             if (loadMore && !channelId) channelId = appState.activeChannelId;
-
              if (!loadMore) {
                 appState.searchContext = 'channel_playlists';
                 appState.activeChannelId = channelId;
@@ -1775,8 +1543,7 @@
             }
 
             try {
-                // Use maxResults
-                let url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
+                let url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=12&key=${appState.apiKey}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
                 const res = await fetch(url);
@@ -1831,7 +1598,6 @@
                 const snip = item.snippet;
                 const kind = item.id.kind;
                 
-                // --- עיבוד ערוץ ---
                 if (kind === 'youtube#channel') {
                     const channelId = item.id.channelId;
                     const card = document.createElement('div');
@@ -1851,7 +1617,6 @@
                     return;
                 }
 
-                // --- עיבוד פלייליסט ---
                 if (kind === 'youtube#playlist') {
                     const playlistId = item.id.playlistId;
                     const card = document.createElement('div');
@@ -1887,7 +1652,6 @@
                     return;
                 }
 
-                // --- עיבוד סרטון ---
                 const videoId = item.id.videoId;
                 if (!videoId) return;
 
@@ -1895,7 +1659,6 @@
                 let likesText = '';
                 let timeText = '';
                 let durationText = '';
-                let progressHTML = '';
 
                 const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
                 const channelTitle = snip.channelTitle || '';
@@ -1914,19 +1677,6 @@
 
                 if (item.contentDetails && item.contentDetails.duration) {
                     durationText = `<span class="absolute bottom-2 left-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-bold">${parseDuration(item.contentDetails.duration)}</span>`;
-                    
-                    // Show progress bar if we have timestamp and duration
-                    if (item.timestamp && item.timestamp > 0) {
-                        const totalSeconds = parseDurationToSeconds(item.contentDetails.duration);
-                        if (totalSeconds > 0) {
-                            const percent = Math.min((item.timestamp / totalSeconds) * 100, 100);
-                            progressHTML = `
-                                <div class="progress-bar-container">
-                                    <div class="progress-bar-fill" style="width: ${percent}%"></div>
-                                </div>
-                            `;
-                        }
-                    }
                 }
 
                 const card = document.createElement('div');
@@ -1936,14 +1686,11 @@
                 
                 const isLiked = LocalLikesManager.isLiked(videoId);
                 const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
-                const isSaved = LocalContinueWatchingManager.isInList(videoId);
-                const savedIconClass = isSaved ? 'fas fa-check text-blue-300' : 'fas fa-plus';
                 
                 card.innerHTML = `
-                    <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}', ${appState.currentRenderedItems.indexOf(item)})">
+                    <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">
                         <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
                         ${durationText}
-                        ${progressHTML}
                         
                         <button onclick="event.stopPropagation(); PlaylistManager.addToPlaylist('Watch Later', {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'})" 
                             class="absolute top-2 left-2 bg-black/60 hover:bg-blue-600 text-white p-1.5 rounded-lg opacity-0 group-hover/img:opacity-100 transition backdrop-blur-sm shadow-lg" title="צפייה בהמשך">
@@ -1955,7 +1702,7 @@
                             <i class="fas fa-play text-[10px] opacity-30"></i>
                         </div>
                         <div class="flex-1">
-                            <h3 class="text-white font-semibold text-base leading-snug line-clamp-2" title="${snip.title}" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}', ${appState.currentRenderedItems.indexOf(item)})">${snip.title}</h3>
+                            <h3 class="text-white font-semibold text-base leading-snug line-clamp-2" title="${snip.title}" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">${snip.title}</h3>
                             <div class="text-[#aaaaaa] text-sm mt-1">
                                 <p class="hover:text-white transition-colors" onclick="loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
                                 <p>${viewsText}${likesText}${timeText}</p> 
@@ -1975,6 +1722,18 @@
                                     <i class="fas fa-list-ul"></i> שמירה
                                 </button>
 
+                                <div class="flex items-center gap-2 bg-[#272727] hover:bg-[#333] px-3 py-1.5 rounded-full transition w-fit border border-[#333]" onclick="event.stopPropagation();">
+                                    <select id="dl-qual-${videoId}" class="bg-transparent text-[10px] text-gray-300 outline-none cursor-pointer">
+                                        <option value="1080" class="bg-[#222]">1080p</option>
+                                        <option value="720" class="bg-[#222]">720p</option>
+                                        <option value="480" class="bg-[#222]">480p</option>
+                                        <option value="audio" class="bg-[#222]">שמע (MP3)</option>
+                                    </select>
+                                    <div class="w-px h-3 bg-[#555]"></div>
+                                    <button onclick="downloadWithYtDlp('${videoId}')" class="text-green-400 hover:text-green-300 transition flex items-center gap-1" title="הורד עכשיו">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
                                 ${appState.searchContext === 'local_history' ? `
                                 <button onclick="removeFromLocalHistory('${videoId}', event)" class="flex items-center justify-center text-[10px] bg-[#330000] text-red-400 hover:bg-red-900 px-3 py-1.5 rounded-full transition w-fit border border-red-900/50" title="הסר מההיסטוריה">
                                     <i class="fas fa-trash-alt"></i>
@@ -1985,13 +1744,6 @@
                                 <button onclick="event.stopPropagation(); PlaylistManager.removeFromPlaylist('${appState.searchContext.replace('playlist_', '')}', '${videoId}')" 
                                     class="text-[10px] bg-red-900/50 hover:bg-red-800 text-red-300 px-3 py-1.5 rounded-full border border-red-900/50 transition" title="הסר מרשימה">
                                     <i class="fas fa-trash"></i>
-                                </button>
-                                ` : ''}
-
-                                ${appState.searchContext === 'continue_watching' ? `
-                                <button onclick="event.stopPropagation(); LocalContinueWatchingManager.toggle({id: '${videoId}'}); loadContinueWatching(true);" 
-                                    class="text-[10px] bg-blue-900/50 hover:bg-blue-800 text-blue-300 px-3 py-1.5 rounded-full border border-blue-900/50 transition" title="הסר מהמשך צפייה">
-                                    <i class="fas fa-check"></i>
                                 </button>
                                 ` : ''}
                             </div>
@@ -2014,7 +1766,7 @@
             if(id) document.getElementById(id).classList.add('active');
         }
 
-        async function openPlayer(id, title, thumbnail = '', channel = '', duration = '', index = -1) {
+        async function openPlayer(id, title, thumbnail = '', channel = '', duration = '') {
             saveToLocalHistory(id, title, thumbnail, channel);
 
             const view = document.getElementById('watchView');
@@ -2026,33 +1778,12 @@
             document.getElementById('fullTitle').innerText = title;
             
             appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
-            
-            // --- NEW: Save Index for Autoplay ---
-            if (index !== -1) {
-                appState.currentVideoIndex = index;
-            } else {
-                // Try to find if not provided
-                appState.currentVideoIndex = appState.currentRenderedItems.findIndex(item => {
-                    const iId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
-                    return String(iId) === String(id);
-                });
-            }
-            // ------------------------------------
-
-            // Update UI buttons
             updateLikeButtonUI(LocalLikesManager.isLiked(id));
-            updateContinueButtonUI(LocalContinueWatchingManager.isInList(id));
 
-            // Determine start time from URL
-            const startTime = LocalContinueWatchingManager.getTimeFromUrl(id);
-
-            // Use API if ready
             if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
-                ytPlayer.loadVideoById({videoId: id, startSeconds: startTime});
+                ytPlayer.loadVideoById(id);
             } else {
-                // If seeking is needed on iframe init, we append start param
-                const startParam = startTime > 0 ? `&start=${Math.floor(startTime)}` : '';
-                document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1${startParam}`;
+                document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1`;
             }
             
             appState.currentVideoId = id;
@@ -2078,9 +1809,6 @@
         }
 
         function closePlayer() {
-            stopProgressTracking();
-            saveCurrentProgress();
-
             if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
                 ytPlayer.stopVideo();
             }
@@ -2090,21 +1818,14 @@
             document.getElementById('watchView').classList.remove('floating-mode'); 
             appState.isFloating = false;
             
-            // Only clear src if API didn't handle it
             if (!ytPlayer) document.getElementById('playerFrame').src = '';
             
             document.body.style.overflow = 'auto'; 
             
             appState.currentVideoId = null;
-            appState.currentVideoIndex = -1; // Reset index
             appState.isVideoPaused = false;
             document.getElementById('global-pause-btn').classList.add('hidden');
             document.getElementById('return-to-video-btn').classList.add('hidden');
-            
-            // Refresh grid if we are in Continue Watching view to update progress bars
-            if (appState.searchContext === 'continue_watching') {
-                loadContinueWatching(true);
-            }
         }
 
         function copyLink(id) {
@@ -2119,6 +1840,22 @@
             const toast = document.getElementById('toast');
             toast.className = "copy-toast show";
             setTimeout(() => { toast.className = "copy-toast"; }, 3000);
+        }
+        
+        // --- פונקציית ההורדה החדשה ---
+        function downloadWithYtDlp(videoId) {
+            if (!videoId) return;
+            
+            const qualSelect = document.getElementById(`dl-qual-${videoId}`);
+            const quality = qualSelect ? qualSelect.value : '1080';
+            
+            const toast = document.getElementById('toast');
+            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
+            toast.innerText = `מעביר הורדה (${qualityText}) ל-yt-dlp...`;
+            toast.className = "copy-toast show";
+            setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
+
+            window.location.href = `ytdlp://${videoId}/${quality}`;
         }
 
         document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') performSearch(false); });
