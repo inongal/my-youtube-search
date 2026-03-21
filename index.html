@@ -1728,6 +1728,7 @@
                                         <option value="720" class="bg-[#222]">720p</option>
                                         <option value="480" class="bg-[#222]">480p</option>
                                         <option value="audio" class="bg-[#222]">שמע (MP3)</option>
+                                        <option value="subs" class="bg-[#222]">כתוביות (עברית)</option>
                                     </select>
                                     <div class="w-px h-3 bg-[#555]"></div>
                                     <button onclick="downloadWithYtDlp('${videoId}')" class="text-green-400 hover:text-green-300 transition flex items-center gap-1" title="הורד עכשיו">
@@ -1842,7 +1843,7 @@
             setTimeout(() => { toast.className = "copy-toast"; }, 3000);
         }
         
-        // --- פונקציית ההורדה החדשה ---
+        // --- פונקציית ההורדה המעודכנת ---
         function downloadWithYtDlp(videoId) {
             if (!videoId) return;
             
@@ -1850,7 +1851,7 @@
             const quality = qualSelect ? qualSelect.value : '1080';
             
             const toast = document.getElementById('toast');
-            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
+            let qualityText = quality === 'audio' ? 'שמע (MP3)' : (quality === 'subs' ? 'כתוביות (עברית)' : quality + 'p');
             toast.innerText = `מעביר הורדה (${qualityText}) ל-yt-dlp...`;
             toast.className = "copy-toast show";
             setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
