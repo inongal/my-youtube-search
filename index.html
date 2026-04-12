@@ -273,17 +273,33 @@
 
     <div id="batchActionBar" class="fixed bottom-0 left-0 right-0 lg:right-64 bg-[#1a1a1a] border-t border-[#3b82f6] p-4 flex items-center justify-between z-[150] transform translate-y-full transition-transform duration-300 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
         <div class="flex items-center gap-4">
-            <button onclick="toggleSelectionMode()" class="w-8 h-8 rounded-full bg-[#333] hover:bg-[#444] flex items-center justify-center transition text-gray-400">
+            <button onclick="toggleSelectionMode()" class="w-8 h-8 rounded-full bg-[#333] hover:bg-[#444] flex items-center justify-center transition text-gray-400" title="סגור מצב בחירה">
                 <i class="fas fa-times"></i>
             </button>
             <span id="batchCountLabel" class="font-bold text-blue-400">0 נבחרו</span>
+            <button onclick="selectAllVideos()" class="text-xs text-gray-300 hover:text-white transition font-bold px-3 py-1.5 rounded-lg bg-[#222] border border-[#444] hover:border-[#666]">
+                <i class="fas fa-check-double ml-1"></i> בחר הכל
+            </button>
         </div>
         <div class="flex items-center gap-3">
+            <select id="batchQualitySelect" class="bg-[#222] border border-[#444] text-white text-sm rounded-lg px-3 py-2 outline-none hidden sm:block">
+                <option value="1080">1080p</option>
+                <option value="720">720p</option>
+                <option value="480">480p</option>
+                <option value="audio">שמע (MP3)</option>
+                <option value="subs">כתוביות (עברית)</option>
+            </select>
+            
             <button onclick="batchAddToPlaylist()" class="bg-[#222] hover:bg-[#333] border border-[#444] px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2">
-                <i class="fas fa-list-ul"></i> <span class="hidden sm:inline">הוסף לרשימה</span>
+                <i class="fas fa-list-ul"></i> <span class="hidden md:inline">הוסף לרשימה</span>
             </button>
-            <button onclick="batchDownloadUrls()" class="bg-[#222] hover:bg-[#333] border border-[#444] px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2">
-                <i class="fas fa-download"></i> הורד נבחרים
+            
+            <button onclick="batchDownloadUrls()" class="bg-[#222] hover:bg-[#333] border border-[#444] px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2" title="ייצא קישורים כקובץ טקסט">
+                <i class="fas fa-link"></i> <span class="hidden md:inline">גיבוי קישורים</span>
+            </button>
+
+            <button onclick="batchDownloadWithYtDlp()" class="bg-blue-600 hover:bg-blue-700 border border-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg">
+                <i class="fas fa-download"></i> הורדה מרובה
             </button>
         </div>
     </div>
@@ -686,6 +702,77 @@
             triggerDownloadBlob(urlList, `youtube_batch_links_${new Date().toISOString().slice(0,10)}.txt`);
             
             toggleSelectionMode(); 
+        }
+
+        // --- פונקציות הוספה להורדה מרובה ---
+        function selectAllVideos() {
+            const videosToSelect = appState.currentRenderedItems.filter(item => item.id && (item.id.videoId || typeof item.id === 'string'));
+            if (videosToSelect.length === 0) return;
+            
+            const allSelected = videosToSelect.every(item => appState.selectedVideos.has(item.id.videoId || item.id));
+            
+            if (allSelected) {
+                appState.selectedVideos.clear();
+                document.querySelectorAll('.video-card').forEach(card => card.classList.remove('selected-card'));
+                document.querySelectorAll('.selection-checkbox input').forEach(cb => cb.checked = false);
+            } else {
+                videosToSelect.forEach(item => {
+                    const vidId = item.id.videoId || item.id;
+                    appState.selectedVideos.add(vidId);
+                    const card = document.querySelector(`.video-card[data-video-id="${vidId}"]`);
+                    if (card) {
+                        card.classList.add('selected-card');
+                        const cb = card.querySelector('.selection-checkbox input');
+                        if (cb) cb.checked = true;
+                    }
+                });
+            }
+            updateBatchActionBar();
+        }
+
+        function batchDownloadWithYtDlp() {
+            if (appState.selectedVideos.size === 0) return;
+            
+            const qualitySelect = document.getElementById('batchQualitySelect');
+            const quality = qualitySelect ? qualitySelect.value : '1080';
+            
+            const videos = appState.currentRenderedItems.filter(item => 
+                item.id && (item.id.videoId || typeof item.id === 'string') &&
+                appState.selectedVideos.has(item.id.videoId || item.id)
+            );
+            
+            let qualityText = quality === 'audio' ? 'שמע (MP3)' : (quality === 'subs' ? 'כתוביות (עברית)' : quality + 'p');
+            
+            const toast = document.getElementById('toast');
+            toast.innerText = `מתחיל העברה של ${videos.length} סרטונים להורדה (${qualityText})...`;
+            toast.className = "copy-toast show";
+            setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
+
+            // יצירת תור של קריאות URI עם השהיה קלה ביניהן כדי לא לחסום את הדפדפן
+            let delay = 0;
+            videos.forEach((item) => {
+                const vidId = item.id.videoId || item.id;
+                setTimeout(() => {
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    iframe.src = `ytdlp://${vidId}/${quality}`;
+                    document.body.appendChild(iframe);
+                    
+                    // מחיקת ה-iframe לאחר שהבקשה נשלחה
+                    setTimeout(() => {
+                        if (document.body.contains(iframe)) {
+                            document.body.removeChild(iframe);
+                        }
+                    }, 2000);
+                }, delay);
+                
+                delay += 800; // השהיה של 800 מילישניות בין קריאות
+            });
+
+            // סגירת מצב בחירה בסיום התהליך
+            setTimeout(() => { 
+                toggleSelectionMode(); 
+            }, delay + 500);
         }
 
         function batchAddToPlaylist() {
