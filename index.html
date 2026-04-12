@@ -30,20 +30,7 @@
             overflow-x: hidden;
         }
 
-        /* --- Nav Buttons Styling --- */
-        .nav-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: transparent;
-            color: white;
-            transition: all 0.2s;
-            cursor: pointer;
-            border: none;
-        }
+        .nav-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background-color: transparent; color: white; transition: all 0.2s; cursor: pointer; border: none; }
         .nav-btn:hover { background-color: #3f3f3f; }
         .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; background-color: transparent !important; }
 
@@ -87,11 +74,38 @@
         #watchView.floating-mode .modal-overlay-bg { display: none; }
         #watchView.floating-mode .player-container { width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; resize: none; overflow: hidden; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid #333; pointer-events: auto; display: block; position: relative; }
         #watchView.floating-mode .player-info-section, #watchView.floating-mode .player-header { display: none !important; }
-        #watchView.floating-mode .aspect-video { width: 100%; height: 100%; position: absolute; inset: 0; padding: 0; margin: 0; }
+        #watchView.floating-mode .custom-yt-player { width: 100%; height: 100%; position: absolute; inset: 0; padding: 0; margin: 0; }
         .floating-controls { display: none; }
-        #watchView.floating-mode .floating-controls { display: flex; position: absolute; top: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); z-index: 20; opacity: 0; transition: opacity 0.3s ease; justify-content: flex-end; gap: 10px; cursor: move; }
+        #watchView.floating-mode .floating-controls { display: flex; position: absolute; top: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); z-index: 60; opacity: 0; transition: opacity 0.3s ease; justify-content: flex-end; gap: 10px; cursor: move; }
         #watchView.floating-mode .player-container:hover .floating-controls { opacity: 1; }
 
+        /* --- Custom YouTube Player Styles --- */
+        .custom-yt-player { position: relative; width: 100%; background-color: #000; aspect-ratio: 16/9; overflow: hidden; }
+        /* Iframe sits in background, pointer events disabled so our click layer works */
+        .custom-yt-player iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .player-click-layer { position: absolute; inset: 0; z-index: 20; cursor: pointer; }
+        
+        .player-controls-wrapper { position: absolute; bottom: 0; left: 0; right: 0; padding: 0 12px; z-index: 30; background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%); transition: opacity 0.3s ease; opacity: 0; }
+        .custom-yt-player:hover .player-controls-wrapper, .player-controls-wrapper:focus-within, .player-controls-wrapper.active { opacity: 1; }
+        
+        /* Progress Bar */
+        .progress-container { width: 100%; height: 5px; background-color: rgba(255,255,255,0.2); cursor: pointer; position: relative; margin-bottom: 8px; transition: height 0.1s ease; }
+        .progress-container:hover { height: 8px; }
+        .progress-loaded { position: absolute; top: 0; left: 0; height: 100%; background-color: rgba(255,255,255,0.4); width: 0%; pointer-events: none; }
+        .progress-played { position: absolute; top: 0; left: 0; height: 100%; background-color: #ff0000; width: 0%; pointer-events: none; display: flex; justify-content: flex-end; align-items: center; }
+        .progress-scrubber { width: 13px; height: 13px; background-color: #ff0000; border-radius: 50%; transform: scale(0); transition: transform 0.1s ease; margin-right: -6.5px; }
+        .progress-container:hover .progress-scrubber { transform: scale(1); }
+
+        /* Volume Slider */
+        .volume-slider { -webkit-appearance: none; appearance: none; width: 0px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; outline: none; transition: width 0.2s ease, opacity 0.2s; opacity: 0; cursor: pointer; }
+        .volume-container:hover .volume-slider { width: 60px; opacity: 1; margin-right: 8px; }
+        .volume-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #ffffff; cursor: pointer; }
+        .volume-slider::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #ffffff; cursor: pointer; border: none; }
+        
+        .player-btn { color: white; background: transparent; border: none; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.2s; opacity: 0.9; font-size: 1.1rem; }
+        .player-btn:hover { opacity: 1; }
+
+        /* General styles */
         #configModal { display: none; backdrop-filter: blur(12px); }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .sidebar-item { display: flex; align-items: center; gap: 20px; padding: 12px; cursor: pointer; border-radius: 12px; transition: background 0.2s; }
@@ -119,22 +133,14 @@
         </div>
 
         <div class="flex items-center gap-2 mx-4" dir="ltr">
-            <button id="navBackBtn" class="nav-btn" onclick="handleHistoryNav(-1)" title="אחורה" disabled>
-                <i class="fas fa-arrow-left"></i>
-            </button>
-            <button id="navForwardBtn" class="nav-btn" onclick="handleHistoryNav(1)" title="קדימה" disabled>
-                <i class="fas fa-arrow-right"></i>
-            </button>
+            <button id="navBackBtn" class="nav-btn" onclick="handleHistoryNav(-1)" title="אחורה" disabled><i class="fas fa-arrow-left"></i></button>
+            <button id="navForwardBtn" class="nav-btn" onclick="handleHistoryNav(1)" title="קדימה" disabled><i class="fas fa-arrow-right"></i></button>
         </div>
 
         <div class="flex-1 max-w-5xl flex items-center gap-2 px-4">
             <div class="flex w-full group">
-                <input type="text" id="searchInput" placeholder="חיפוש" 
-                    class="w-full bg-[#121212] border border-[#303030] rounded-r-full py-2.5 px-5 focus:border-blue-500 outline-none transition text-right text-white">
-                <button onclick="performSearch(false)" 
-                    class="bg-[#222222] border border-[#303030] border-r-0 rounded-l-full px-6 hover:bg-[#2a2a2a] transition">
-                    <i class="fas fa-search text-gray-300"></i>
-                </button>
+                <input type="text" id="searchInput" placeholder="חיפוש" class="w-full bg-[#121212] border border-[#303030] rounded-r-full py-2.5 px-5 focus:border-blue-500 outline-none transition text-right text-white">
+                <button onclick="performSearch(false)" class="bg-[#222222] border border-[#303030] border-r-0 rounded-l-full px-6 hover:bg-[#2a2a2a] transition"><i class="fas fa-search text-gray-300"></i></button>
             </div>
             
             <select id="searchType" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סוג תוצאה">
@@ -170,26 +176,19 @@
             <button id="return-to-video-btn" class="text-white hover:text-blue-400 p-2 px-3 rounded-full hidden transition-colors bg-[#272727] border border-[#333]" title="חזור לסרטון">
                 <i class="fa-solid fa-tv"></i>
             </button>
-            <button id="global-pause-btn" class="text-gray-400 hover:text-white p-2 w-10 h-10 flex items-center justify-center rounded-full hidden transition-colors border border-transparent hover:border-[#333]" title="השהה/נגן">
-                <i class="fa-solid fa-pause"></i>
-            </button>
 
             <button onclick="toggleConfig()" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-400" title="הגדרות API וגוגל">
                 <i class="fas fa-cog text-xl"></i>
             </button>
             
             <div id="authContainer">
-                <button onclick="requestToken()" class="bg-[#272727] hover:bg-[#3f3f3f] px-4 py-2 rounded-full text-sm font-bold border border-[#444] transition">
-                    התחברות
-                </button>
+                <button onclick="requestToken()" class="bg-[#272727] hover:bg-[#3f3f3f] px-4 py-2 rounded-full text-sm font-bold border border-[#444] transition">התחברות</button>
             </div>
             
             <div id="userDisplay" class="hidden flex items-center gap-3">
                 <span id="userName" class="text-xs font-bold hidden md:inline text-gray-400"></span>
                 <img id="userImg" class="w-8 h-8 rounded-full border border-gray-600">
-                <button onclick="handleLogout()" class="p-2 hover:bg-[#272727] rounded-full transition text-red-500" title="התנתק">
-                    <i class="fas fa-sign-out-alt text-lg"></i>
-                </button>
+                <button onclick="handleLogout()" class="p-2 hover:bg-[#272727] rounded-full transition text-red-500" title="התנתק"><i class="fas fa-sign-out-alt text-lg"></i></button>
             </div>
         </div>
     </header>
@@ -197,61 +196,35 @@
     <div class="flex pt-16 min-h-screen">
         <aside class="w-64 fixed right-0 top-16 bottom-0 hidden lg:block bg-[#0f0f0f] border-l border-[#222] p-4 overflow-y-auto custom-scrollbar">
             <nav class="space-y-1">
-                <div onclick="loadHomePage()" class="sidebar-item active" id="navHome">
-                    <i class="fas fa-house text-lg"></i><span>דף הבית</span>
-                </div>
-                <div class="sidebar-item">
-                    <i class="fas fa-bolt text-lg"></i><span>Shorts</span>
-                </div>
-                <div class="sidebar-item">
-                    <i class="fas fa-layer-group text-lg"></i><span>מנויים</span>
-                </div>
+                <div onclick="loadHomePage()" class="sidebar-item active" id="navHome"><i class="fas fa-house text-lg"></i><span>דף הבית</span></div>
+                <div class="sidebar-item"><i class="fas fa-bolt text-lg"></i><span>Shorts</span></div>
+                <div class="sidebar-item"><i class="fas fa-layer-group text-lg"></i><span>מנויים</span></div>
                 <hr class="my-3 border-[#222]">
-                <div onclick="loadWatchHistory()" class="sidebar-item" id="navHistory">
-                    <i class="fas fa-history text-lg"></i><span>היסטוריית צפייה</span>
-                </div>
-                <div onclick="loadLocalHistory()" class="sidebar-item" id="navLocalHistory">
-                    <i class="fas fa-hdd text-lg"></i><span>היסטוריה מקומית (PC)</span>
-                </div>
-                <div onclick="loadLikedVideos()" class="sidebar-item" id="navLiked">
-                    <i class="fas fa-thumbs-up text-lg"></i><span>סרטונים שאהבתי</span>
-                </div>
-                
+                <div onclick="loadWatchHistory()" class="sidebar-item" id="navHistory"><i class="fas fa-history text-lg"></i><span>היסטוריית צפייה</span></div>
+                <div onclick="loadLocalHistory()" class="sidebar-item" id="navLocalHistory"><i class="fas fa-hdd text-lg"></i><span>היסטוריה מקומית (PC)</span></div>
+                <div onclick="loadLikedVideos()" class="sidebar-item" id="navLiked"><i class="fas fa-thumbs-up text-lg"></i><span>סרטונים שאהבתי</span></div>
                 <hr class="my-3 border-[#222]">
                 <div class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">הרשימות שלי</div>
                 <div id="playlistsNavContainer"></div>
-                <div onclick="const n=prompt('שם הרשימה החדשה:'); if(n) PlaylistManager.createPlaylist(n);" class="sidebar-item text-blue-400">
-                    <i class="fas fa-plus text-lg"></i><span>צור רשימה חדשה</span>
-                </div>
+                <div onclick="const n=prompt('שם הרשימה החדשה:'); if(n) PlaylistManager.createPlaylist(n);" class="sidebar-item text-blue-400"><i class="fas fa-plus text-lg"></i><span>צור רשימה חדשה</span></div>
             </nav>
-            
             <div class="mt-8">
                 <h4 class="px-3 text-xs font-bold text-gray-500 mb-4 uppercase tracking-wider text-right">ניתוח נתונים</h4>
-                <div class="chart-container">
-                    <canvas id="statsChart"></canvas>
-                </div>
+                <div class="chart-container"><canvas id="statsChart"></canvas></div>
             </div>
         </aside>
 
         <main class="flex-1 lg:mr-64 p-6 relative">
-            
             <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
                 <h2 id="sectionTitle" class="text-2xl font-bold hidden">מומלצים</h2>
                 <div class="flex items-center gap-3">
-                    <button onclick="toggleViewMode()" class="bg-[#222] hover:bg-[#333] text-white w-10 h-10 rounded-lg text-sm flex items-center justify-center border border-[#444] transition" title="שנה תצוגה (רשת/רשימה)">
-                        <i id="viewToggleIcon" class="fas fa-list"></i>
-                    </button>
-                    <button onclick="toggleSelectionMode()" class="bg-[#222] hover:bg-[#333] text-white px-4 py-2 rounded-lg text-sm font-bold border border-[#444] transition flex items-center gap-2">
-                        <i class="fas fa-check-square"></i> <span class="hidden sm:inline">בחר סרטונים</span>
-                    </button>
-                    <button id="exportUrlsBtn" onclick="downloadUrls()" class="hidden bg-[#222] hover:bg-[#333] text-white px-4 py-2 rounded-lg text-sm font-bold border border-[#444] transition flex items-center gap-2">
-                        <i class="fas fa-file-download"></i> <span class="hidden sm:inline">הורד הכל</span>
-                    </button>
+                    <button onclick="toggleViewMode()" class="bg-[#222] hover:bg-[#333] text-white w-10 h-10 rounded-lg text-sm flex items-center justify-center border border-[#444] transition" title="שנה תצוגה (רשת/רשימה)"><i id="viewToggleIcon" class="fas fa-list"></i></button>
+                    <button onclick="toggleSelectionMode()" class="bg-[#222] hover:bg-[#333] text-white px-4 py-2 rounded-lg text-sm font-bold border border-[#444] transition flex items-center gap-2"><i class="fas fa-check-square"></i> <span class="hidden sm:inline">בחר סרטונים</span></button>
+                    <button id="exportUrlsBtn" onclick="downloadUrls()" class="hidden bg-[#222] hover:bg-[#333] text-white px-4 py-2 rounded-lg text-sm font-bold border border-[#444] transition flex items-center gap-2"><i class="fas fa-file-download"></i> <span class="hidden sm:inline">הורד הכל</span></button>
                 </div>
             </div>
             
             <div id="channelHeaderContainer" class="hidden flex-col gap-4 mb-6"></div>
-
             <div id="channelFilterContainer" class="hidden mb-6 flex gap-2"></div>
 
             <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
@@ -263,81 +236,81 @@
             </div>
 
             <div id="pagination" class="hidden mt-12 mb-20 flex justify-center">
-                <button id="loadMoreBtn" onclick="handleLoadMore()" 
-                    class="bg-white text-black px-12 py-3 rounded-full font-bold hover:bg-gray-200 transition shadow-lg">
-                    טען תוצאות נוספות
-                </button>
+                <button id="loadMoreBtn" onclick="performSearch(true)" class="bg-white text-black px-12 py-3 rounded-full font-bold hover:bg-gray-200 transition shadow-lg">טען תוצאות נוספות</button>
             </div>
         </main>
     </div>
 
     <div id="batchActionBar" class="fixed bottom-0 left-0 right-0 lg:right-64 bg-[#1a1a1a] border-t border-[#3b82f6] p-4 flex items-center justify-between z-[150] transform translate-y-full transition-transform duration-300 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
         <div class="flex items-center gap-4">
-            <button onclick="toggleSelectionMode()" class="w-8 h-8 rounded-full bg-[#333] hover:bg-[#444] flex items-center justify-center transition text-gray-400" title="סגור מצב בחירה">
-                <i class="fas fa-times"></i>
-            </button>
+            <button onclick="toggleSelectionMode()" class="w-8 h-8 rounded-full bg-[#333] hover:bg-[#444] flex items-center justify-center transition text-gray-400"><i class="fas fa-times"></i></button>
             <span id="batchCountLabel" class="font-bold text-blue-400">0 נבחרו</span>
-            <button onclick="selectAllVideos()" class="text-xs text-gray-300 hover:text-white transition font-bold px-3 py-1.5 rounded-lg bg-[#222] border border-[#444] hover:border-[#666]">
-                <i class="fas fa-check-double ml-1"></i> בחר הכל
-            </button>
+            <button onclick="selectAllVideos()" class="text-xs text-gray-300 hover:text-white transition font-bold px-3 py-1.5 rounded-lg bg-[#222] border border-[#444] hover:border-[#666]"><i class="fas fa-check-double ml-1"></i> בחר הכל</button>
         </div>
         <div class="flex items-center gap-3">
             <select id="batchQualitySelect" class="bg-[#222] border border-[#444] text-white text-sm rounded-lg px-3 py-2 outline-none hidden sm:block">
-                <option value="1080">1080p</option>
-                <option value="720">720p</option>
-                <option value="480">480p</option>
-                <option value="audio">שמע (MP3)</option>
-                <option value="subs">כתוביות (עברית)</option>
+                <option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option><option value="audio">שמע (MP3)</option><option value="subs">כתוביות (עברית)</option>
             </select>
-            
-            <button onclick="batchAddToPlaylist()" class="bg-[#222] hover:bg-[#333] border border-[#444] px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2">
-                <i class="fas fa-list-ul"></i> <span class="hidden md:inline">הוסף לרשימה</span>
-            </button>
-            
-            <button onclick="batchDownloadUrls()" class="bg-[#222] hover:bg-[#333] border border-[#444] px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2" title="ייצא קישורים כקובץ טקסט">
-                <i class="fas fa-link"></i> <span class="hidden md:inline">גיבוי קישורים</span>
-            </button>
-
-            <button onclick="batchDownloadWithYtDlp()" class="bg-blue-600 hover:bg-blue-700 border border-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg">
-                <i class="fas fa-download"></i> הורדה מרובה
-            </button>
+            <button onclick="batchAddToPlaylist()" class="bg-[#222] hover:bg-[#333] border border-[#444] px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2"><i class="fas fa-list-ul"></i> <span class="hidden md:inline">הוסף לרשימה</span></button>
+            <button onclick="batchDownloadUrls()" class="bg-[#222] hover:bg-[#333] border border-[#444] px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2" title="ייצא קישורים כקובץ טקסט"><i class="fas fa-link"></i> <span class="hidden md:inline">גיבוי קישורים</span></button>
+            <button onclick="batchDownloadWithYtDlp()" class="bg-blue-600 hover:bg-blue-700 border border-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg"><i class="fas fa-download"></i> הורדה מרובה</button>
         </div>
     </div>
 
     <div id="watchView" class="fixed inset-0 z-[200] items-center justify-center p-4 bg-black/90">
         <div class="absolute inset-0 modal-overlay-bg" onclick="minimizePlayer()"></div>
         
-        <div class="player-container relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333] shadow-2xl z-10">
+        <div id="playerModalContainer" class="player-container relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333] shadow-2xl z-10">
             <div class="floating-controls">
-                 <button onclick="toggleFloatingMode()" class="w-8 h-8 bg-black/60 hover:bg-[#cc0000] text-white rounded-full flex items-center justify-center transition" title="חזור למסך רגיל">
-                    <i class="fas fa-expand-alt text-xs"></i>
-                </button>
-                <button onclick="closePlayer()" class="w-8 h-8 bg-black/60 hover:bg-[#cc0000] text-white rounded-full flex items-center justify-center transition" title="סגור">
-                    <i class="fas fa-times text-xs"></i>
-                </button>
+                 <button onclick="toggleFloatingMode()" class="w-8 h-8 bg-black/60 hover:bg-[#cc0000] text-white rounded-full flex items-center justify-center transition" title="חזור למסך רגיל"><i class="fas fa-expand-alt text-xs"></i></button>
+                <button onclick="closePlayer()" class="w-8 h-8 bg-black/60 hover:bg-[#cc0000] text-white rounded-full flex items-center justify-center transition" title="סגור"><i class="fas fa-times text-xs"></i></button>
             </div>
 
             <div class="player-header p-4 flex justify-between items-center border-b border-[#222]">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2"></h3>
                 <div class="flex gap-2">
-                    <button onclick="toggleExternalPip()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="פתח בחלון צף חיצוני (PiP)">
-                        <i class="fas fa-external-link-alt text-gray-400"></i>
-                    </button>
-                    <button onclick="toggleFloatingMode()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="נגן צף באתר">
-                        <i class="fas fa-clone text-gray-400"></i>
-                    </button>
-                    <button onclick="minimizePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="מזער והמשך לשמוע ברקע">
-                        <i class="fas fa-compress text-gray-400"></i>
-                    </button>
-                    <button onclick="closePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="סגור נגן">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
+                    <button onclick="toggleExternalPip()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="פתח בחלון צף חיצוני (PiP)"><i class="fas fa-external-link-alt text-gray-400"></i></button>
+                    <button onclick="toggleFloatingMode()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="נגן צף באתר"><i class="fas fa-clone text-gray-400"></i></button>
+                    <button onclick="minimizePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="מזער והמשך לשמוע ברקע"><i class="fas fa-compress text-gray-400"></i></button>
+                    <button onclick="closePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="סגור נגן"><i class="fas fa-times text-xl"></i></button>
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
-                <div class="aspect-video w-full bg-black flex-shrink-0 relative">
-                    <div id="playerFrame" class="w-full h-full absolute inset-0"></div>
+            <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col bg-[#0f0f0f]">
+                <div id="customPlayerWrapper" class="custom-yt-player flex-shrink-0 group">
+                    <div id="playerFrame"></div>
+                    <div class="player-click-layer" onclick="togglePlayPauseVideo()"></div>
+                    
+                    <div class="player-controls-wrapper">
+                        <div class="progress-container" id="customProgressBar" onclick="seekVideo(event)">
+                            <div class="progress-loaded" id="progressLoaded"></div>
+                            <div class="progress-played" id="progressPlayed">
+                                <div class="progress-scrubber"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center pb-2 text-white">
+                            <div class="flex items-center gap-2">
+                                <button class="player-btn" onclick="playPrevVideo()" title="הקודם"><i class="fas fa-step-backward text-sm"></i></button>
+                                <button class="player-btn" id="customPlayPauseBtn" onclick="togglePlayPauseVideo()" title="הפעל (k)"><i class="fas fa-play text-xl"></i></button>
+                                <button class="player-btn" onclick="playNextVideo()" title="הבא"><i class="fas fa-step-forward text-sm"></i></button>
+                                
+                                <div class="volume-container flex items-center h-full mr-2">
+                                    <button class="player-btn w-auto px-2" id="customMuteBtn" onclick="toggleMuteVideo()" title="השתק (m)"><i class="fas fa-volume-up text-lg"></i></button>
+                                    <input type="range" id="customVolumeSlider" class="volume-slider" min="0" max="100" value="100" oninput="changeVideoVolume(this.value)">
+                                </div>
+                                
+                                <div class="text-xs font-medium tracking-wide font-[Roboto,Arial,sans-serif] mr-4 opacity-90" dir="ltr">
+                                    <span id="customCurrentTime">0:00</span> <span class="opacity-50 mx-1">/</span> <span id="customTotalTime">0:00</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center gap-2">
+                                <button class="player-btn" title="הגדרות"><i class="fas fa-cog"></i></button>
+                                <button class="player-btn" onclick="toggleCustomFullscreen()" title="מסך מלא (f)"><i class="fas fa-expand"></i></button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="p-8 player-info-section">
                     <div class="flex justify-between items-start mb-4">
@@ -360,32 +333,19 @@
             <h2 class="text-2xl font-bold mb-2 text-center text-white">הגדרות מערכת</h2>
             <p class="text-gray-500 text-xs text-center mb-6">כאן תוכל לעדכן את מפתחות הגישה שלך</p>
             <div class="space-y-5 text-right">
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">YouTube Data API Key</label>
-                    <input type="password" id="apiKeyInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-red-600 transition text-white">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Google Client ID</label>
-                    <input type="text" id="clientIdInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-blue-600 transition text-white">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">מספר תוצאות לחיפוש (1-50)</label>
-                    <input type="number" id="maxResultsInput" min="1" max="50" value="12" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-green-600 transition text-white">
-                </div>
+                <div><label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">YouTube Data API Key</label><input type="password" id="apiKeyInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-red-600 transition text-white"></div>
+                <div><label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Google Client ID</label><input type="text" id="clientIdInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-blue-600 transition text-white"></div>
+                <div><label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">מספר תוצאות לחיפוש (1-50)</label><input type="number" id="maxResultsInput" min="1" max="50" value="12" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-green-600 transition text-white"></div>
                 
                 <div class="mt-4 border-t border-[#333] pt-4">
                     <h3 class="text-sm font-bold text-gray-400 mb-3">ניהול נתונים (גיבוי ושחזור)</h3>
                     <div class="flex gap-3">
-                        <button onclick="exportData()" class="flex-1 bg-[#222] hover:bg-[#333] text-white py-2 rounded-lg text-xs font-bold border border-[#444] transition">
-                            <i class="fas fa-download mb-1 block"></i> ייצוא נתונים
-                        </button>
+                        <button onclick="exportData()" class="flex-1 bg-[#222] hover:bg-[#333] text-white py-2 rounded-lg text-xs font-bold border border-[#444] transition"><i class="fas fa-download mb-1 block"></i> ייצוא נתונים</button>
                         <label class="flex-1 bg-[#222] hover:bg-[#333] text-white py-2 rounded-lg text-xs font-bold border border-[#444] cursor-pointer text-center transition">
-                            <i class="fas fa-upload mb-1 block"></i> ייבוא נתונים
-                            <input type="file" onchange="importData(this)" class="hidden" accept=".json">
+                            <i class="fas fa-upload mb-1 block"></i> ייבוא נתונים<input type="file" onchange="importData(this)" class="hidden" accept=".json">
                         </label>
                     </div>
                 </div>
-
                 <div class="flex gap-3 pt-4">
                     <button onclick="saveAndStart()" class="flex-1 bg-white text-black py-4 rounded-xl font-bold hover:bg-gray-200 transition">שמור והפעל</button>
                     <button onclick="toggleConfig()" class="px-6 bg-[#222] text-white py-4 rounded-xl font-bold transition">ביטול</button>
@@ -398,49 +358,158 @@
 
     <script>
         let appState = {
-            apiKey: "",
-            clientId: "",
-            pageToken: "",
-            query: "",
-            chart: null,
-            token: null,
-            tokenClient: null,
-            searchContext: 'general',
-            currentVideoId: null,
-            currentVideoDetails: null, 
-            isVideoPaused: false,
-            isFloating: false,
-            activeChannelId: null,
-            currentRenderedItems: [],
-            maxResults: 12,
-            isListView: false,
-            isSelectionMode: false,
-            selectedVideos: new Set()
+            apiKey: "", clientId: "", pageToken: "", query: "", chart: null, token: null, tokenClient: null,
+            searchContext: 'general', currentVideoId: null, currentVideoDetails: null, 
+            isVideoPaused: false, isFloating: false, activeChannelId: null, currentRenderedItems: [],
+            maxResults: 12, isListView: false, isSelectionMode: false, selectedVideos: new Set() 
         };
 
         document.getElementById('resultsGrid').addEventListener('click', (e) => {
             if (appState.isSelectionMode) {
                 const card = e.target.closest('.video-card');
-                if (card && card.dataset.videoId) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleVideoSelection(card.dataset.videoId);
-                }
+                if (card && card.dataset.videoId) { e.preventDefault(); e.stopPropagation(); toggleVideoSelection(card.dataset.videoId); }
             }
         }, true);
 
+        // --- Custom YouTube Player Logic ---
         let ytPlayer = null;
+        let progressInterval = null;
+
+        function formatTime(timeInSeconds) {
+            const time = Math.floor(timeInSeconds);
+            const hours = Math.floor(time / 3600);
+            const minutes = Math.floor((time % 3600) / 60);
+            const seconds = time % 60;
+            if (hours > 0) return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateProgress() {
+            if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
+            
+            const current = ytPlayer.getCurrentTime() || 0;
+            const duration = ytPlayer.getDuration() || 0;
+            const loaded = ytPlayer.getVideoLoadedFraction() || 0;
+            
+            document.getElementById('customCurrentTime').innerText = formatTime(current);
+            document.getElementById('customTotalTime').innerText = formatTime(duration);
+            
+            const playedPercentage = duration > 0 ? (current / duration) * 100 : 0;
+            document.getElementById('progressPlayed').style.width = `${playedPercentage}%`;
+            document.getElementById('progressLoaded').style.width = `${loaded * 100}%`;
+        }
 
         function onPlayerStateChange(event) {
-            if (event.data === 0) { playNextVideo(); }
-            if (event.data === 1) { 
+            const playBtnIcon = document.querySelector('#customPlayPauseBtn i');
+            
+            if (event.data === YT.PlayerState.PLAYING) { 
                 appState.isVideoPaused = false;
-                document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
-            } else if (event.data === 2) { 
+                playBtnIcon.className = 'fas fa-pause text-xl';
+                progressInterval = setInterval(updateProgress, 500);
+            } else {
                 appState.isVideoPaused = true;
-                document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-play"></i>';
+                playBtnIcon.className = 'fas fa-play text-xl ml-1';
+                clearInterval(progressInterval);
+                
+                if (event.data === YT.PlayerState.ENDED) playNextVideo();
             }
         }
+
+        function onPlayerReady(event) {
+            // Update initial duration
+            const duration = ytPlayer.getDuration() || 0;
+            document.getElementById('customTotalTime').innerText = formatTime(duration);
+            
+            // Sync initial volume
+            const isMuted = ytPlayer.isMuted();
+            const vol = ytPlayer.getVolume();
+            document.getElementById('customVolumeSlider').value = isMuted ? 0 : vol;
+            updateMuteIcon(isMuted || vol === 0);
+        }
+
+        function togglePlayPauseVideo() {
+            if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return;
+            const state = ytPlayer.getPlayerState();
+            if (state === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
+            else ytPlayer.playVideo();
+        }
+
+        function seekVideo(event) {
+            if (!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
+            const container = document.getElementById('customProgressBar');
+            const rect = container.getBoundingClientRect();
+            
+            // RTL handling calculation
+            const clickX = event.clientX - rect.left;
+            const percentage = 1 - (clickX / rect.width); // RTL reversed calculation
+            
+            const duration = ytPlayer.getDuration();
+            ytPlayer.seekTo(duration * percentage, true);
+            updateProgress(); // Immediate visual update
+        }
+
+        function changeVideoVolume(val) {
+            if (!ytPlayer || typeof ytPlayer.setVolume !== 'function') return;
+            ytPlayer.unMute();
+            ytPlayer.setVolume(val);
+            updateMuteIcon(val == 0);
+        }
+
+        function toggleMuteVideo() {
+            if (!ytPlayer || typeof ytPlayer.isMuted !== 'function') return;
+            if (ytPlayer.isMuted() || ytPlayer.getVolume() === 0) {
+                ytPlayer.unMute();
+                const slider = document.getElementById('customVolumeSlider');
+                if (slider.value == 0) slider.value = 100;
+                ytPlayer.setVolume(slider.value);
+                updateMuteIcon(false);
+            } else {
+                ytPlayer.mute();
+                updateMuteIcon(true);
+            }
+        }
+
+        function updateMuteIcon(isMuted) {
+            const icon = document.querySelector('#customMuteBtn i');
+            if (isMuted) icon.className = 'fas fa-volume-mute text-lg text-red-500';
+            else icon.className = 'fas fa-volume-up text-lg';
+        }
+
+        function toggleCustomFullscreen() {
+            const wrapper = document.getElementById('customPlayerWrapper');
+            if (!document.fullscreenElement) {
+                if (wrapper.requestFullscreen) wrapper.requestFullscreen();
+                else if (wrapper.webkitRequestFullscreen) wrapper.webkitRequestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            }
+        }
+
+        // Global Keyboard Listeners for Video
+        document.addEventListener('keydown', (e) => {
+            if (document.activeElement.tagName === 'INPUT' || appState.currentVideoId === null) return;
+            
+            switch(e.key.toLowerCase()) {
+                case ' ':
+                case 'k':
+                    e.preventDefault();
+                    togglePlayPauseVideo();
+                    break;
+                case 'j':
+                    if (ytPlayer) ytPlayer.seekTo(Math.max(0, ytPlayer.getCurrentTime() - 10), true);
+                    break;
+                case 'l':
+                    if (ytPlayer) ytPlayer.seekTo(Math.min(ytPlayer.getDuration(), ytPlayer.getCurrentTime() + 10), true);
+                    break;
+                case 'm':
+                    toggleMuteVideo();
+                    break;
+                case 'f':
+                    toggleCustomFullscreen();
+                    break;
+            }
+        });
 
         function playNextVideo() {
             const currentList = appState.currentRenderedItems;
@@ -456,21 +525,36 @@
                 for (let i = idx + 1; i < currentList.length; i++) {
                     const nextItem = currentList[i];
                     const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
-                    
                     if (nextId) {
                         const snip = nextItem.snippet;
-                        const title = snip.title; 
-                        const thumb = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url || '';
-                        const channel = snip.channelTitle || '';
-                        const duration = nextItem.contentDetails?.duration || '';
-                        
-                        openPlayer(nextId, title, thumb, channel, duration);
+                        openPlayer(nextId, snip.title, snip.thumbnails?.high?.url, snip.channelTitle, nextItem.contentDetails?.duration);
                         return;
                     }
                 }
             }
         }
 
+        function playPrevVideo() {
+            const currentList = appState.currentRenderedItems;
+            const currentId = appState.currentVideoId;
+            if (!currentList || !currentId) return;
+
+            const idx = currentList.findIndex(item => (item.id?.videoId || item.id) === currentId);
+
+            if (idx > 0) {
+                for (let i = idx - 1; i >= 0; i--) {
+                    const prevItem = currentList[i];
+                    const prevId = prevItem.id?.videoId || prevItem.id;
+                    if (prevId) {
+                        const snip = prevItem.snippet;
+                        openPlayer(prevId, snip.title, snip.thumbnails?.high?.url, snip.channelTitle, prevItem.contentDetails?.duration);
+                        return;
+                    }
+                }
+            }
+        }
+
+        // --- History & Routing ---
         let navHistory = [];
         let navIndex = -1;
         let isInternalNav = false; 
@@ -512,8 +596,7 @@
             if (appState.isSelectionMode) toggleSelectionMode(); 
             
             if (state.type === 'home') {
-                document.getElementById('searchInput').value = "";
-                loadHomePage(true);
+                document.getElementById('searchInput').value = ""; loadHomePage(true);
             } else if (state.type === 'search') {
                 document.getElementById('searchInput').value = state.query;
                 document.getElementById('searchType').value = state.filterType || '';
@@ -521,19 +604,14 @@
                 document.getElementById('searchDuration').value = state.duration || '';
                 document.getElementById('searchDate').value = state.dateFilter || '';
                 performSearch(false, true); 
-            } else if (state.type === 'channel') {
-                loadChannelVideos(state.channelId, false, true); 
-            } else if (state.type === 'history') {
-                loadWatchHistory(true);
-            } else if (state.type === 'local_history') {
-                loadLocalHistory(true);
-            } else if (state.type === 'playlist') {
-                loadPlaylistView(state.playlistName, true);
-            } else if (state.type === 'liked') { 
-                loadLikedVideos(true);
-            }
+            } else if (state.type === 'channel') { loadChannelVideos(state.channelId, false, true); 
+            } else if (state.type === 'history') { loadWatchHistory(true);
+            } else if (state.type === 'local_history') { loadLocalHistory(true);
+            } else if (state.type === 'playlist') { loadPlaylistView(state.playlistName, true);
+            } else if (state.type === 'liked') { loadLikedVideos(true); }
         }
 
+        // --- Helper Functions ---
         function formatCount(num) {
             const n = parseInt(num);
             if (!n) return '0';
@@ -574,39 +652,25 @@
             if (hours) result.push(hours);
             result.push(minutes ? (minutes.length === 1 && hours ? '0' + minutes : minutes) : (hours ? '00' : '0'));
             result.push(seconds ? (seconds.length === 1 ? '0' + seconds : seconds) : '00');
-            
             return result.join(':');
         }
 
         function downloadUrls() {
-            const videos = appState.currentRenderedItems.filter(i => 
-                (i.id && i.id.kind === 'youtube#video') || 
-                (i.id && typeof i.id === 'string') || 
-                (i.id && i.id.videoId)
-            );
-            
-            if (!videos.length) {
-                return alert('אין סרטונים להורדה ברשימה הנוכחית.');
-            }
-            
+            const videos = appState.currentRenderedItems.filter(i => (i.id && i.id.kind === 'youtube#video') || (i.id && typeof i.id === 'string') || (i.id && i.id.videoId));
+            if (!videos.length) return alert('אין סרטונים להורדה ברשימה הנוכחית.');
             const urlList = videos.map(item => {
                 const vidId = item.id.videoId || (typeof item.id === 'string' ? item.id : null);
                 return vidId ? `https://www.youtube.com/watch?v=${vidId}` : null;
             }).filter(Boolean).join('\n');
-            
             triggerDownloadBlob(urlList, `youtube_links_${new Date().toISOString().slice(0,10)}.txt`);
         }
 
         function renderChannelHeader(channel) {
             const container = document.getElementById('channelHeaderContainer');
-            const snip = channel.snippet;
-            const stats = channel.statistics;
-            const branding = channel.brandingSettings?.image;
-
+            const snip = channel.snippet; const stats = channel.statistics; const branding = channel.brandingSettings?.image;
             const bannerUrl = branding?.bannerExternalUrl ? branding.bannerExternalUrl + '=w1920-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj' : ''; 
             const avatarUrl = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url;
-            const subs = formatCount(stats.subscriberCount);
-            const videos = formatCount(stats.videoCount);
+            const subs = formatCount(stats.subscriberCount); const videos = formatCount(stats.videoCount);
 
             container.innerHTML = `
                 ${bannerUrl ? `<img src="${bannerUrl}" class="w-full h-32 md:h-48 lg:h-56 object-cover rounded-3xl mb-2">` : ''}
@@ -618,1085 +682,429 @@
                         <p class="text-gray-500 text-sm mt-2 line-clamp-2 max-w-2xl" title="${snip.description ? snip.description.replace(/"/g, '&quot;') : ''}">${linkify(snip.description || '')}</p>
                     </div>
                     <div class="mt-4 sm:mt-0 self-center sm:self-start pt-2">
-                         <a href="https://www.youtube.com/channel/${channel.id}?sub_confirmation=1" target="_blank" class="bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-gray-200 transition whitespace-nowrap inline-block">
-                             הירשם כמנוי
-                         </a>
+                         <a href="https://www.youtube.com/channel/${channel.id}?sub_confirmation=1" target="_blank" class="bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-gray-200 transition whitespace-nowrap inline-block">הירשם כמנוי</a>
                     </div>
-                </div>
-            `;
-            container.classList.remove('hidden');
-            container.classList.add('flex');
+                </div>`;
+            container.classList.remove('hidden'); container.classList.add('flex');
         }
 
+        // --- Batch Functions ---
         function toggleViewMode() {
             appState.isListView = !appState.isListView;
-            const grid = document.getElementById('resultsGrid');
-            const icon = document.getElementById('viewToggleIcon');
-            
-            if (appState.isListView) {
-                grid.classList.add('list-view');
-                grid.classList.remove('grid', 'grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3', '2xl:grid-cols-4');
-                icon.className = 'fas fa-th-large';
-            } else {
-                grid.classList.remove('list-view');
-                grid.classList.add('grid', 'grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3', '2xl:grid-cols-4');
-                icon.className = 'fas fa-list';
-            }
+            const grid = document.getElementById('resultsGrid'); const icon = document.getElementById('viewToggleIcon');
+            if (appState.isListView) { grid.classList.add('list-view'); grid.classList.remove('grid', 'grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3', '2xl:grid-cols-4'); icon.className = 'fas fa-th-large'; } 
+            else { grid.classList.remove('list-view'); grid.classList.add('grid', 'grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3', '2xl:grid-cols-4'); icon.className = 'fas fa-list'; }
         }
 
         function toggleSelectionMode() {
-            appState.isSelectionMode = !appState.isSelectionMode;
-            appState.selectedVideos.clear();
-            
+            appState.isSelectionMode = !appState.isSelectionMode; appState.selectedVideos.clear();
             document.body.classList.toggle('selection-mode-active', appState.isSelectionMode);
-            
             document.querySelectorAll('.video-card').forEach(card => card.classList.remove('selected-card'));
             document.querySelectorAll('.selection-checkbox input').forEach(cb => cb.checked = false);
-            
             updateBatchActionBar();
         }
 
         function toggleVideoSelection(videoId) {
             const card = document.querySelector(`.video-card[data-video-id="${videoId}"]`);
             const checkbox = card ? card.querySelector('.selection-checkbox input') : null;
-            
-            if (appState.selectedVideos.has(videoId)) {
-                appState.selectedVideos.delete(videoId);
-                if (card) card.classList.remove('selected-card');
-                if (checkbox) checkbox.checked = false;
-            } else {
-                appState.selectedVideos.add(videoId);
-                if (card) card.classList.add('selected-card');
-                if (checkbox) checkbox.checked = true;
-            }
+            if (appState.selectedVideos.has(videoId)) { appState.selectedVideos.delete(videoId); if (card) card.classList.remove('selected-card'); if (checkbox) checkbox.checked = false; } 
+            else { appState.selectedVideos.add(videoId); if (card) card.classList.add('selected-card'); if (checkbox) checkbox.checked = true; }
             updateBatchActionBar();
         }
 
         function updateBatchActionBar() {
-            const bar = document.getElementById('batchActionBar');
-            const countLabel = document.getElementById('batchCountLabel');
-            
-            if (appState.isSelectionMode && appState.selectedVideos.size > 0) {
-                bar.classList.remove('translate-y-full');
-                countLabel.innerText = `${appState.selectedVideos.size} סרטונים נבחרו`;
-            } else {
-                bar.classList.add('translate-y-full');
-            }
-        }
-
-        function batchDownloadUrls() {
-            if (appState.selectedVideos.size === 0) return;
-            
-            const videos = appState.currentRenderedItems.filter(item => 
-                item.id && (item.id.videoId || typeof item.id === 'string') &&
-                appState.selectedVideos.has(item.id.videoId || item.id)
-            );
-            
-            const urlList = videos.map(item => `https://www.youtube.com/watch?v=${item.id.videoId || item.id}`).join('\n');
-            triggerDownloadBlob(urlList, `youtube_batch_links_${new Date().toISOString().slice(0,10)}.txt`);
-            
-            toggleSelectionMode(); 
+            const bar = document.getElementById('batchActionBar'); const countLabel = document.getElementById('batchCountLabel');
+            if (appState.isSelectionMode && appState.selectedVideos.size > 0) { bar.classList.remove('translate-y-full'); countLabel.innerText = `${appState.selectedVideos.size} סרטונים נבחרו`; } 
+            else { bar.classList.add('translate-y-full'); }
         }
 
         function selectAllVideos() {
             const videosToSelect = appState.currentRenderedItems.filter(item => item.id && (item.id.videoId || typeof item.id === 'string'));
             if (videosToSelect.length === 0) return;
-            
             const allSelected = videosToSelect.every(item => appState.selectedVideos.has(item.id.videoId || item.id));
-            
-            if (allSelected) {
-                appState.selectedVideos.clear();
-                document.querySelectorAll('.video-card').forEach(card => card.classList.remove('selected-card'));
-                document.querySelectorAll('.selection-checkbox input').forEach(cb => cb.checked = false);
-            } else {
-                videosToSelect.forEach(item => {
-                    const vidId = item.id.videoId || item.id;
-                    appState.selectedVideos.add(vidId);
-                    const card = document.querySelector(`.video-card[data-video-id="${vidId}"]`);
-                    if (card) {
-                        card.classList.add('selected-card');
-                        const cb = card.querySelector('.selection-checkbox input');
-                        if (cb) cb.checked = true;
-                    }
-                });
-            }
+            if (allSelected) { appState.selectedVideos.clear(); document.querySelectorAll('.video-card').forEach(card => card.classList.remove('selected-card')); document.querySelectorAll('.selection-checkbox input').forEach(cb => cb.checked = false); } 
+            else { videosToSelect.forEach(item => { const vidId = item.id.videoId || item.id; appState.selectedVideos.add(vidId); const card = document.querySelector(`.video-card[data-video-id="${vidId}"]`); if (card) { card.classList.add('selected-card'); const cb = card.querySelector('.selection-checkbox input'); if (cb) cb.checked = true; } }); }
             updateBatchActionBar();
+        }
+
+        function batchDownloadUrls() {
+            if (appState.selectedVideos.size === 0) return;
+            const videos = appState.currentRenderedItems.filter(item => item.id && (item.id.videoId || typeof item.id === 'string') && appState.selectedVideos.has(item.id.videoId || item.id));
+            const urlList = videos.map(item => `https://www.youtube.com/watch?v=${item.id.videoId || item.id}`).join('\n');
+            triggerDownloadBlob(urlList, `youtube_batch_links_${new Date().toISOString().slice(0,10)}.txt`);
+            toggleSelectionMode(); 
         }
 
         function batchDownloadWithYtDlp() {
             if (appState.selectedVideos.size === 0) return;
-            
-            const qualitySelect = document.getElementById('batchQualitySelect');
-            const quality = qualitySelect ? qualitySelect.value : '1080';
-            
-            const videos = appState.currentRenderedItems.filter(item => 
-                item.id && (item.id.videoId || typeof item.id === 'string') &&
-                appState.selectedVideos.has(item.id.videoId || item.id)
-            );
-            
+            const qualitySelect = document.getElementById('batchQualitySelect'); const quality = qualitySelect ? qualitySelect.value : '1080';
+            const videos = appState.currentRenderedItems.filter(item => item.id && (item.id.videoId || typeof item.id === 'string') && appState.selectedVideos.has(item.id.videoId || item.id));
             let qualityText = quality === 'audio' ? 'שמע (MP3)' : (quality === 'subs' ? 'כתוביות (עברית)' : quality + 'p');
-            
             const toast = document.getElementById('toast');
-            toast.innerText = `מתחיל העברה של ${videos.length} סרטונים להורדה (${qualityText})...`;
-            toast.className = "copy-toast show";
+            toast.innerText = `מתחיל העברה של ${videos.length} סרטונים להורדה (${qualityText})...`; toast.className = "copy-toast show";
             setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
 
             let delay = 0;
             videos.forEach((item) => {
                 const vidId = item.id.videoId || item.id;
                 setTimeout(() => {
-                    const iframe = document.createElement('iframe');
-                    iframe.style.display = 'none';
-                    iframe.src = `ytdlp://${vidId}/${quality}`;
-                    document.body.appendChild(iframe);
-                    
-                    setTimeout(() => {
-                        if (document.body.contains(iframe)) {
-                            document.body.removeChild(iframe);
-                        }
-                    }, 2000);
+                    const iframe = document.createElement('iframe'); iframe.style.display = 'none'; iframe.src = `ytdlp://${vidId}/${quality}`; document.body.appendChild(iframe);
+                    setTimeout(() => { if (document.body.contains(iframe)) { document.body.removeChild(iframe); } }, 2000);
                 }, delay);
-                
                 delay += 800; 
             });
-
-            setTimeout(() => { 
-                toggleSelectionMode(); 
-            }, delay + 500);
+            setTimeout(() => { toggleSelectionMode(); }, delay + 500);
         }
 
         function batchAddToPlaylist() {
             if (appState.selectedVideos.size === 0) return;
-            
             const playlistName = prompt('הכנס שם רשימה כדי להוסיף אליה את הסרטונים הנבחרים (למשל: Watch Later):');
             if (!playlistName) return;
-
-            const videos = appState.currentRenderedItems.filter(item => 
-                item.id && (item.id.videoId || typeof item.id === 'string') &&
-                appState.selectedVideos.has(item.id.videoId || item.id)
-            );
-
+            const videos = appState.currentRenderedItems.filter(item => item.id && (item.id.videoId || typeof item.id === 'string') && appState.selectedVideos.has(item.id.videoId || item.id));
             videos.forEach(item => {
                 const vidId = item.id.videoId || item.id;
-                PlaylistManager.addToPlaylist(playlistName, {
-                    id: vidId,
-                    title: item.snippet.title,
-                    thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url,
-                    channel: item.snippet.channelTitle,
-                    duration: item.contentDetails?.duration || ''
-                }, true);
+                PlaylistManager.addToPlaylist(playlistName, { id: vidId, title: item.snippet.title, thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url, channel: item.snippet.channelTitle, duration: item.contentDetails?.duration || '' }, true);
             });
-            
             const toast = document.getElementById('toast');
-            toast.innerText = `${videos.length} סרטונים נוספו ל-${playlistName}`;
-            toast.className = "copy-toast show";
+            toast.innerText = `${videos.length} סרטונים נוספו ל-${playlistName}`; toast.className = "copy-toast show";
             setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
-
             toggleSelectionMode(); 
         }
 
         function triggerDownloadBlob(text, filename) {
-            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' }); const url = window.URL.createObjectURL(blob); const a = document.createElement('a');
+            a.style.display = 'none'; a.href = url; a.download = filename; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a);
         }
 
+        // --- Playlist & Data Logic ---
         const PlaylistManager = {
             getPlaylists: () => JSON.parse(localStorage.getItem('yt_playlists') || '{"Watch Later": []}'),
             savePlaylists: (playlists) => localStorage.setItem('yt_playlists', JSON.stringify(playlists)),
-            
-            createPlaylist: (name) => {
-                if (!name) return;
-                const playlists = PlaylistManager.getPlaylists();
-                if (playlists[name]) return alert('רשימה זו כבר קיימת');
-                playlists[name] = [];
-                PlaylistManager.savePlaylists(playlists);
-                loadPlaylistsToSidebar(); 
-            },
-
-            renamePlaylist: (oldName, newName) => {
-                if (!newName || oldName === newName) return;
-                const playlists = PlaylistManager.getPlaylists();
-                if (playlists[newName]) return alert('שם זה כבר קיים לרשימה אחרת');
-                playlists[newName] = playlists[oldName];
-                delete playlists[oldName];
-                PlaylistManager.savePlaylists(playlists);
-                loadPlaylistsToSidebar();
-                loadPlaylistView(newName); 
-            },
-
-            deletePlaylist: (name) => {
-                if (!confirm(`האם אתה בטוח שברצונך למחוק את הרשימה "${name}"?`)) return;
-                const playlists = PlaylistManager.getPlaylists();
-                delete playlists[name];
-                PlaylistManager.savePlaylists(playlists);
-                loadPlaylistsToSidebar();
-                loadHomePage(); 
-            },
-
+            createPlaylist: (name) => { if (!name) return; const playlists = PlaylistManager.getPlaylists(); if (playlists[name]) return alert('רשימה זו כבר קיימת'); playlists[name] = []; PlaylistManager.savePlaylists(playlists); loadPlaylistsToSidebar(); },
+            renamePlaylist: (oldName, newName) => { if (!newName || oldName === newName) return; const playlists = PlaylistManager.getPlaylists(); if (playlists[newName]) return alert('שם זה כבר קיים לרשימה אחרת'); playlists[newName] = playlists[oldName]; delete playlists[oldName]; PlaylistManager.savePlaylists(playlists); loadPlaylistsToSidebar(); loadPlaylistView(newName); },
+            deletePlaylist: (name) => { if (!confirm(`האם אתה בטוח שברצונך למחוק את הרשימה "${name}"?`)) return; const playlists = PlaylistManager.getPlaylists(); delete playlists[name]; PlaylistManager.savePlaylists(playlists); loadPlaylistsToSidebar(); loadHomePage(); },
             addToPlaylist: (playlistName, video, silent = false) => {
-                const playlists = PlaylistManager.getPlaylists();
-                if (!playlists[playlistName]) playlists[playlistName] = [];
-                
-                if (playlists[playlistName].some(v => v.id === video.id)) {
-                    if(!silent) alert('הסרטון כבר נמצא ברשימה זו');
-                    return;
-                }
-                
-                playlists[playlistName].push({
-                    id: video.id,
-                    title: video.title,
-                    thumbnail: video.thumbnail,
-                    channel: video.channel,
-                    duration: video.duration,
-                    addedAt: new Date().toISOString()
-                });
+                const playlists = PlaylistManager.getPlaylists(); if (!playlists[playlistName]) playlists[playlistName] = [];
+                if (playlists[playlistName].some(v => v.id === video.id)) { if(!silent) alert('הסרטון כבר נמצא ברשימה זו'); return; }
+                playlists[playlistName].push({ id: video.id, title: video.title, thumbnail: video.thumbnail, channel: video.channel, duration: video.duration, addedAt: new Date().toISOString() });
                 PlaylistManager.savePlaylists(playlists);
-                
-                if(!silent) {
-                    const toast = document.getElementById('toast');
-                    toast.innerText = `נוסף ל-${playlistName === 'Watch Later' ? 'צפייה בהמשך' : playlistName}`;
-                    toast.className = "copy-toast show";
-                    setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
-                }
+                if(!silent) { const toast = document.getElementById('toast'); toast.innerText = `נוסף ל-${playlistName === 'Watch Later' ? 'צפייה בהמשך' : playlistName}`; toast.className = "copy-toast show"; setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000); }
             },
-
-            removeFromPlaylist: (playlistName, videoId) => {
-                const playlists = PlaylistManager.getPlaylists();
-                if (playlists[playlistName]) {
-                    playlists[playlistName] = playlists[playlistName].filter(v => v.id !== videoId);
-                    PlaylistManager.savePlaylists(playlists);
-                    loadPlaylistView(playlistName, true); 
-                }
-            }
+            removeFromPlaylist: (playlistName, videoId) => { const playlists = PlaylistManager.getPlaylists(); if (playlists[playlistName]) { playlists[playlistName] = playlists[playlistName].filter(v => v.id !== videoId); PlaylistManager.savePlaylists(playlists); loadPlaylistView(playlistName, true); } }
         };
 
         const LocalLikesManager = {
             getLikes: () => JSON.parse(localStorage.getItem('yt_local_likes') || '[]'),
-            isLiked: (videoId) => {
-                const likes = LocalLikesManager.getLikes();
-                return likes.some(v => v.id === videoId);
-            },
+            isLiked: (videoId) => { const likes = LocalLikesManager.getLikes(); return likes.some(v => v.id === videoId); },
             toggleLike: (video) => {
-                let likes = LocalLikesManager.getLikes();
-                const existingIndex = likes.findIndex(v => v.id === video.id);
-                
-                if (existingIndex > -1) {
-                    likes.splice(existingIndex, 1);
-                    localStorage.setItem('yt_local_likes', JSON.stringify(likes));
-                    return false; 
-                } else {
-                    likes.unshift({
-                        id: video.id, title: video.title, thumbnail: video.thumbnail,
-                        channel: video.channel, duration: video.duration, addedAt: new Date().toISOString()
-                    });
-                    localStorage.setItem('yt_local_likes', JSON.stringify(likes));
-                    return true; 
-                }
+                let likes = LocalLikesManager.getLikes(); const existingIndex = likes.findIndex(v => v.id === video.id);
+                if (existingIndex > -1) { likes.splice(existingIndex, 1); localStorage.setItem('yt_local_likes', JSON.stringify(likes)); return false; } 
+                else { likes.unshift({ id: video.id, title: video.title, thumbnail: video.thumbnail, channel: video.channel, duration: video.duration, addedAt: new Date().toISOString() }); localStorage.setItem('yt_local_likes', JSON.stringify(likes)); return true; }
             }
         };
 
-        function toggleLocalLike() {
-            if (!appState.currentVideoId || !appState.currentVideoDetails) return;
-            const isLiked = LocalLikesManager.toggleLike(appState.currentVideoDetails);
-            updateLikeButtonUI(isLiked);
-            if (appState.searchContext === 'liked') loadLikedVideos(true);
-        }
-
-        function toggleLikeBtn(btn, id, title, thumb, channel, duration) {
-             const video = {id, title, thumbnail: thumb, channel, duration};
-             const isLiked = LocalLikesManager.toggleLike(video);
-             const icon = btn.querySelector('i');
-             
-             if (isLiked) icon.className = 'fas fa-heart text-red-500';
-             else icon.className = 'far fa-heart';
-             
-             if (appState.searchContext === 'liked') loadLikedVideos(true);
-        }
-
-        function playRandomFromPlaylist(playlistName) {
-            const playlists = PlaylistManager.getPlaylists();
-            const videos = playlists[playlistName] || [];
-            if (videos.length === 0) return alert('הפלייליסט ריק');
-            const randomVideo = videos[Math.floor(Math.random() * videos.length)];
-            openPlayer(randomVideo.id, randomVideo.title, randomVideo.thumbnail, randomVideo.channel, randomVideo.duration);
-        }
-
-        function updateLikeButtonUI(isLiked) {
-            const btn = document.getElementById('playerLikeBtn');
-            const icon = btn.querySelector('i');
-            if (isLiked) {
-                icon.classList.remove('far'); icon.classList.add('fas', 'text-red-500'); btn.classList.add('text-white');
-            } else {
-                icon.classList.remove('fas', 'text-red-500'); icon.classList.add('far'); btn.classList.remove('text-white');
-            }
-        }
+        function toggleLocalLike() { if (!appState.currentVideoId || !appState.currentVideoDetails) return; const isLiked = LocalLikesManager.toggleLike(appState.currentVideoDetails); updateLikeButtonUI(isLiked); if (appState.searchContext === 'liked') loadLikedVideos(true); }
+        function toggleLikeBtn(btn, id, title, thumb, channel, duration) { const video = {id, title, thumbnail: thumb, channel, duration}; const isLiked = LocalLikesManager.toggleLike(video); const icon = btn.querySelector('i'); if (isLiked) icon.className = 'fas fa-heart text-red-500'; else icon.className = 'far fa-heart'; if (appState.searchContext === 'liked') loadLikedVideos(true); }
+        function playRandomFromPlaylist(playlistName) { const playlists = PlaylistManager.getPlaylists(); const videos = playlists[playlistName] || []; if (videos.length === 0) return alert('הפלייליסט ריק'); const randomVideo = videos[Math.floor(Math.random() * videos.length)]; openPlayer(randomVideo.id, randomVideo.title, randomVideo.thumbnail, randomVideo.channel, randomVideo.duration); }
+        function updateLikeButtonUI(isLiked) { const btn = document.getElementById('playerLikeBtn'); const icon = btn.querySelector('i'); if (isLiked) { icon.classList.remove('far'); icon.classList.add('fas', 'text-red-500'); btn.classList.add('text-white'); } else { icon.classList.remove('fas', 'text-red-500'); icon.classList.add('far'); btn.classList.remove('text-white'); } }
 
         function loadLikedVideos(isHistoryNav = false) {
-            if (appState.isSelectionMode) toggleSelectionMode();
-            setActiveNavItem('navLiked');
-            appState.searchContext = 'liked';
-            document.getElementById('channelFilterContainer').classList.add('hidden');
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
-            if (!isHistoryNav) pushHistory({ type: 'liked' });
-
-            const titleEl = document.getElementById('sectionTitle');
-            titleEl.innerText = "סרטונים שאהבתי (מקומי)";
-            titleEl.classList.remove('hidden');
-            document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-            
+            setActiveNavItem('navLiked'); appState.searchContext = 'liked'; document.getElementById('channelFilterContainer').classList.add('hidden'); document.getElementById('channelHeaderContainer').classList.add('hidden'); if (!isHistoryNav) pushHistory({ type: 'liked' });
+            const titleEl = document.getElementById('sectionTitle'); titleEl.innerText = "סרטונים שאהבתי (מקומי)"; titleEl.classList.remove('hidden'); document.getElementById('pagination').classList.add('hidden'); document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
             if (appState.currentVideoId) minimizePlayer();
-
             const likes = LocalLikesManager.getLikes();
-            if (likes.length === 0) {
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">עדיין לא סימנת סרטונים ב"אהבתי".<br>לחץ על כפתור הלב בנגן כדי להוסיף.</div>';
-                appState.currentRenderedItems = [];
-                return;
-            }
-
-            const formattedItems = likes.map(item => ({
-                id: { kind: 'youtube#video', videoId: item.id },
-                snippet: { title: item.title, channelTitle: item.channel, thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } }, publishedAt: item.addedAt },
-                contentDetails: { duration: item.duration }, statistics: { viewCount: 0 }
-            }));
+            if (likes.length === 0) { document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">עדיין לא סימנת סרטונים ב"אהבתי".<br>לחץ על כפתור הלב בנגן כדי להוסיף.</div>'; appState.currentRenderedItems = []; return; }
+            const formattedItems = likes.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: { title: item.title, channelTitle: item.channel, thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } }, publishedAt: item.addedAt }, contentDetails: { duration: item.duration }, statistics: { viewCount: 0 } }));
             renderResults(formattedItems, true);
         }
 
         function loadPlaylistsToSidebar() {
-            const playlists = PlaylistManager.getPlaylists();
-            const container = document.getElementById('playlistsNavContainer'); 
-            if(!container) return;
-            
-            container.innerHTML = '';
-            Object.keys(playlists).forEach(name => {
-                const div = document.createElement('div');
-                div.className = 'sidebar-item';
-                div.onclick = () => loadPlaylistView(name);
-                const icon = name === 'Watch Later' ? 'fa-clock' : 'fa-list';
-                const label = name === 'Watch Later' ? 'צפייה בהמשך' : name;
-                div.innerHTML = `<i class="fas ${icon} text-lg"></i><span>${label}</span>`;
-                container.appendChild(div);
-            });
+            const playlists = PlaylistManager.getPlaylists(); const container = document.getElementById('playlistsNavContainer'); if(!container) return; container.innerHTML = '';
+            Object.keys(playlists).forEach(name => { const div = document.createElement('div'); div.className = 'sidebar-item'; div.onclick = () => loadPlaylistView(name); const icon = name === 'Watch Later' ? 'fa-clock' : 'fa-list'; const label = name === 'Watch Later' ? 'צפייה בהמשך' : name; div.innerHTML = `<i class="fas ${icon} text-lg"></i><span>${label}</span>`; container.appendChild(div); });
         }
 
         function loadPlaylistView(name, isInternal = false) {
-            if (appState.isSelectionMode) toggleSelectionMode();
-            setActiveNavItem(''); 
-            appState.searchContext = 'playlist_' + name;
-            document.getElementById('channelFilterContainer').classList.add('hidden');
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
-            if (!isInternal) pushHistory({ type: 'playlist', playlistName: name });
-
-            const titleEl = document.getElementById('sectionTitle');
-            const isWatchLater = name === 'Watch Later';
-            const safeName = name.replace(/"/g, "&quot;");
-            
+            setActiveNavItem(''); appState.searchContext = 'playlist_' + name; document.getElementById('channelFilterContainer').classList.add('hidden'); document.getElementById('channelHeaderContainer').classList.add('hidden'); if (!isInternal) pushHistory({ type: 'playlist', playlistName: name });
+            const titleEl = document.getElementById('sectionTitle'); const isWatchLater = name === 'Watch Later'; const safeName = name.replace(/"/g, "&quot;");
             let titleHTML = isWatchLater ? 'צפייה בהמשך' : `רשימת השמעה: ${safeName}`;
-            if (!isWatchLater) {
-                titleHTML += `
-                    <span class="mr-4 text-sm font-normal">
-                        <button onclick="const newName = prompt('שם חדש:', '${safeName}'); if(newName) PlaylistManager.renamePlaylist('${safeName}', newName)" class="mx-1 text-blue-400 hover:text-blue-300" title="שנה שם"><i class="fas fa-edit"></i></button>
-                        <button onclick="PlaylistManager.deletePlaylist('${safeName}')" class="mx-1 text-red-500 hover:text-red-400" title="מחק רשימה"><i class="fas fa-trash-alt"></i></button>
-                    </span>`;
-            }
+            if (!isWatchLater) { titleHTML += `<span class="mr-4 text-sm font-normal"><button onclick="const newName = prompt('שם חדש:', '${safeName}'); if(newName) PlaylistManager.renamePlaylist('${safeName}', newName)" class="mx-1 text-blue-400 hover:text-blue-300" title="שנה שם"><i class="fas fa-edit"></i></button><button onclick="PlaylistManager.deletePlaylist('${safeName}')" class="mx-1 text-red-500 hover:text-red-400" title="מחק רשימה"><i class="fas fa-trash-alt"></i></button></span>`; }
             titleHTML += `<button onclick="playRandomFromPlaylist('${safeName}')" class="mr-4 bg-[#cc0000] text-white text-xs px-3 py-1.5 rounded-full font-bold hover:bg-red-700 transition inline-flex items-center gap-2"><i class="fas fa-random"></i> נגן באקראי</button>`;
-
-            titleEl.innerHTML = titleHTML;
-            titleEl.classList.remove('hidden');
-            document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-            
+            titleEl.innerHTML = titleHTML; titleEl.classList.remove('hidden'); document.getElementById('pagination').classList.add('hidden'); document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
             if (appState.currentVideoId) minimizePlayer();
-
-            const playlists = PlaylistManager.getPlaylists();
-            const videos = playlists[name] || [];
-
-            if (videos.length === 0) {
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">הרשימה ריקה.</div>';
-                appState.currentRenderedItems = [];
-                return;
-            }
-
-            const formattedItems = videos.map(item => ({
-                id: { kind: 'youtube#video', videoId: item.id },
-                snippet: { title: item.title, channelTitle: item.channel, thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } }, publishedAt: item.addedAt },
-                contentDetails: { duration: item.duration }, statistics: { viewCount: 0 } 
-            }));
+            const playlists = PlaylistManager.getPlaylists(); const videos = playlists[name] || [];
+            if (videos.length === 0) { document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">הרשימה ריקה.</div>'; appState.currentRenderedItems = []; return; }
+            const formattedItems = videos.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: { title: item.title, channelTitle: item.channel, thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } }, publishedAt: item.addedAt }, contentDetails: { duration: item.duration }, statistics: { viewCount: 0 } }));
             renderResults(formattedItems, true);
         }
 
-        function exportData() {
-            const data = {
-                history: localStorage.getItem('yt_local_history'),
-                playlists: localStorage.getItem('yt_playlists'),
-                likes: localStorage.getItem('yt_local_likes'),
-                settings: { apiKey: localStorage.getItem('yt_api_key'), clientId: localStorage.getItem('yt_client_id'), maxResults: localStorage.getItem('yt_max_results') }
-            };
-            triggerDownloadBlob(JSON.stringify(data), `yt_backup_${new Date().toISOString().slice(0,10)}.json`);
-        }
+        function exportData() { const data = { history: localStorage.getItem('yt_local_history'), playlists: localStorage.getItem('yt_playlists'), likes: localStorage.getItem('yt_local_likes'), settings: { apiKey: localStorage.getItem('yt_api_key'), clientId: localStorage.getItem('yt_client_id'), maxResults: localStorage.getItem('yt_max_results') } }; triggerDownloadBlob(JSON.stringify(data), `yt_backup_${new Date().toISOString().slice(0,10)}.json`); }
 
         function importData(inputElement) {
-            const file = inputElement.files[0];
-            if (!file) return;
-            const reader = new FileReader();
+            const file = inputElement.files[0]; if (!file) return; const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
-                    if(data.history) localStorage.setItem('yt_local_history', data.history);
-                    if(data.playlists) localStorage.setItem('yt_playlists', data.playlists);
-                    if(data.likes) localStorage.setItem('yt_local_likes', data.likes); 
-                    if(data.settings) {
-                        if(data.settings.apiKey) localStorage.setItem('yt_api_key', data.settings.apiKey);
-                        if(data.settings.clientId) localStorage.setItem('yt_client_id', data.settings.clientId);
-                        if(data.settings.maxResults) localStorage.setItem('yt_max_results', data.settings.maxResults);
-                    }
-                    alert('הנתונים שוחזרו בהצלחה! הדף יתרענן כעת.');
-                    location.reload();
+                    if(data.history) localStorage.setItem('yt_local_history', data.history); if(data.playlists) localStorage.setItem('yt_playlists', data.playlists); if(data.likes) localStorage.setItem('yt_local_likes', data.likes); 
+                    if(data.settings) { if(data.settings.apiKey) localStorage.setItem('yt_api_key', data.settings.apiKey); if(data.settings.clientId) localStorage.setItem('yt_client_id', data.settings.clientId); if(data.settings.maxResults) localStorage.setItem('yt_max_results', data.settings.maxResults); }
+                    alert('הנתונים שוחזרו בהצלחה! הדף יתרענן כעת.'); location.reload();
                 } catch(err) { alert('שגיאה בקריאת הקובץ'); console.error(err); }
-            };
-            reader.readAsText(file);
+            }; reader.readAsText(file);
         }
 
         function saveToLocalHistory(id, title, thumbnail, channelName) {
-            if (!id) return;
-            let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
-            history = history.filter(item => item.id !== id);
-            history.unshift({ id: id, title: title, thumbnail: thumbnail, channel: channelName, timestamp: new Date().toISOString() });
-            if (history.length > 50) history.pop();
-            localStorage.setItem('yt_local_history', JSON.stringify(history));
+            if (!id) return; let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]'); history = history.filter(item => item.id !== id); history.unshift({ id: id, title: title, thumbnail: thumbnail, channel: channelName, timestamp: new Date().toISOString() }); if (history.length > 50) history.pop(); localStorage.setItem('yt_local_history', JSON.stringify(history));
         }
 
         function loadLocalHistory(isHistoryNav = false) {
-            if (appState.isSelectionMode) toggleSelectionMode();
-            setActiveNavItem('navLocalHistory');
-            appState.searchContext = 'local_history'; 
-            document.getElementById('channelFilterContainer').classList.add('hidden');
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
-            if (!isHistoryNav) pushHistory({ type: 'local_history' });
-
-            document.getElementById('sectionTitle').innerText = "היסטוריית צפייה מקומית (מהמחשב הזה)";
-            document.getElementById('sectionTitle').classList.remove('hidden');
-            document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-            
+            setActiveNavItem('navLocalHistory'); appState.searchContext = 'local_history'; document.getElementById('channelFilterContainer').classList.add('hidden'); document.getElementById('channelHeaderContainer').classList.add('hidden'); if (!isHistoryNav) pushHistory({ type: 'local_history' });
+            document.getElementById('sectionTitle').innerText = "היסטוריית צפייה מקומית (מהמחשב הזה)"; document.getElementById('sectionTitle').classList.remove('hidden'); document.getElementById('pagination').classList.add('hidden'); document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
             if (appState.currentVideoId) minimizePlayer();
-
             const history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
-            if (history.length === 0) {
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">עדיין אין היסטוריה מקומית.<br>צפה בסרטונים כדי לראות אותם כאן.</div>';
-                appState.currentRenderedItems = [];
-                return;
-            }
-
-            const formattedItems = history.map(item => ({
-                id: { kind: 'youtube#video', videoId: item.id },
-                snippet: { title: item.title, channelTitle: item.channel, thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } }, publishedAt: item.timestamp },
-                statistics: { viewCount: 0, likeCount: 0 }
-            }));
-
+            if (history.length === 0) { document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">עדיין אין היסטוריה מקומית.<br>צפה בסרטונים כדי לראות אותם כאן.</div>'; appState.currentRenderedItems = []; return; }
+            const formattedItems = history.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: { title: item.title, channelTitle: item.channel, thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } }, publishedAt: item.timestamp }, statistics: { viewCount: 0, likeCount: 0 } }));
             renderResults(formattedItems, true);
-
-            const grid = document.getElementById('resultsGrid');
-            const clearBtn = document.createElement('div');
-            clearBtn.className = "col-span-full flex justify-center mt-8";
-            clearBtn.innerHTML = `<button onclick="clearLocalHistory()" class="bg-red-900/50 hover:bg-red-800 text-red-200 px-6 py-2 rounded-full text-sm border border-red-800 transition"><i class="fas fa-trash-alt ml-2"></i> מחק הכל</button>`;
-            grid.appendChild(clearBtn);
+            const grid = document.getElementById('resultsGrid'); const clearBtn = document.createElement('div'); clearBtn.className = "col-span-full flex justify-center mt-8"; clearBtn.innerHTML = `<button onclick="clearLocalHistory()" class="bg-red-900/50 hover:bg-red-800 text-red-200 px-6 py-2 rounded-full text-sm border border-red-800 transition"><i class="fas fa-trash-alt ml-2"></i> מחק הכל</button>`; grid.appendChild(clearBtn);
         }
 
-        function clearLocalHistory() {
-            if(confirm("האם למחוק את כל ההיסטוריה המקומית?")) {
-                localStorage.removeItem('yt_local_history');
-                loadLocalHistory();
-            }
-        }
-
-        function removeFromLocalHistory(id, event) {
-            if (event) event.stopPropagation();
-            if(confirm("להסיר סרטון זה מההיסטוריה?")) {
-                let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
-                history = history.filter(item => item.id !== id);
-                localStorage.setItem('yt_local_history', JSON.stringify(history));
-                loadLocalHistory(true); 
-            }
-        }
+        function clearLocalHistory() { if(confirm("האם למחוק את כל ההיסטוריה המקומית?")) { localStorage.removeItem('yt_local_history'); loadLocalHistory(); } }
+        function removeFromLocalHistory(id, event) { if (event) event.stopPropagation(); if(confirm("להסיר סרטון זה מההיסטוריה?")) { let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]'); history = history.filter(item => item.id !== id); localStorage.setItem('yt_local_history', JSON.stringify(history)); loadLocalHistory(true); } }
 
         async function toggleExternalPip() {
-            const playerContainer = document.querySelector('.player-container');
-            const watchView = document.getElementById('watchView');
-
-            if (!('documentPictureInPicture' in window)) {
-                return alert("הדפדפן שלך לא תומך במצב PiP חיצוני מלא (Document PiP).");
-            }
+            const playerContainer = document.getElementById('playerModalContainer'); const watchView = document.getElementById('watchView');
+            if (!('documentPictureInPicture' in window)) return alert("הדפדפן שלך לא תומך במצב PiP חיצוני מלא (Document PiP).");
             try {
-                if (window.documentPictureInPicture.window) {
-                    window.documentPictureInPicture.window.close();
-                    return;
-                }
+                if (window.documentPictureInPicture.window) { window.documentPictureInPicture.window.close(); return; }
                 const pipWindow = await window.documentPictureInPicture.requestWindow({ width: playerContainer.clientWidth, height: playerContainer.clientHeight });
-                [...document.styleSheets].forEach((styleSheet) => {
-                    try {
-                        const style = document.createElement('style'); style.textContent = [...styleSheet.cssRules].map((r) => r.cssText).join('');
-                        pipWindow.document.head.appendChild(style);
-                    } catch (e) {
-                        const link = document.createElement('link'); link.rel = 'stylesheet'; link.type = styleSheet.type; link.media = styleSheet.media; link.href = styleSheet.href;
-                        pipWindow.document.head.appendChild(link);
-                    }
-                });
-                pipWindow.document.body.append(playerContainer);
-                playerContainer.classList.add('h-screen', 'w-screen');
-                pipWindow.addEventListener("pagehide", () => {
-                     document.getElementById('watchView').append(playerContainer);
-                     playerContainer.classList.remove('h-screen', 'w-screen');
-                });
+                [...document.styleSheets].forEach((styleSheet) => { try { const style = document.createElement('style'); style.textContent = [...styleSheet.cssRules].map((r) => r.cssText).join(''); pipWindow.document.head.appendChild(style); } catch (e) { const link = document.createElement('link'); link.rel = 'stylesheet'; link.type = styleSheet.type; link.media = styleSheet.media; link.href = styleSheet.href; pipWindow.document.head.appendChild(link); } });
+                pipWindow.document.body.append(playerContainer); playerContainer.classList.add('h-screen', 'w-screen');
+                pipWindow.addEventListener("pagehide", () => { document.getElementById('watchView').append(playerContainer); playerContainer.classList.remove('h-screen', 'w-screen'); });
             } catch (err) { console.error("PiP Error:", err); }
         }
 
-        const returnToVideoBtn = document.getElementById('return-to-video-btn');
-        const globalPauseBtn = document.getElementById('global-pause-btn');
-        const watchView = document.getElementById('watchView');
-
-        globalPauseBtn.addEventListener('click', () => {
-            if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
-                const state = ytPlayer.getPlayerState();
-                if (state === 1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
-            } else {
-                if (appState.isVideoPaused) { globalPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>'; appState.isVideoPaused = false; }
-                else { globalPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>'; appState.isVideoPaused = true; }
-            }
-        });
-
-        returnToVideoBtn.addEventListener('click', () => {
-            if (appState.isFloating) watchView.classList.remove('hidden');
-            else { watchView.classList.add('active'); watchView.classList.remove('hidden'); }
-            returnToVideoBtn.classList.add('hidden'); 
-        });
-
         function toggleFloatingMode() {
-            const view = document.getElementById('watchView');
-            appState.isFloating = !appState.isFloating;
+            const view = document.getElementById('watchView'); appState.isFloating = !appState.isFloating;
             if (appState.isFloating) { view.classList.add('floating-mode'); document.body.style.overflow = 'auto'; }
             else { view.classList.remove('floating-mode'); document.body.style.overflow = 'hidden'; }
         }
 
         function minimizePlayer() {
-            if (appState.isFloating) {
-                document.getElementById('watchView').classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
-            } else if (appState.currentVideoId) {
-                watchView.classList.remove('active', 'hidden'); watchView.classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
-            } else { closePlayer(); }
+            if (appState.isFloating) { document.getElementById('watchView').classList.add('hidden'); document.getElementById('return-to-video-btn').classList.remove('hidden'); document.body.style.overflow = 'auto'; } 
+            else if (appState.currentVideoId) { document.getElementById('watchView').classList.remove('active', 'hidden'); document.getElementById('watchView').classList.add('hidden'); document.getElementById('return-to-video-btn').classList.remove('hidden'); document.body.style.overflow = 'auto'; } 
+            else { closePlayer(); }
         }
 
-        function toggleConfig() {
-            const modal = document.getElementById('configModal');
-            modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
-        }
+        document.getElementById('return-to-video-btn').addEventListener('click', () => {
+            if (appState.isFloating) document.getElementById('watchView').classList.remove('hidden');
+            else { document.getElementById('watchView').classList.add('active'); document.getElementById('watchView').classList.remove('hidden'); }
+            document.getElementById('return-to-video-btn').classList.add('hidden'); 
+        });
+
+        function toggleConfig() { const modal = document.getElementById('configModal'); modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex'; }
 
         function saveAndStart() {
-            const newKey = document.getElementById('apiKeyInput').value.trim();
-            const newClientId = document.getElementById('clientIdInput').value.trim();
-            const newMaxResults = document.getElementById('maxResultsInput').value;
-            
+            const newKey = document.getElementById('apiKeyInput').value.trim(); const newClientId = document.getElementById('clientIdInput').value.trim(); const newMaxResults = document.getElementById('maxResultsInput').value;
             if (!newKey) return alert("נא להזין API Key לפחות.");
-            
-            appState.apiKey = newKey;
-            appState.clientId = newClientId;
-            appState.maxResults = newMaxResults ? parseInt(newMaxResults) : 12;
-            
-            localStorage.setItem('yt_api_key', appState.apiKey);
-            localStorage.setItem('yt_client_id', appState.clientId);
-            localStorage.setItem('yt_max_results', appState.maxResults);
-            
+            appState.apiKey = newKey; appState.clientId = newClientId; appState.maxResults = newMaxResults ? parseInt(newMaxResults) : 12;
+            localStorage.setItem('yt_api_key', appState.apiKey); localStorage.setItem('yt_client_id', appState.clientId); localStorage.setItem('yt_max_results', appState.maxResults);
             document.getElementById('configModal').style.display = 'none';
-            
-            if (appState.clientId) initAuth();
-            initChart();
-            loadHomePage();
+            if (appState.clientId) initAuth(); initChart(); loadHomePage();
         }
 
-        function handleLogout() {
-            if (appState.token) google.accounts.oauth2.revoke(appState.token, () => { console.log('Token revoked.'); });
-            appState.token = null;
-            document.getElementById('authContainer').classList.remove('hidden');
-            document.getElementById('userDisplay').classList.add('hidden');
-            document.getElementById('userName').innerText = ''; document.getElementById('userImg').src = '';
-            loadHomePage(); 
-        }
+        function handleLogout() { if (appState.token) google.accounts.oauth2.revoke(appState.token, () => { console.log('Token revoked.'); }); appState.token = null; document.getElementById('authContainer').classList.remove('hidden'); document.getElementById('userDisplay').classList.add('hidden'); document.getElementById('userName').innerText = ''; document.getElementById('userImg').src = ''; loadHomePage(); }
 
         window.onload = () => {
-            const savedKey = localStorage.getItem('yt_api_key');
-            const savedClient = localStorage.getItem('yt_client_id');
-            const savedMaxResults = localStorage.getItem('yt_max_results');
-
-            if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
-            if(savedClient) document.getElementById('clientIdInput').value = savedClient;
-            if(savedMaxResults) { document.getElementById('maxResultsInput').value = savedMaxResults; appState.maxResults = parseInt(savedMaxResults); }
-            
+            const savedKey = localStorage.getItem('yt_api_key'); const savedClient = localStorage.getItem('yt_client_id'); const savedMaxResults = localStorage.getItem('yt_max_results');
+            if(savedKey) document.getElementById('apiKeyInput').value = savedKey; if(savedClient) document.getElementById('clientIdInput').value = savedClient; if(savedMaxResults) { document.getElementById('maxResultsInput').value = savedMaxResults; appState.maxResults = parseInt(savedMaxResults); }
             loadPlaylistsToSidebar();
-
-            if(savedKey) { appState.apiKey = savedKey; appState.clientId = savedClient; saveAndStart(); } 
-            else { toggleConfig(); }
+            if(savedKey) { appState.apiKey = savedKey; appState.clientId = savedClient; saveAndStart(); } else { toggleConfig(); }
         };
 
-        function initAuth() {
-            try {
-                appState.tokenClient = google.accounts.oauth2.initTokenClient({
-                    client_id: appState.clientId, scope: 'https://www.googleapis.com/auth/youtube.readonly',
-                    callback: (tokenResponse) => {
-                        if (tokenResponse.error !== undefined) throw (tokenResponse);
-                        appState.token = tokenResponse.access_token; updateUserInfo(); loadHomePage();
-                    },
-                });
-            } catch (e) { console.error("Auth init error", e); }
-        }
-
-        function requestToken() {
-            if (appState.tokenClient) appState.tokenClient.requestAccessToken();
-            else { alert("אנא הגדר Client ID תקין בהגדרות כדי להתחבר."); toggleConfig(); }
-        }
-
-        async function updateUserInfo() {
-            try {
-                const res = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, { headers: { Authorization: `Bearer ${appState.token}` } });
-                const data = await res.json();
-                document.getElementById('authContainer').classList.add('hidden');
-                document.getElementById('userDisplay').classList.remove('hidden');
-                document.getElementById('userImg').src = data.picture; document.getElementById('userName').innerText = data.name;
-            } catch(e) { console.error("UserInfo fetch error", e); }
-        }
-
-        function initChart() {
-            const ctx = document.getElementById('statsChart').getContext('2d');
-            if(appState.chart) appState.chart.destroy();
-            appState.chart = new Chart(ctx, {
-                type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: '#ff0000', borderRadius: 4 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#555', font: { size: 8 } } } } }
-            });
-        }
-
-        function handleLoadMore() {
-            if (appState.searchContext === 'channel') {
-                loadChannelVideos(null, true);
-            } else if (appState.searchContext === 'channel_playlists') {
-                loadChannelPlaylists(appState.activeChannelId, true);
-            } else if (appState.searchContext === 'general') {
-                if (appState.query) {
-                    performSearch(true);
-                }
-            }
-        }
+        function initAuth() { try { appState.tokenClient = google.accounts.oauth2.initTokenClient({ client_id: appState.clientId, scope: 'https://www.googleapis.com/auth/youtube.readonly', callback: (tokenResponse) => { if (tokenResponse.error !== undefined) throw (tokenResponse); appState.token = tokenResponse.access_token; updateUserInfo(); loadHomePage(); }, }); } catch (e) { console.error("Auth init error", e); } }
+        function requestToken() { if (appState.tokenClient) appState.tokenClient.requestAccessToken(); else { alert("אנא הגדר Client ID תקין בהגדרות כדי להתחבר."); toggleConfig(); } }
+        async function updateUserInfo() { try { const res = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, { headers: { Authorization: `Bearer ${appState.token}` } }); const data = await res.json(); document.getElementById('authContainer').classList.add('hidden'); document.getElementById('userDisplay').classList.remove('hidden'); document.getElementById('userImg').src = data.picture; document.getElementById('userName').innerText = data.name; } catch(e) { console.error("UserInfo fetch error", e); } }
+        function initChart() { const ctx = document.getElementById('statsChart').getContext('2d'); if(appState.chart) appState.chart.destroy(); appState.chart = new Chart(ctx, { type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: '#ff0000', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#555', font: { size: 8 } } } } } }); }
 
         async function loadHomePage(isHistoryNav = false) {
-            if (appState.isSelectionMode) toggleSelectionMode();
-            setActiveNavItem('navHome');
-            appState.searchContext = 'general';
-            document.getElementById('channelFilterContainer').classList.add('hidden');
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
-            document.getElementById('searchInput').value = "";
-            appState.pageToken = "";
-
+            setActiveNavItem('navHome'); appState.searchContext = 'general'; document.getElementById('channelFilterContainer').classList.add('hidden'); document.getElementById('channelHeaderContainer').classList.add('hidden'); document.getElementById('searchInput').value = ""; appState.pageToken = "";
             if (!isHistoryNav) pushHistory({ type: 'home' });
-            
-            if (appState.currentVideoId) minimizePlayer();
-            else document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען...</div>';
-
-            document.getElementById('pagination').classList.add('hidden');
-            const titleEl = document.getElementById('sectionTitle');
-            titleEl.classList.remove('hidden');
-            titleEl.innerText = appState.token ? "מומלצים עבורך" : "סרטונים פופולריים בישראל";
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-
+            if (appState.currentVideoId) minimizePlayer(); else document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען...</div>';
+            document.getElementById('pagination').classList.add('hidden'); const titleEl = document.getElementById('sectionTitle'); titleEl.classList.remove('hidden'); titleEl.innerText = appState.token ? "מומלצים עבורך" : "סרטונים פופולריים בישראל"; document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
             try {
-                let url = appState.token 
-                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=${appState.maxResults}&key=${appState.apiKey}`
-                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
-
-                const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
-                const res = await fetch(url, { headers });
-                const data = await res.json();
-                
-                let videoIds = [];
-                if (appState.token && data.items) {
-                    videoIds = data.items.filter(i => i.contentDetails.upload || i.contentDetails.playlistItem).map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId).filter(Boolean);
-                } else if (data.items) { videoIds = data.items.map(i => i.id); }
-
-                if (videoIds.length > 0) fetchAndRenderVideos(videoIds, true);
-                else { document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים להצגה.</div>'; appState.currentRenderedItems = []; }
+                let url = appState.token ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=${appState.maxResults}&key=${appState.apiKey}` : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
+                const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {}; const res = await fetch(url, { headers }); const data = await res.json();
+                let videoIds = []; if (appState.token && data.items) { videoIds = data.items.filter(i => i.contentDetails.upload || i.contentDetails.playlistItem).map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId).filter(Boolean); } else if (data.items) { videoIds = data.items.map(i => i.id); }
+                if (videoIds.length > 0) fetchAndRenderVideos(videoIds, true); else { document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים להצגה.</div>'; appState.currentRenderedItems = []; }
             } catch (err) { console.error(err); }
         }
 
         async function loadWatchHistory(isHistoryNav = false) {
             if (!appState.token) return alert("יש להתחבר לחשבון גוגל.");
-            if (appState.isSelectionMode) toggleSelectionMode();
-            setActiveNavItem('navHistory');
-            appState.searchContext = 'general';
-            document.getElementById('channelFilterContainer').classList.add('hidden');
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
-            
+            setActiveNavItem('navHistory'); appState.searchContext = 'general'; document.getElementById('channelFilterContainer').classList.add('hidden'); document.getElementById('channelHeaderContainer').classList.add('hidden');
             if (!isHistoryNav) pushHistory({ type: 'history' });
-
-            if (appState.currentVideoId) minimizePlayer();
-            else document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">טוען פעילות...</div>';
-            
-            document.getElementById('pagination').classList.add('hidden');
-            const titleEl = document.getElementById('sectionTitle');
-            titleEl.classList.remove('hidden'); titleEl.innerText = "פעילות אחרונה בחשבון";
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-
+            if (appState.currentVideoId) minimizePlayer(); else document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">טוען פעילות...</div>';
+            document.getElementById('pagination').classList.add('hidden'); const titleEl = document.getElementById('sectionTitle'); titleEl.classList.remove('hidden'); titleEl.innerText = "פעילות אחרונה בחשבון"; document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
             try {
                 const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
-                const res = await fetch(url, { headers: { Authorization: `Bearer ${appState.token}` } });
-                const data = await res.json();
-
+                const res = await fetch(url, { headers: { Authorization: `Bearer ${appState.token}` } }); const data = await res.json();
                 const videoIds = (data.items || []).map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId || i.contentDetails.like?.resourceId?.videoId).filter(Boolean);
-
-                if(videoIds.length > 0) fetchAndRenderVideos(videoIds, true);
-                else { document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאה פעילות אחרונה.</div>'; appState.currentRenderedItems = []; }
+                if(videoIds.length > 0) fetchAndRenderVideos(videoIds, true); else { document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאה פעילות אחרונה.</div>'; appState.currentRenderedItems = []; }
             } catch(e) { console.error(e); }
         }
 
         async function performSearch(loadMore, isHistoryNav = false) {
-            const query = loadMore ? appState.query : document.getElementById('searchInput').value.trim();
-            const order = document.getElementById('searchOrder').value;
-            let type = document.getElementById('searchType').value || 'video,channel,playlist'; 
-            const duration = document.getElementById('searchDuration').value;
-            const dateFilter = document.getElementById('searchDate').value;
-
-            if (!query) return loadHomePage();
-
+            if (loadMore) {
+                if (appState.searchContext === 'channel') return loadChannelVideos(null, true);
+                if (appState.searchContext === 'channel_playlists') return loadChannelPlaylists(appState.activeChannelId, true);
+            }
+            const query = document.getElementById('searchInput').value.trim(); const order = document.getElementById('searchOrder').value; let type = document.getElementById('searchType').value || 'video,channel,playlist'; const duration = document.getElementById('searchDuration').value; const dateFilter = document.getElementById('searchDate').value;
+            if (!loadMore && !query) return loadHomePage();
             if (duration) { type = 'video'; document.getElementById('searchType').value = 'video'; }
 
-            appState.searchContext = 'general';
-            document.getElementById('channelFilterContainer').classList.add('hidden');
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
-            setActiveNavItem('');
-            document.getElementById('sectionTitle').classList.remove('hidden');
-            document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-
             if (!loadMore) {
-                if (appState.isSelectionMode) toggleSelectionMode();
-                appState.query = query; 
-                appState.pageToken = "";
-                if (!isHistoryNav) { pushHistory({ type: 'search', query: query, filterType: type, order: order, duration: duration, dateFilter: dateFilter }); }
-                if (appState.currentVideoId) { minimizePlayer(); document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>'; } 
-                else { document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>'; }
+                appState.searchContext = 'general'; appState.query = query; appState.pageToken = "";
+                document.getElementById('channelFilterContainer').classList.add('hidden'); document.getElementById('channelHeaderContainer').classList.add('hidden'); setActiveNavItem(''); document.getElementById('sectionTitle').classList.remove('hidden'); document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${appState.query}`; document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+                if (!isHistoryNav) { pushHistory({ type: 'search', query: appState.query, filterType: type, order: order, duration: duration, dateFilter: dateFilter }); }
+                if (appState.currentVideoId) { minimizePlayer(); } document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>';
             }
 
             try {
                 let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${appState.maxResults}&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
-                if (duration) url += `&videoDuration=${duration}`;
-                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
+                if (duration) url += `&videoDuration=${duration}`; if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
+                if (dateFilter) { const date = new Date(); if (dateFilter === 'today') date.setDate(date.getDate() - 1); else if (dateFilter === 'week') date.setDate(date.getDate() - 7); else if (dateFilter === 'month') date.setMonth(date.getMonth() - 1); else if (dateFilter === 'year') date.setFullYear(date.getFullYear() - 1); url += `&publishedAfter=${date.toISOString()}`; }
 
-                if (dateFilter) {
-                    const date = new Date();
-                    if (dateFilter === 'today') date.setDate(date.getDate() - 1);
-                    else if (dateFilter === 'week') date.setDate(date.getDate() - 7);
-                    else if (dateFilter === 'month') date.setMonth(date.getMonth() - 1);
-                    else if (dateFilter === 'year') date.setFullYear(date.getFullYear() - 1);
-                    url += `&publishedAfter=${date.toISOString()}`;
-                }
+                const response = await fetch(url); const data = await response.json();
+                appState.pageToken = data.nextPageToken || ""; document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
 
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                appState.pageToken = data.nextPageToken || "";
-                document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
-
-                const items = data.items || [];
-                const videoIds = items.filter(i => i.id.kind === 'youtube#video').map(i => i.id.videoId);
-                const otherItems = items.filter(i => i.id.kind !== 'youtube#video'); 
-                
+                const items = data.items || []; const videoIds = items.filter(i => i.id.kind === 'youtube#video').map(i => i.id.videoId); const otherItems = items.filter(i => i.id.kind !== 'youtube#video'); 
                 if (videoIds.length > 0) {
-                     const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds.join(',')}&key=${appState.apiKey}`);
-                     const statsData = await statsRes.json();
+                     const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds.join(',')}&key=${appState.apiKey}`); const statsData = await statsRes.json();
                      const combinedItems = [...otherItems, ...statsData.items.map(i => ({ id: { kind: 'youtube#video', videoId: i.id }, snippet: i.snippet, statistics: i.statistics, contentDetails: i.contentDetails }))];
-                     renderResults(combinedItems, !loadMore);
-                     updateChart(statsData.items || []);
-                } else {
-                    renderResults(otherItems, !loadMore);
-                }
-            } catch (err) { console.error(err); }
+                     renderResults(combinedItems, !loadMore); updateChart(statsData.items || []);
+                } else { renderResults(otherItems, !loadMore); }
+            } catch (err) { console.error(err); if(!loadMore) document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 text-red-500">שגיאה בטעינת תוצאות</div>'; }
         }
 
         async function fetchAndRenderVideos(ids, clear) {
             if (!ids.length) return;
             try {
-                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids.join(',')}&key=${appState.apiKey}`);
-                const data = await res.json();
+                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids.join(',')}&key=${appState.apiKey}`); const data = await res.json();
                 const formatted = data.items.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: item.snippet, statistics: item.statistics, contentDetails: item.contentDetails }));
-                renderResults(formatted, clear);
-                updateChart(data.items || []);
+                renderResults(formatted, clear); updateChart(data.items || []);
             } catch (e) { console.error(e); }
         }
 
         async function loadChannelVideos(channelId, loadMore = false, isHistoryNav = false) {
             if (!channelId && !appState.query) return;
             if (!loadMore) {
-                if (appState.isSelectionMode) toggleSelectionMode();
                 if (appState.currentVideoId) minimizePlayer();
                 if (!isHistoryNav && channelId) pushHistory({ type: 'channel', channelId: channelId });
-
                 try {
-                    document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען ערוץ...</div>';
-                    document.getElementById('sectionTitle').innerText = "טוען...";
-                    document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-                    
-                    const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet,statistics,brandingSettings&id=${channelId}&key=${appState.apiKey}`);
-                    const data = await res.json();
-                    
+                    document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען ערוץ...</div>'; document.getElementById('sectionTitle').innerText = "טוען..."; document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+                    const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet,statistics,brandingSettings&id=${channelId}&key=${appState.apiKey}`); const data = await res.json();
                     if (!data.items || !data.items.length) return;
-                    
-                    const channel = data.items[0];
-                    renderChannelHeader(channel);
-                    const uploadsPlaylistId = channel.contentDetails.relatedPlaylists.uploads;
-                    
-                    appState.query = uploadsPlaylistId; 
-                    appState.searchContext = 'channel';
-                    appState.activeChannelId = channelId; 
-                    appState.pageToken = "";
-                    
+                    const channel = data.items[0]; renderChannelHeader(channel); const uploadsPlaylistId = channel.contentDetails.relatedPlaylists.uploads;
+                    appState.query = uploadsPlaylistId; appState.searchContext = 'channel'; appState.activeChannelId = channelId; appState.pageToken = "";
                     document.getElementById('sectionTitle').innerText = `סרטונים מאת: ${channel.snippet.title}`;
-
                     const filterContainer = document.getElementById('channelFilterContainer');
-                    filterContainer.innerHTML = `
-                        <button onclick="loadChannelVideos('${channelId}')" class="bg-white text-black px-4 py-1.5 rounded-full text-sm font-bold">סרטונים</button>
-                        <button onclick="loadChannelPlaylists('${channelId}')" class="bg-[#222] hover:bg-[#333] text-white px-4 py-1.5 rounded-full text-sm font-bold border border-[#333] transition">פלייליסטים</button>
-                    `;
+                    filterContainer.innerHTML = `<button onclick="loadChannelVideos('${channelId}')" class="bg-white text-black px-4 py-1.5 rounded-full text-sm font-bold">סרטונים</button><button onclick="loadChannelPlaylists('${channelId}')" class="bg-[#222] hover:bg-[#333] text-white px-4 py-1.5 rounded-full text-sm font-bold border border-[#333] transition">פלייליסטים</button>`;
                     filterContainer.classList.remove('hidden');
                 } catch(e) { console.error(e); return; }
             }
-
             try {
-                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${appState.maxResults}&playlistId=${appState.query}&key=${appState.apiKey}`;
-                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
-
-                const res = await fetch(url);
-                const data = await res.json();
-
-                appState.pageToken = data.nextPageToken || "";
-                document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
-
+                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${appState.maxResults}&playlistId=${appState.query}&key=${appState.apiKey}`; if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
+                const res = await fetch(url); const data = await res.json();
+                appState.pageToken = data.nextPageToken || ""; document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
                 const videoIds = data.items.map(item => item.snippet.resourceId.videoId).join(',');
                 if(videoIds) {
-                    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${appState.apiKey}`);
-                    const statsData = await statsRes.json();
-                     const formatted = statsData.items.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: item.snippet, statistics: item.statistics, contentDetails: item.contentDetails }));
-                    renderResults(formatted, !loadMore);
-                    updateChart(statsData.items);
+                    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${appState.apiKey}`); const statsData = await statsRes.json();
+                    const formatted = statsData.items.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: item.snippet, statistics: item.statistics, contentDetails: item.contentDetails }));
+                    renderResults(formatted, !loadMore); updateChart(statsData.items);
                 }
             } catch(e) { console.error(e); }
         }
 
         async function loadChannelPlaylists(channelId, loadMore = false) {
              if (!loadMore) {
-                if (appState.isSelectionMode) toggleSelectionMode();
                 appState.searchContext = 'channel_playlists'; appState.activeChannelId = channelId; appState.pageToken = "";
                 const filterContainer = document.getElementById('channelFilterContainer');
-                filterContainer.innerHTML = `
-                    <button onclick="loadChannelVideos('${channelId}')" class="bg-[#222] hover:bg-[#333] text-white px-4 py-1.5 rounded-full text-sm font-bold border border-[#333] transition">סרטונים</button>
-                    <button onclick="loadChannelPlaylists('${channelId}')" class="bg-white text-black px-4 py-1.5 rounded-full text-sm font-bold">פלייליסטים</button>
-                `;
+                filterContainer.innerHTML = `<button onclick="loadChannelVideos('${channelId}')" class="bg-[#222] hover:bg-[#333] text-white px-4 py-1.5 rounded-full text-sm font-bold border border-[#333] transition">סרטונים</button><button onclick="loadChannelPlaylists('${channelId}')" class="bg-white text-black px-4 py-1.5 rounded-full text-sm font-bold">פלייליסטים</button>`;
                 document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען פלייליסטים...</div>';
             }
-
             try {
-                let url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
-                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
-
-                const res = await fetch(url);
-                const data = await res.json();
-
-                appState.pageToken = data.nextPageToken || "";
-                document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
-
-                if (!data.items || data.items.length === 0) {
-                    if (!loadMore) document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו פלייליסטים לערוץ זה.</div>';
-                    return;
-                }
-
+                let url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=${appState.maxResults}&key=${appState.apiKey}`; if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
+                const res = await fetch(url); const data = await res.json();
+                appState.pageToken = data.nextPageToken || ""; document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
+                if (!data.items || data.items.length === 0) { if (!loadMore) document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו פלייליסטים לערוץ זה.</div>'; return; }
                 const formatted = data.items.map(item => ({ id: { kind: 'youtube#playlist', playlistId: item.id }, snippet: item.snippet, contentDetails: item.contentDetails }));
                 renderResults(formatted, !loadMore);
             } catch (e) { console.error(e); document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 text-red-400">שגיאה בטעינת פלייליסטים.</div>'; }
         }
 
-        async function openExternalPlaylist(playlistId, title) {
-            if (appState.isSelectionMode) toggleSelectionMode();
-            
-            appState.query = playlistId; 
-            appState.searchContext = 'channel'; 
-            appState.pageToken = ""; 
-            appState.activeChannelId = null; 
-            appState.currentRenderedItems = []; 
-            
-            document.getElementById('channelFilterContainer').classList.add('hidden');
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
-            document.getElementById('sectionTitle').innerText = `פלייליסט: ${title}`;
-            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים...</div>';
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-            
-            loadChannelVideos(null, true); 
-        }
-
         function renderResults(items, clear) {
-            const grid = document.getElementById('resultsGrid');
-            if (clear) { grid.innerHTML = ''; appState.currentRenderedItems = []; }
-            
+            const grid = document.getElementById('resultsGrid'); if (clear) { grid.innerHTML = ''; appState.currentRenderedItems = []; }
             appState.currentRenderedItems = [...appState.currentRenderedItems, ...items];
-            
             items.forEach(item => {
                 const snip = item.snippet; const kind = item.id.kind;
-                
                 if (kind === 'youtube#channel') {
-                    const channelId = item.id.channelId;
-                    const card = document.createElement('div');
-                    card.className = "video-card group flex flex-col items-center p-4 bg-[#1a1a1a] rounded-2xl cursor-pointer hover:bg-[#252525] transition border border-[#222]";
-                    card.onclick = () => loadChannelVideos(channelId);
-                    card.innerHTML = `
-                        <div class="mb-4"><img src="${snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url}" class="w-32 h-32 rounded-full object-cover border-2 border-[#333]"></div>
-                        <h3 class="font-bold text-lg text-center mb-1">${snip.title}</h3>
-                        <p class="text-gray-500 text-xs text-center mb-3">ערוץ</p>
-                        <button class="bg-[#cc0000] text-white text-xs font-bold px-4 py-2 rounded-full hover:bg-red-700 transition">צפה בערוץ</button>
-                    `;
-                    grid.appendChild(card);
-                    return;
+                    const channelId = item.id.channelId; const card = document.createElement('div'); card.className = "video-card group flex flex-col items-center p-4 bg-[#1a1a1a] rounded-2xl cursor-pointer hover:bg-[#252525] transition border border-[#222]"; card.onclick = () => loadChannelVideos(channelId);
+                    card.innerHTML = `<div class="mb-4"><img src="${snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url}" class="w-32 h-32 rounded-full object-cover border-2 border-[#333]"></div><h3 class="font-bold text-lg text-center mb-1">${snip.title}</h3><p class="text-gray-500 text-xs text-center mb-3">ערוץ</p><button class="bg-[#cc0000] text-white text-xs font-bold px-4 py-2 rounded-full hover:bg-red-700 transition">צפה בערוץ</button>`;
+                    grid.appendChild(card); return;
                 }
-
                 if (kind === 'youtube#playlist') {
-                    const playlistId = item.id.playlistId;
-                    const card = document.createElement('div');
-                    card.className = "video-card group flex flex-col cursor-pointer";
-                    const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                    const thumbUrl = snip.thumbnails?.medium?.url || snip.thumbnails?.high?.url || snip.thumbnails?.default?.url || '';
-                    const channelTitle = snip.channelTitle || '';
-                    
+                    const playlistId = item.id.playlistId; const card = document.createElement('div'); card.className = "video-card group flex flex-col cursor-pointer"; const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;"); const thumbUrl = snip.thumbnails?.medium?.url || snip.thumbnails?.high?.url || snip.thumbnails?.default?.url || ''; const channelTitle = snip.channelTitle || '';
                     card.innerHTML = `
                          <div class="relative mb-4 group/img" onclick="openExternalPlaylist('${playlistId}', '${title}')">
-                            <div class="relative">
-                                <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
-                                <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition rounded-2xl">
-                                    <span class="text-white font-bold">נגן הכל</span>
-                                </div>
-                                <div class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
-                                    <i class="fas fa-list-ul"></i><span>${item.contentDetails?.itemCount || ''} סרטונים</span>
-                                </div>
+                            <div class="relative"><img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
+                                <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition rounded-2xl"><span class="text-white font-bold">נגן הכל</span></div>
+                                <div class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1"><i class="fas fa-list-ul"></i><span>${item.contentDetails?.itemCount || ''} סרטונים</span></div>
                             </div>
                         </div>
                         <div class="flex-1 px-1">
                             <h3 class="text-white font-semibold text-base leading-snug line-clamp-2 mb-1" title="${snip.title}">${snip.title}</h3>
                             <p class="text-[#aaaaaa] text-sm hover:text-white transition-colors" onclick="event.stopPropagation(); loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
-                            <button onclick="event.stopPropagation(); openExternalPlaylist('${playlistId}', '${title}')" class="mt-2 bg-[#cc0000] text-white text-xs px-3 py-1.5 rounded-full font-bold hover:bg-red-700 transition flex items-center gap-2 w-fit">
-                                <i class="fas fa-play"></i> נגן הכל
-                            </button>
-                        </div>
-                    `;
-                    grid.appendChild(card);
-                    return;
+                            <button onclick="event.stopPropagation(); openExternalPlaylist('${playlistId}', '${title}')" class="mt-2 bg-[#cc0000] text-white text-xs px-3 py-1.5 rounded-full font-bold hover:bg-red-700 transition flex items-center gap-2 w-fit"><i class="fas fa-play"></i> נגן הכל</button>
+                        </div>`;
+                    grid.appendChild(card); return;
                 }
 
-                const videoId = item.id.videoId || (typeof item.id === 'string' ? item.id : null);
-                if (!videoId) return;
-
+                const videoId = item.id.videoId || (typeof item.id === 'string' ? item.id : null); if (!videoId) return;
                 let viewsText = ''; let likesText = ''; let timeText = ''; let durationText = '';
+                const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;"); const channelTitle = snip.channelTitle || ''; const thumbUrl = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url || ''; const safeChannel = channelTitle.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                if (item.statistics) { const views = item.statistics.viewCount; const likes = item.statistics.likeCount; const date = snip.publishedAt; if(views) viewsText = `${formatCount(views)} צפיות`; if(likes) likesText = ` • ${formatCount(likes)} לייקים`; if(date) timeText = ` • ${timeSince(date)}`; }
+                if (item.contentDetails && item.contentDetails.duration) { durationText = `<span class="absolute bottom-2 left-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-bold">${parseDuration(item.contentDetails.duration)}</span>`; }
 
-                const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                const channelTitle = snip.channelTitle || '';
-                const thumbUrl = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url || '';
-                const safeChannel = channelTitle.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-
-                if (item.statistics) {
-                    const views = item.statistics.viewCount; const likes = item.statistics.likeCount; const date = snip.publishedAt;
-                    if(views) viewsText = `${formatCount(views)} צפיות`;
-                    if(likes) likesText = ` • ${formatCount(likes)} לייקים`;
-                    if(date) timeText = ` • ${timeSince(date)}`;
-                }
-
-                if (item.contentDetails && item.contentDetails.duration) {
-                    durationText = `<span class="absolute bottom-2 left-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-bold">${parseDuration(item.contentDetails.duration)}</span>`;
-                }
-
-                const card = document.createElement('div');
-                card.className = "video-card group flex flex-col cursor-pointer";
-                card.setAttribute('data-video-id', videoId);
-                
+                const card = document.createElement('div'); card.className = "video-card group flex flex-col cursor-pointer"; card.setAttribute('data-video-id', videoId);
                 if(appState.selectedVideos.has(videoId)) card.classList.add('selected-card');
-                
-                const durationForSave = item.contentDetails?.duration || '';
-                const isLiked = LocalLikesManager.isLiked(videoId);
-                const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
+                const durationForSave = item.contentDetails?.duration || ''; const isLiked = LocalLikesManager.isLiked(videoId); const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
                 
                 card.innerHTML = `
                     <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">
                         <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
                         ${durationText}
-                        
                         <div class="selection-checkbox absolute top-2 right-2 z-10 w-6 h-6 bg-black/80 rounded border-2 border-gray-400 items-center justify-center transition">
                             <input type="checkbox" class="pointer-events-none opacity-0 absolute inset-0" ${appState.selectedVideos.has(videoId) ? 'checked' : ''}>
                             <i class="fas fa-check text-blue-500 opacity-0 transition-opacity"></i>
                         </div>
-
-                        <button onclick="event.stopPropagation(); PlaylistManager.addToPlaylist('Watch Later', {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'})" 
-                            class="absolute top-2 left-2 bg-black/60 hover:bg-blue-600 text-white p-1.5 rounded-lg opacity-0 group-hover/img:opacity-100 transition backdrop-blur-sm shadow-lg" title="צפייה בהמשך">
-                            <i class="fas fa-clock"></i>
-                        </button>
+                        <button onclick="event.stopPropagation(); PlaylistManager.addToPlaylist('Watch Later', {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'})" class="absolute top-2 left-2 bg-black/60 hover:bg-blue-600 text-white p-1.5 rounded-lg opacity-0 group-hover/img:opacity-100 transition backdrop-blur-sm shadow-lg" title="צפייה בהמשך"><i class="fas fa-clock"></i></button>
                     </div>
                     <div class="flex-1 flex gap-3 px-1">
-                        <div class="w-9 h-9 rounded-full bg-gray-800 flex-shrink-0 border border-[#333] flex items-center justify-center">
-                            <i class="fas fa-play text-[10px] opacity-30"></i>
-                        </div>
+                        <div class="w-9 h-9 rounded-full bg-gray-800 flex-shrink-0 border border-[#333] flex items-center justify-center"><i class="fas fa-play text-[10px] opacity-30"></i></div>
                         <div class="flex-1 flex flex-col">
                             <h3 class="text-white font-semibold text-base leading-snug line-clamp-2" title="${snip.title}" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">${snip.title}</h3>
-                            <div class="text-[#aaaaaa] text-sm mt-1">
-                                <p class="hover:text-white transition-colors" onclick="loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
-                                <p>${viewsText}${likesText}${timeText}</p> 
-                            </div>
+                            <div class="text-[#aaaaaa] text-sm mt-1"><p class="hover:text-white transition-colors" onclick="loadChannelVideos('${snip.channelId}')">${channelTitle}</p><p>${viewsText}${likesText}${timeText}</p></div>
                             <div class="flex items-center gap-2 mt-auto pt-3 flex-wrap">
-                                <button onclick="event.stopPropagation(); copyLink('${videoId}')" class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]">
-                                    <i class="fas fa-link"></i>
-                                </button>
-                                
-                                <button onclick="event.stopPropagation(); toggleLikeBtn(this, '${videoId}', '${title.replace(/'/g, "\\'")}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')" 
-                                    class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]" title="אהבתי">
-                                    <i class="${likeIconClass}"></i>
-                                </button>
-                                
-                                <button onclick="event.stopPropagation(); const name = prompt('הכנס שם רשימה (למשל: מוזיקה, הרצאות):'); if(name) PlaylistManager.addToPlaylist(name, {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'})" 
-                                    class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]" title="שמור לרשימה">
-                                    <i class="fas fa-list-ul"></i> שמירה
-                                </button>
-
+                                <button onclick="event.stopPropagation(); copyLink('${videoId}')" class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]"><i class="fas fa-link"></i></button>
+                                <button onclick="event.stopPropagation(); toggleLikeBtn(this, '${videoId}', '${title.replace(/'/g, "\\'")}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')" class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]" title="אהבתי"><i class="${likeIconClass}"></i></button>
+                                <button onclick="event.stopPropagation(); const name = prompt('הכנס שם רשימה (למשל: מוזיקה, הרצאות):'); if(name) PlaylistManager.addToPlaylist(name, {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'})" class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]" title="שמור לרשימה"><i class="fas fa-list-ul"></i> שמירה</button>
                                 <div class="flex items-center gap-2 bg-[#272727] hover:bg-[#333] px-3 py-1.5 rounded-full transition w-fit border border-[#333]" onclick="event.stopPropagation();">
                                     <select id="dl-qual-${videoId}" class="bg-transparent text-[10px] text-gray-300 outline-none cursor-pointer">
-                                        <option value="1080" class="bg-[#222]">1080p</option>
-                                        <option value="720" class="bg-[#222]">720p</option>
-                                        <option value="480" class="bg-[#222]">480p</option>
-                                        <option value="audio" class="bg-[#222]">שמע (MP3)</option>
-                                        <option value="subs" class="bg-[#222]">כתוביות (עברית)</option>
+                                        <option value="1080" class="bg-[#222]">1080p</option><option value="720" class="bg-[#222]">720p</option><option value="480" class="bg-[#222]">480p</option><option value="audio" class="bg-[#222]">שמע (MP3)</option><option value="subs" class="bg-[#222]">כתוביות</option>
                                     </select>
                                     <div class="w-px h-3 bg-[#555]"></div>
-                                    <button onclick="downloadWithYtDlp('${videoId}')" class="text-green-400 hover:text-green-300 transition flex items-center gap-1" title="הורד עכשיו">
-                                        <i class="fas fa-download"></i>
-                                    </button>
+                                    <button onclick="downloadWithYtDlp('${videoId}')" class="text-green-400 hover:text-green-300 transition flex items-center gap-1" title="הורד עכשיו"><i class="fas fa-download"></i></button>
                                 </div>
-                                ${appState.searchContext === 'local_history' ? `
-                                <button onclick="removeFromLocalHistory('${videoId}', event)" class="flex items-center justify-center text-[10px] bg-[#330000] text-red-400 hover:bg-red-900 px-3 py-1.5 rounded-full transition w-fit border border-red-900/50" title="הסר מההיסטוריה">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                                ` : ''}
-
-                                ${appState.searchContext.startsWith('playlist_') ? `
-                                <button onclick="event.stopPropagation(); PlaylistManager.removeFromPlaylist('${appState.searchContext.replace('playlist_', '')}', '${videoId}')" 
-                                    class="text-[10px] bg-red-900/50 hover:bg-red-800 text-red-300 px-3 py-1.5 rounded-full border border-red-900/50 transition" title="הסר מרשימה">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                ` : ''}
+                                ${appState.searchContext === 'local_history' ? `<button onclick="removeFromLocalHistory('${videoId}', event)" class="flex items-center justify-center text-[10px] bg-[#330000] text-red-400 hover:bg-red-900 px-3 py-1.5 rounded-full transition w-fit border border-red-900/50" title="הסר מההיסטוריה"><i class="fas fa-trash-alt"></i></button>` : ''}
+                                ${appState.searchContext.startsWith('playlist_') ? `<button onclick="event.stopPropagation(); PlaylistManager.removeFromPlaylist('${appState.searchContext.replace('playlist_', '')}', '${videoId}')" class="text-[10px] bg-red-900/50 hover:bg-red-800 text-red-300 px-3 py-1.5 rounded-full border border-red-900/50 transition" title="הסר מרשימה"><i class="fas fa-trash"></i></button>` : ''}
                             </div>
                         </div>
                     </div>`;
@@ -1704,24 +1112,8 @@
             });
         }
 
-        function updateChart(items) {
-            if (!appState.chart || !items.length) return;
-            const videoItems = items.filter(v => v.statistics);
-            appState.chart.data.labels = videoItems.slice(0, 5).map(v => v.snippet.title.substring(0, 8) + '..');
-            appState.chart.data.datasets[0].data = videoItems.slice(0, 5).map(v => parseInt(v.statistics?.likeCount || 0));
-            appState.chart.update();
-        }
-
-        function setActiveNavItem(id) {
-            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-            if(id) document.getElementById(id).classList.add('active');
-        }
-
         async function openPlayer(id, title, thumbnail = '', channel = '', duration = '') {
-            if (appState.isSelectionMode) {
-                toggleVideoSelection(id);
-                return; 
-            }
+            if (appState.isSelectionMode) { toggleVideoSelection(id); return; }
 
             saveToLocalHistory(id, title, thumbnail, channel);
 
@@ -1731,6 +1123,11 @@
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('fullTitle').innerText = title;
             
+            // Reset Progress bar visual
+            document.getElementById('progressPlayed').style.width = '0%';
+            document.getElementById('progressLoaded').style.width = '0%';
+            document.getElementById('customCurrentTime').innerText = '0:00';
+            
             appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
             updateLikeButtonUI(LocalLikesManager.isLiked(id));
 
@@ -1739,17 +1136,24 @@
             } else {
                 ytPlayer = new YT.Player('playerFrame', {
                     videoId: id,
-                    playerVars: { 'autoplay': 1, 'enablejsapi': 1, 'rel': 0 },
-                    events: { 'onStateChange': onPlayerStateChange }
+                    playerVars: { 
+                        'autoplay': 1, 
+                        'controls': 0, 
+                        'disablekb': 1, 
+                        'fs': 0, 
+                        'rel': 0,
+                        'modestbranding': 1,
+                        'playsinline': 1,
+                        'iv_load_policy': 3
+                    },
+                    events: { 
+                        'onReady': onPlayerReady,
+                        'onStateChange': onPlayerStateChange 
+                    }
                 });
             }
             
             appState.currentVideoId = id;
-            appState.isVideoPaused = false;
-            
-            document.getElementById('global-pause-btn').classList.remove('hidden');
-            document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
-            document.getElementById('return-to-video-btn').classList.add('hidden');
             
             try {
                 const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${id}&key=${appState.apiKey}`);
@@ -1767,33 +1171,11 @@
 
         function closePlayer() {
             if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+            if (progressInterval) clearInterval(progressInterval);
             document.getElementById('watchView').classList.remove('active', 'floating-mode');
             document.getElementById('watchView').classList.add('hidden');
             appState.isFloating = false; document.body.style.overflow = 'auto'; 
             appState.currentVideoId = null; appState.isVideoPaused = false;
-            document.getElementById('global-pause-btn').classList.add('hidden'); document.getElementById('return-to-video-btn').classList.add('hidden');
-        }
-
-        function copyLink(id) {
-            const url = `https://www.youtube.com/watch?v=${id}`;
-            const dummy = document.createElement("input"); document.body.appendChild(dummy);
-            dummy.value = url; dummy.select(); document.execCommand('copy'); document.body.removeChild(dummy);
-            
-            const toast = document.getElementById('toast'); toast.className = "copy-toast show";
-            setTimeout(() => { toast.className = "copy-toast"; }, 3000);
-        }
-        
-        function downloadWithYtDlp(videoId) {
-            if (!videoId) return;
-            const qualSelect = document.getElementById(`dl-qual-${videoId}`);
-            const quality = qualSelect ? qualSelect.value : '1080';
-            
-            const toast = document.getElementById('toast');
-            let qualityText = quality === 'audio' ? 'שמע (MP3)' : (quality === 'subs' ? 'כתוביות (עברית)' : quality + 'p');
-            toast.innerText = `מעביר הורדה (${qualityText}) ל-yt-dlp...`; toast.className = "copy-toast show";
-            setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
-
-            window.location.href = `ytdlp://${videoId}/${quality}`;
         }
 
         document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') performSearch(false); });
