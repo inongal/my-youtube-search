@@ -250,6 +250,8 @@
                 </div>
             </div>
             
+            <div id="channelHeaderContainer" class="hidden flex-col gap-4 mb-6"></div>
+
             <div id="channelFilterContainer" class="hidden mb-6 flex gap-2"></div>
 
             <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
@@ -492,6 +494,7 @@
         function restoreState(state) {
             appState.searchContext = state.context || 'general';
             document.getElementById('channelFilterContainer').classList.add('hidden'); 
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
             
             if (appState.isSelectionMode) toggleSelectionMode(); // סגירת מצב בחירה במעבר מסך
             
@@ -580,6 +583,37 @@
             }).filter(Boolean).join('\n');
             
             triggerDownloadBlob(urlList, `youtube_links_${new Date().toISOString().slice(0,10)}.txt`);
+        }
+
+        function renderChannelHeader(channel) {
+            const container = document.getElementById('channelHeaderContainer');
+            const snip = channel.snippet;
+            const stats = channel.statistics;
+            const branding = channel.brandingSettings?.image;
+
+            const bannerUrl = branding?.bannerExternalUrl ? branding.bannerExternalUrl + '=w1920-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj' : ''; 
+            const avatarUrl = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url;
+            const subs = formatCount(stats.subscriberCount);
+            const videos = formatCount(stats.videoCount);
+
+            container.innerHTML = `
+                ${bannerUrl ? `<img src="${bannerUrl}" class="w-full h-32 md:h-48 lg:h-56 object-cover rounded-3xl mb-2">` : ''}
+                <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4 px-4 pb-4">
+                    <img src="${avatarUrl}" class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-[#0f0f0f] bg-[#222] ${bannerUrl ? '-mt-12 sm:-mt-16 relative z-10' : ''}">
+                    <div class="flex flex-col items-center sm:items-start flex-1 text-center sm:text-right mt-2 sm:mt-0">
+                        <h1 class="text-2xl sm:text-3xl font-bold">${snip.title}</h1>
+                        <p class="text-gray-400 text-sm mt-1">${snip.customUrl || ''} • ${subs} מנויים • ${videos} סרטונים</p>
+                        <p class="text-gray-500 text-sm mt-2 line-clamp-2 max-w-2xl" title="${snip.description ? snip.description.replace(/"/g, '&quot;') : ''}">${linkify(snip.description || '')}</p>
+                    </div>
+                    <div class="mt-4 sm:mt-0 self-center sm:self-start pt-2">
+                         <a href="https://www.youtube.com/channel/${channel.id}?sub_confirmation=1" target="_blank" class="bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-gray-200 transition whitespace-nowrap inline-block">
+                             הירשם כמנוי
+                         </a>
+                    </div>
+                </div>
+            `;
+            container.classList.remove('hidden');
+            container.classList.add('flex');
         }
 
         // --- פונקציות החלפת תצוגה ובחירה גורפת ---
@@ -833,6 +867,7 @@
             setActiveNavItem('navLiked');
             appState.searchContext = 'liked';
             document.getElementById('channelFilterContainer').classList.add('hidden');
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
             if (!isHistoryNav) pushHistory({ type: 'liked' });
 
             const titleEl = document.getElementById('sectionTitle');
@@ -879,6 +914,7 @@
             setActiveNavItem(''); 
             appState.searchContext = 'playlist_' + name;
             document.getElementById('channelFilterContainer').classList.add('hidden');
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
             if (!isInternal) pushHistory({ type: 'playlist', playlistName: name });
 
             const titleEl = document.getElementById('sectionTitle');
@@ -964,6 +1000,7 @@
             setActiveNavItem('navLocalHistory');
             appState.searchContext = 'local_history'; 
             document.getElementById('channelFilterContainer').classList.add('hidden');
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
             if (!isHistoryNav) pushHistory({ type: 'local_history' });
 
             document.getElementById('sectionTitle').innerText = "היסטוריית צפייה מקומית (מהמחשב הזה)";
@@ -1169,6 +1206,7 @@
             setActiveNavItem('navHome');
             appState.searchContext = 'general';
             document.getElementById('channelFilterContainer').classList.add('hidden');
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
             document.getElementById('searchInput').value = "";
             appState.pageToken = "";
 
@@ -1207,6 +1245,7 @@
             setActiveNavItem('navHistory');
             appState.searchContext = 'general';
             document.getElementById('channelFilterContainer').classList.add('hidden');
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
             
             if (!isHistoryNav) pushHistory({ type: 'history' });
 
@@ -1245,6 +1284,7 @@
 
             appState.searchContext = 'general';
             document.getElementById('channelFilterContainer').classList.add('hidden');
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
             setActiveNavItem('');
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
@@ -1315,12 +1355,13 @@
                     document.getElementById('sectionTitle').innerText = "טוען...";
                     document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
                     
-                    const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet&id=${channelId}&key=${appState.apiKey}`);
+                    const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet,statistics,brandingSettings&id=${channelId}&key=${appState.apiKey}`);
                     const data = await res.json();
                     
                     if (!data.items || !data.items.length) return;
                     
                     const channel = data.items[0];
+                    renderChannelHeader(channel);
                     const uploadsPlaylistId = channel.contentDetails.relatedPlaylists.uploads;
                     
                     appState.query = uploadsPlaylistId; 
@@ -1394,6 +1435,7 @@
         async function openExternalPlaylist(playlistId, title) {
             appState.query = playlistId; appState.searchContext = 'channel'; appState.pageToken = ""; appState.activeChannelId = null; 
             document.getElementById('channelFilterContainer').classList.add('hidden');
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
             document.getElementById('sectionTitle').innerText = `פלייליסט: ${title}`;
             document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים...</div>';
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
