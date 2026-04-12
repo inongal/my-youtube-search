@@ -242,7 +242,8 @@
                 <option value="">הכל</option>
                 <option value="video">סרטונים</option>
                 <option value="channel">ערוצים</option>
-                <option value="playlist">פלייליסטים</option> </select>
+                <option value="playlist">פלייליסטים</option> 
+            </select>
             
             <select id="searchDuration" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="משך">
                 <option value="">כל אורך</option>
@@ -418,6 +419,10 @@
                     <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Google Client ID</label>
                     <input type="text" id="clientIdInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-blue-600 transition text-white">
                 </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">מספר תוצאות לחיפוש (1-50)</label>
+                    <input type="number" id="maxResultsInput" min="1" max="50" value="12" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-green-600 transition text-white">
+                </div>
                 
                 <div class="mt-4 border-t border-[#333] pt-4">
                     <h3 class="text-sm font-bold text-gray-400 mb-3">ניהול נתונים (גיבוי ושחזור)</h3>
@@ -457,7 +462,8 @@
             isVideoPaused: false,
             isFloating: false,
             activeChannelId: null,
-            currentRenderedItems: [] 
+            currentRenderedItems: [],
+            maxResults: 12 // שדה חדש לשמירת כמות התוצאות
         };
 
         // --- YouTube Player API ---
@@ -611,38 +617,33 @@
             return result.join(':');
         }
 
+        // --- הורדת כתובות מסודרת (החדשה) ---
         function downloadUrls() {
-            if (!appState.currentRenderedItems || appState.currentRenderedItems.length === 0) {
-                alert('אין תוצאות להורדה כרגע.');
-                return;
+            const videos = appState.currentRenderedItems.filter(i => 
+                (i.id && i.id.kind === 'youtube#video') || 
+                (i.id && typeof i.id === 'string') || 
+                (i.id && i.id.videoId)
+            );
+            
+            if (!videos.length) {
+                return alert('אין סרטונים להורדה ברשימה הנוכחית.');
             }
-
-            let urlsText = "";
-            appState.currentRenderedItems.forEach(item => {
-                let url = "";
-                let title = item.snippet?.title || "Unknown";
-                
-                if (item.id.videoId) {
-                    url = `https://www.youtube.com/watch?v=${item.id.videoId}`;
-                } else if (item.id.playlistId) {
-                    url = `https://www.youtube.com/playlist?list=${item.id.playlistId}`;
-                } else if (item.id.channelId) {
-                    url = `https://www.youtube.com/channel/${item.id.channelId}`;
-                } else if (typeof item.id === 'string') { 
-                    url = `https://www.youtube.com/watch?v=${item.id}`;
-                }
-
-                if (url) {
-                    urlsText += `${title} - ${url}\n`;
-                }
-            });
-
-            const blob = new Blob([urlsText], { type: 'text/plain' });
-            const anchor = document.createElement('a');
-            anchor.href = window.URL.createObjectURL(blob);
-            anchor.download = `youtube_urls_${new Date().getTime()}.txt`;
-            anchor.click();
-            window.URL.revokeObjectURL(anchor.href);
+            
+            const urlList = videos.map(item => {
+                const vidId = item.id.videoId || (typeof item.id === 'string' ? item.id : null);
+                return vidId ? `https://www.youtube.com/watch?v=${vidId}` : null;
+            }).filter(Boolean).join('\n');
+            
+            const blob = new Blob([urlList], { type: 'text/plain;charset=utf-8' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `youtube_links_${new Date().toISOString().slice(0,10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
         }
 
         // --- Playlist & Local Storage Logic ---
@@ -929,7 +930,8 @@
                 likes: localStorage.getItem('yt_local_likes'),
                 settings: {
                     apiKey: localStorage.getItem('yt_api_key'),
-                    clientId: localStorage.getItem('yt_client_id')
+                    clientId: localStorage.getItem('yt_client_id'),
+                    maxResults: localStorage.getItem('yt_max_results')
                 }
             };
             
@@ -957,6 +959,8 @@
                     if(data.likes) localStorage.setItem('yt_local_likes', data.likes); 
                     if(data.settings) {
                         if(data.settings.apiKey) localStorage.setItem('yt_api_key', data.settings.apiKey);
+                        if(data.settings.clientId) localStorage.setItem('yt_client_id', data.settings.clientId);
+                        if(data.settings.maxResults) localStorage.setItem('yt_max_results', data.settings.maxResults);
                     }
                     alert('הנתונים שוחזרו בהצלחה! הדף יתרענן כעת.');
                     location.reload();
@@ -1109,7 +1113,7 @@
                     ytPlayer.playVideo();
                 }
             } else {
-                // Fallback (if any iframe postMessage is used outside API)
+                // Fallback
                 if (appState.isVideoPaused) {
                     globalPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
                     appState.isVideoPaused = false;
@@ -1167,14 +1171,17 @@
         function saveAndStart() {
             const newKey = document.getElementById('apiKeyInput').value.trim();
             const newClientId = document.getElementById('clientIdInput').value.trim();
+            const newMaxResults = document.getElementById('maxResultsInput').value;
             
             if (!newKey) return alert("נא להזין API Key לפחות.");
             
             appState.apiKey = newKey;
             appState.clientId = newClientId;
+            appState.maxResults = newMaxResults ? parseInt(newMaxResults) : 12;
             
             localStorage.setItem('yt_api_key', appState.apiKey);
             localStorage.setItem('yt_client_id', appState.clientId);
+            localStorage.setItem('yt_max_results', appState.maxResults);
             
             document.getElementById('configModal').style.display = 'none';
             
@@ -1200,8 +1207,14 @@
         window.onload = () => {
             const savedKey = localStorage.getItem('yt_api_key');
             const savedClient = localStorage.getItem('yt_client_id');
+            const savedMaxResults = localStorage.getItem('yt_max_results');
+
             if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
+            if(savedMaxResults) {
+                document.getElementById('maxResultsInput').value = savedMaxResults;
+                appState.maxResults = parseInt(savedMaxResults);
+            }
             
             loadPlaylistsToSidebar();
 
@@ -1289,8 +1302,8 @@
 
             try {
                 let url = appState.token 
-                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=12&key=${appState.apiKey}`
-                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=12&key=${appState.apiKey}`;
+                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=${appState.maxResults}&key=${appState.apiKey}`
+                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
 
                 const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
                 const res = await fetch(url, { headers });
@@ -1336,7 +1349,7 @@
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
 
             try {
-                const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=20&key=${appState.apiKey}`;
+                const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
                 const res = await fetch(url, { headers: { Authorization: `Bearer ${appState.token}` } });
                 const data = await res.json();
 
@@ -1402,7 +1415,7 @@
             }
 
             try {
-                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=12&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
+                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${appState.maxResults}&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
                 if (duration) url += `&videoDuration=${duration}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
@@ -1492,7 +1505,7 @@
             }
 
             try {
-                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=12&playlistId=${appState.query}&key=${appState.apiKey}`;
+                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${appState.maxResults}&playlistId=${appState.query}&key=${appState.apiKey}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
                 const res = await fetch(url);
@@ -1534,7 +1547,7 @@
             }
 
             try {
-                let url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=12&key=${appState.apiKey}`;
+                let url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
                 const res = await fetch(url);
@@ -1643,7 +1656,7 @@
                     return;
                 }
 
-                const videoId = item.id.videoId;
+                const videoId = item.id.videoId || (typeof item.id === 'string' ? item.id : null);
                 if (!videoId) return;
 
                 let viewsText = '';
@@ -1842,7 +1855,7 @@
             setTimeout(() => { toast.className = "copy-toast"; }, 3000);
         }
         
-        // --- פונקציית ההורדה המעודכנת ---
+        // --- פונקציית ההורדה לתוכנה חיצונית ---
         function downloadWithYtDlp(videoId) {
             if (!videoId) return;
             
