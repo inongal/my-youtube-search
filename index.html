@@ -30,7 +30,6 @@
             overflow-x: hidden;
         }
 
-        /* --- Nav Buttons Styling --- */
         .nav-btn {
             width: 36px;
             height: 36px;
@@ -57,19 +56,18 @@
         .video-card img { transition: transform 0.3s ease; }
         .video-card:hover img { transform: scale(1.02); border-radius: 8px; }
 
-        /* --- Grid / List View Styles --- */
         #resultsGrid.list-view { display: flex; flex-direction: column; gap: 1rem; }
         #resultsGrid.list-view .video-card { flex-direction: row; background: #1a1a1a; padding: 16px; border-radius: 16px; border: 1px solid #222; align-items: stretch; }
         #resultsGrid.list-view .video-card > .relative { width: 280px; margin-bottom: 0; flex-shrink: 0; }
         #resultsGrid.list-view .video-card .flex-1 { display: flex; flex-direction: column; padding-right: 20px; justify-content: center; }
         #resultsGrid.list-view .video-card .line-clamp-2 { -webkit-line-clamp: 1; font-size: 1.1rem; }
+        
         @media (max-width: 640px) {
             #resultsGrid.list-view .video-card { flex-direction: column; }
             #resultsGrid.list-view .video-card > .relative { width: 100%; margin-bottom: 1rem; }
             #resultsGrid.list-view .video-card .flex-1 { padding-right: 0; }
         }
 
-        /* --- Selection Mode Styles --- */
         .selection-checkbox { display: none; }
         body.selection-mode-active .selection-checkbox { display: flex; }
         body.selection-mode-active .video-card { cursor: copy; }
@@ -78,7 +76,6 @@
         .selected-card .selection-checkbox { border-color: #3b82f6; background-color: white; }
         .selected-card .selection-checkbox i { opacity: 1; }
 
-        /* Watch View */
         #watchView { display: none; backdrop-filter: blur(12px); }
         #watchView.hidden { display: none !important; }
         #watchView.active { display: flex !important; }
@@ -86,7 +83,7 @@
         #watchView.floating-mode { position: fixed; top: auto; left: 20px; bottom: 20px; right: auto; width: 400px; height: 225px; background: transparent; backdrop-filter: none; padding: 0; z-index: 9999; align-items: flex-end; justify-content: flex-start; pointer-events: none; }
         #watchView.floating-mode .modal-overlay-bg { display: none; }
         #watchView.floating-mode .player-container { width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; resize: none; overflow: hidden; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid #333; pointer-events: auto; display: block; position: relative; }
-        #watchView.floating-mode .player-info-section, #watchView.floating-mode .player-header { display: none !important; }
+        #watchView.floating-mode .player-info-section, #watchView.floating-mode .player-header, #watchView.floating-mode #customPlayerControls { display: none !important; }
         #watchView.floating-mode .aspect-video { width: 100%; height: 100%; position: absolute; inset: 0; padding: 0; margin: 0; }
         .floating-controls { display: none; }
         #watchView.floating-mode .floating-controls { display: flex; position: absolute; top: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); z-index: 20; opacity: 0; transition: opacity 0.3s ease; justify-content: flex-end; gap: 10px; cursor: move; }
@@ -98,7 +95,6 @@
         .sidebar-item:hover { background: var(--yt-surface); }
         .sidebar-item.active { background: var(--yt-surface); font-weight: 600; }
 
-        /* Toast Styling */
         .copy-toast { visibility: hidden; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 10px 20px; position: fixed; z-index: 1000; bottom: 30px; left: 50%; transform: translateX(-50%); font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         .copy-toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
@@ -234,7 +230,6 @@
         </aside>
 
         <main class="flex-1 lg:mr-64 p-6 relative">
-            
             <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
                 <h2 id="sectionTitle" class="text-2xl font-bold hidden">מומלצים</h2>
                 <div class="flex items-center gap-3">
@@ -251,7 +246,6 @@
             </div>
             
             <div id="channelHeaderContainer" class="hidden flex-col gap-4 mb-6"></div>
-
             <div id="channelFilterContainer" class="hidden mb-6 flex gap-2"></div>
 
             <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
@@ -336,12 +330,44 @@
             </div>
 
             <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+                <div id="customPlayerControls" class="bg-[#1a1a1a] p-3 flex items-center border-b border-[#222] z-20">
+                    <div class="relative">
+                        <button onclick="toggleChaptersMenu()" class="text-white hover:text-blue-400 flex items-center gap-2 text-sm bg-[#272727] px-4 py-2 rounded-full transition border border-[#333]">
+                            <i class="fas fa-list-ol"></i> 
+                            <span>פרקים בסרטון</span>
+                        </button>
+                        <div id="chaptersMenu" class="hidden absolute top-full right-0 mt-2 w-72 max-h-64 overflow-y-auto bg-[#222] border border-[#333] rounded-xl shadow-2xl z-50 custom-scrollbar p-2"></div>
+                    </div>
+                </div>
+
                 <div class="aspect-video w-full bg-black flex-shrink-0 relative">
                     <div id="playerFrame" class="w-full h-full absolute inset-0"></div>
                 </div>
+
                 <div class="p-8 player-info-section">
                     <div class="flex justify-between items-start mb-4">
-                        <h2 id="fullTitle" class="text-2xl font-bold flex-1"></h2>
+                        <div class="flex-1">
+                            <h2 id="fullTitle" class="text-2xl font-bold"></h2>
+                            
+                            <div class="flex flex-wrap items-center gap-3 mt-5">
+                                <button id="bottomCaptionsBtn" onclick="toggleCaptions()" class="bg-[#272727] hover:bg-[#333] text-white px-4 py-2 rounded-lg text-sm font-bold border border-[#333] transition flex items-center gap-2">
+                                    <i class="fas fa-closed-captioning"></i>
+                                    <span>כתוביות</span>
+                                </button>
+                                
+                                <select id="captionLangSelect" onchange="changeCaptionLanguage(this.value)" class="bg-[#272727] text-white text-xs rounded-lg px-3 py-2 outline-none border border-[#333] cursor-pointer">
+                                    <option value="he">עברית</option>
+                                    <option value="en">אנגלית</option>
+                                    <option value="ru">רוסית</option>
+                                </select>
+
+                                <div class="flex items-center gap-3 bg-[#272727] px-4 py-2 rounded-lg border border-[#333]" dir="ltr">
+                                    <input type="range" id="volumeSlider" min="0" max="100" value="100" oninput="changeVolume(this.value)" class="w-24 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                                    <i id="volumeIcon" class="fas fa-volume-up text-white text-xs"></i>
+                                </div>
+                            </div>
+                        </div>
+
                         <button id="playerLikeBtn" onclick="toggleLocalLike()" class="ml-4 w-12 h-12 rounded-full bg-[#222] hover:bg-[#333] flex items-center justify-center transition text-gray-400" title="אהבתי">
                             <i class="far fa-heart text-xl"></i>
                         </button>
@@ -1717,20 +1743,104 @@
             if(id) document.getElementById(id).classList.add('active');
         }
 
-        async function openPlayer(id, title, thumbnail = '', channel = '', duration = '') {
-            if (appState.isSelectionMode) {
-                toggleVideoSelection(id);
-                return; 
+        // --- פונקציות נגן חדשות (פרקים, שמע, כתוביות) ---
+        
+        // 1. חצים לשמע
+        document.addEventListener('keydown', function(e) {
+            if (document.getElementById('watchView').classList.contains('hidden')) return;
+            const activeEl = document.activeElement.id;
+            if (['searchInput', 'apiKeyInput', 'clientIdInput'].includes(activeEl)) return;
+
+            if (ytPlayer && typeof ytPlayer.getVolume === 'function') {
+                let currentVol = ytPlayer.getVolume();
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    updateVolumeUI(Math.min(currentVol + 5, 100));
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    updateVolumeUI(Math.max(currentVol - 5, 0));
+                }
             }
+        });
 
+        function updateVolumeUI(vol) {
+            ytPlayer.setVolume(vol);
+            document.getElementById('volumeSlider').value = vol;
+            const icon = document.getElementById('volumeIcon');
+            if (vol === 0) icon.className = 'fas fa-volume-mute text-red-500';
+            else if (vol < 50) icon.className = 'fas fa-volume-down text-white';
+            else icon.className = 'fas fa-volume-up text-white';
+        }
+
+        function changeVolume(val) {
+            if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
+                updateVolumeUI(parseInt(val));
+            }
+        }
+
+        // 2. כתוביות
+        let isCaptionsOn = false;
+        function toggleCaptions() {
+            if (!ytPlayer || typeof ytPlayer.loadModule !== 'function') return;
+            isCaptionsOn = !isCaptionsOn;
+            const btn = document.getElementById('bottomCaptionsBtn');
+            const lang = document.getElementById('captionLangSelect').value || 'he';
+            
+            if (isCaptionsOn) {
+                ytPlayer.loadModule('captions');
+                ytPlayer.setOption('captions', 'track', { languageCode: lang });
+                btn.classList.add('bg-blue-600', 'border-blue-500');
+            } else {
+                ytPlayer.unloadModule('captions');
+                btn.classList.remove('bg-blue-600', 'border-blue-500');
+            }
+        }
+
+        function changeCaptionLanguage(lang) {
+            if (isCaptionsOn && ytPlayer) ytPlayer.setOption('captions', 'track', { languageCode: lang });
+        }
+
+        // 3. פרקים
+        function toggleChaptersMenu() { document.getElementById('chaptersMenu').classList.toggle('hidden'); }
+
+        function buildChaptersMenu(desc) {
+            const menu = document.getElementById('chaptersMenu');
+            if (!desc) { menu.innerHTML = '<div class="p-4 text-gray-500 text-xs text-center">אין פרקים</div>'; return; }
+            
+            const chapters = [];
+            const lines = desc.split('\n');
+            const timeRegex = /(?:([0-5]?\d):)?([0-5]?\d):([0-5]\d)/;
+
+            lines.forEach(line => {
+                const match = line.match(timeRegex);
+                if (match) {
+                    const timeStr = match[0];
+                    const parts = timeStr.split(':');
+                    let secs = 0;
+                    if (parts.length === 3) secs = (+parts[0]) * 3600 + (+parts[1]) * 60 + (+parts[2]);
+                    else secs = (+parts[0]) * 60 + (+parts[1]);
+                    const title = line.replace(timeStr, '').trim().replace(/^[-: ]+|[-: ]+$/g, '');
+                    chapters.push({ time: secs, timeStr, title: title || 'פרק' });
+                }
+            });
+
+            if (chapters.length === 0) { menu.innerHTML = '<div class="p-4 text-gray-500 text-xs text-center">אין פרקים</div>'; return; }
+
+            menu.innerHTML = chapters.map(ch => `
+                <button onclick="ytPlayer.seekTo(${ch.time}); toggleChaptersMenu();" class="w-full text-right p-3 hover:bg-[#333] rounded-lg transition flex items-center gap-3 border-b border-[#222] last:border-0">
+                    <span class="text-blue-400 font-mono text-xs bg-[#111] px-2 py-1 rounded">${ch.timeStr}</span>
+                    <span class="text-white text-xs truncate flex-1">${ch.title}</span>
+                </button>`).join('');
+        }
+
+        async function openPlayer(id, title, thumbnail = '', channel = '', duration = '') {
+            if (appState.isSelectionMode) { toggleVideoSelection(id); return; }
             saveToLocalHistory(id, title, thumbnail, channel);
-
             const view = document.getElementById('watchView');
             if(appState.isFloating) toggleFloatingMode();
             
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('fullTitle').innerText = title;
-            
             appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
             updateLikeButtonUI(LocalLikesManager.isLiked(id));
 
@@ -1746,6 +1856,8 @@
             
             appState.currentVideoId = id;
             appState.isVideoPaused = false;
+            isCaptionsOn = false;
+            document.getElementById('bottomCaptionsBtn').classList.remove('bg-blue-600');
             
             document.getElementById('global-pause-btn').classList.remove('hidden');
             document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
@@ -1758,6 +1870,7 @@
                 if (item) {
                     document.getElementById('modalDesc').innerHTML = linkify(item.snippet.description);
                     document.getElementById('modalStats').innerText = `${parseInt(item.statistics.viewCount).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`;
+                    buildChaptersMenu(item.snippet.description);
                 }
             } catch(e) {}
             
@@ -1778,21 +1891,16 @@
             const url = `https://www.youtube.com/watch?v=${id}`;
             const dummy = document.createElement("input"); document.body.appendChild(dummy);
             dummy.value = url; dummy.select(); document.execCommand('copy'); document.body.removeChild(dummy);
-            
             const toast = document.getElementById('toast'); toast.className = "copy-toast show";
             setTimeout(() => { toast.className = "copy-toast"; }, 3000);
         }
         
         function downloadWithYtDlp(videoId) {
             if (!videoId) return;
-            const qualSelect = document.getElementById(`dl-qual-${videoId}`);
-            const quality = qualSelect ? qualSelect.value : '1080';
-            
+            const quality = document.getElementById(`dl-qual-${videoId}`)?.value || '1080';
             const toast = document.getElementById('toast');
-            let qualityText = quality === 'audio' ? 'שמע (MP3)' : (quality === 'subs' ? 'כתוביות (עברית)' : quality + 'p');
-            toast.innerText = `מעביר הורדה (${qualityText}) ל-yt-dlp...`; toast.className = "copy-toast show";
+            toast.innerText = `מעביר הורדה ל-yt-dlp...`; toast.className = "copy-toast show";
             setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
-
             window.location.href = `ytdlp://${videoId}/${quality}`;
         }
 
