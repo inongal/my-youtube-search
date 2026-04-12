@@ -742,6 +742,8 @@
             setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
 
             let delay = 0;
+            const DELAY_BETWEEN_REQUESTS = 2500; 
+
             videos.forEach((item) => {
                 const vidId = item.id.videoId || item.id;
                 setTimeout(() => {
@@ -754,10 +756,10 @@
                         if (document.body.contains(iframe)) {
                             document.body.removeChild(iframe);
                         }
-                    }, 2000);
+                    }, Math.max(2000, DELAY_BETWEEN_REQUESTS - 500)); 
                 }, delay);
                 
-                delay += 800; 
+                delay += DELAY_BETWEEN_REQUESTS; 
             });
 
             setTimeout(() => { 
