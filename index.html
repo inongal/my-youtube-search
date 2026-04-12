@@ -252,6 +252,14 @@
                 <option value="long">ארוך (>20 דק')</option>
             </select>
 
+            <select id="searchDate" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="זמן העלאה">
+                <option value="">כל הזמן</option>
+                <option value="today">ב-24 השעות האחרונות</option>
+                <option value="week">בשבוע האחרון</option>
+                <option value="month">בחודש האחרון</option>
+                <option value="year">בשנה האחרונה</option>
+            </select>
+
             <select id="searchOrder" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סינון לפי">
                 <option value="relevance">רלוונטיות</option>
                 <option value="date">תאריך העלאה</option>
@@ -558,6 +566,10 @@
                 document.getElementById('searchType').value = state.filterType || '';
                 document.getElementById('searchOrder').value = state.order || 'relevance';
                 document.getElementById('searchDuration').value = state.duration || '';
+                
+                // שחזור הסינון לפי תאריך
+                document.getElementById('searchDate').value = state.dateFilter || '';
+                
                 performSearch(false, true); 
             } else if (state.type === 'channel') {
                 loadChannelVideos(state.channelId, false, true); 
@@ -1370,6 +1382,7 @@
             const order = document.getElementById('searchOrder').value;
             let type = document.getElementById('searchType').value || 'video,channel,playlist'; 
             const duration = document.getElementById('searchDuration').value;
+            const dateFilter = document.getElementById('searchDate').value; // בחירת תאריך
 
             if (!query && appState.searchContext === 'channel' && loadMore) {
                 return loadChannelVideos(null, true); 
@@ -1402,7 +1415,8 @@
                         query: query,
                         filterType: type,
                         order: order,
-                        duration: duration
+                        duration: duration,
+                        dateFilter: dateFilter // שמירה להיסטוריה
                     });
                 }
 
@@ -1416,8 +1430,20 @@
 
             try {
                 let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${appState.maxResults}&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
+                
                 if (duration) url += `&videoDuration=${duration}`;
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
+
+                // --- לוגיקת סינון תאריכים מובנית לבקשת ה-API ---
+                if (dateFilter) {
+                    const date = new Date();
+                    if (dateFilter === 'today') date.setDate(date.getDate() - 1);
+                    else if (dateFilter === 'week') date.setDate(date.getDate() - 7);
+                    else if (dateFilter === 'month') date.setMonth(date.getMonth() - 1);
+                    else if (dateFilter === 'year') date.setFullYear(date.getFullYear() - 1);
+                    
+                    url += `&publishedAfter=${date.toISOString()}`;
+                }
 
                 const response = await fetch(url);
                 const data = await response.json();
