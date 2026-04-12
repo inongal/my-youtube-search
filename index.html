@@ -413,12 +413,11 @@
             activeChannelId: null,
             currentRenderedItems: [],
             maxResults: 12,
-            isListView: false, // מצב תצוגת רשימה
-            isSelectionMode: false, // מצב בחירת סרטונים
-            selectedVideos: new Set() // שמירת הסרטונים שנבחרו
+            isListView: false,
+            isSelectionMode: false,
+            selectedVideos: new Set()
         };
 
-        // הוספת Event Listener ברמת ה-Grid כדי ללכוד לחיצות במצב בחירה לפני שהן מפעילות דברים אחרים (Capture Phase)
         document.getElementById('resultsGrid').addEventListener('click', (e) => {
             if (appState.isSelectionMode) {
                 const card = e.target.closest('.video-card');
@@ -430,7 +429,6 @@
             }
         }, true);
 
-        // --- YouTube Player API ---
         let ytPlayer = null;
 
         function onPlayerStateChange(event) {
@@ -473,7 +471,6 @@
             }
         }
 
-        // --- ניהול היסטוריה ---
         let navHistory = [];
         let navIndex = -1;
         let isInternalNav = false; 
@@ -512,7 +509,7 @@
             document.getElementById('channelFilterContainer').classList.add('hidden'); 
             document.getElementById('channelHeaderContainer').classList.add('hidden');
             
-            if (appState.isSelectionMode) toggleSelectionMode(); // סגירת מצב בחירה במעבר מסך
+            if (appState.isSelectionMode) toggleSelectionMode(); 
             
             if (state.type === 'home') {
                 document.getElementById('searchInput').value = "";
@@ -537,7 +534,6 @@
             }
         }
 
-        // --- Helper Functions ---
         function formatCount(num) {
             const n = parseInt(num);
             if (!n) return '0';
@@ -632,7 +628,6 @@
             container.classList.add('flex');
         }
 
-        // --- פונקציות החלפת תצוגה ובחירה גורפת ---
         function toggleViewMode() {
             appState.isListView = !appState.isListView;
             const grid = document.getElementById('resultsGrid');
@@ -655,7 +650,6 @@
             
             document.body.classList.toggle('selection-mode-active', appState.isSelectionMode);
             
-            // איפוס ויזואלי
             document.querySelectorAll('.video-card').forEach(card => card.classList.remove('selected-card'));
             document.querySelectorAll('.selection-checkbox input').forEach(cb => cb.checked = false);
             
@@ -704,7 +698,6 @@
             toggleSelectionMode(); 
         }
 
-        // --- פונקציות הוספה להורדה מרובה ---
         function selectAllVideos() {
             const videosToSelect = appState.currentRenderedItems.filter(item => item.id && (item.id.videoId || typeof item.id === 'string'));
             if (videosToSelect.length === 0) return;
@@ -748,7 +741,6 @@
             toast.className = "copy-toast show";
             setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
 
-            // יצירת תור של קריאות URI עם השהיה קלה ביניהן כדי לא לחסום את הדפדפן
             let delay = 0;
             videos.forEach((item) => {
                 const vidId = item.id.videoId || item.id;
@@ -758,7 +750,6 @@
                     iframe.src = `ytdlp://${vidId}/${quality}`;
                     document.body.appendChild(iframe);
                     
-                    // מחיקת ה-iframe לאחר שהבקשה נשלחה
                     setTimeout(() => {
                         if (document.body.contains(iframe)) {
                             document.body.removeChild(iframe);
@@ -766,10 +757,9 @@
                     }, 2000);
                 }, delay);
                 
-                delay += 800; // השהיה של 800 מילישניות בין קריאות
+                delay += 800; 
             });
 
-            // סגירת מצב בחירה בסיום התהליך
             setTimeout(() => { 
                 toggleSelectionMode(); 
             }, delay + 500);
@@ -794,7 +784,7 @@
                     thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url,
                     channel: item.snippet.channelTitle,
                     duration: item.contentDetails?.duration || ''
-                }, true); // נעביר פרמטר true כדי לא להקפיץ טוסט על כל סרטון
+                }, true);
             });
             
             const toast = document.getElementById('toast');
@@ -818,7 +808,6 @@
             document.body.removeChild(a);
         }
 
-        // --- Playlist & Local Storage Logic ---
         const PlaylistManager = {
             getPlaylists: () => JSON.parse(localStorage.getItem('yt_playlists') || '{"Watch Later": []}'),
             savePlaylists: (playlists) => localStorage.setItem('yt_playlists', JSON.stringify(playlists)),
@@ -951,6 +940,7 @@
         }
 
         function loadLikedVideos(isHistoryNav = false) {
+            if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navLiked');
             appState.searchContext = 'liked';
             document.getElementById('channelFilterContainer').classList.add('hidden');
@@ -998,6 +988,7 @@
         }
 
         function loadPlaylistView(name, isInternal = false) {
+            if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem(''); 
             appState.searchContext = 'playlist_' + name;
             document.getElementById('channelFilterContainer').classList.add('hidden');
@@ -1084,6 +1075,7 @@
         }
 
         function loadLocalHistory(isHistoryNav = false) {
+            if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navLocalHistory');
             appState.searchContext = 'local_history'; 
             document.getElementById('channelFilterContainer').classList.add('hidden');
@@ -1290,6 +1282,7 @@
         }
 
         async function loadHomePage(isHistoryNav = false) {
+            if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navHome');
             appState.searchContext = 'general';
             document.getElementById('channelFilterContainer').classList.add('hidden');
@@ -1329,6 +1322,7 @@
 
         async function loadWatchHistory(isHistoryNav = false) {
             if (!appState.token) return alert("יש להתחבר לחשבון גוגל.");
+            if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navHistory');
             appState.searchContext = 'general';
             document.getElementById('channelFilterContainer').classList.add('hidden');
@@ -1378,6 +1372,7 @@
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
 
             if (!loadMore) {
+                if (appState.isSelectionMode) toggleSelectionMode();
                 appState.query = query; appState.pageToken = "";
                 if (!isHistoryNav) { pushHistory({ type: 'search', query: query, filterType: type, order: order, duration: duration, dateFilter: dateFilter }); }
                 if (appState.currentVideoId) { minimizePlayer(); document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>'; } 
@@ -1434,6 +1429,7 @@
         async function loadChannelVideos(channelId, loadMore = false, isHistoryNav = false) {
             if (!channelId && !appState.query) return;
             if (!loadMore) {
+                if (appState.isSelectionMode) toggleSelectionMode();
                 if (appState.currentVideoId) minimizePlayer();
                 if (!isHistoryNav && channelId) pushHistory({ type: 'channel', channelId: channelId });
 
@@ -1490,6 +1486,7 @@
 
         async function loadChannelPlaylists(channelId, loadMore = false) {
              if (!loadMore) {
+                if (appState.isSelectionMode) toggleSelectionMode();
                 appState.searchContext = 'channel_playlists'; appState.activeChannelId = channelId; appState.pageToken = "";
                 const filterContainer = document.getElementById('channelFilterContainer');
                 filterContainer.innerHTML = `
@@ -1520,12 +1517,20 @@
         }
 
         async function openExternalPlaylist(playlistId, title) {
-            appState.query = playlistId; appState.searchContext = 'channel'; appState.pageToken = ""; appState.activeChannelId = null; 
+            if (appState.isSelectionMode) toggleSelectionMode();
+            
+            appState.query = playlistId; 
+            appState.searchContext = 'channel'; 
+            appState.pageToken = ""; 
+            appState.activeChannelId = null; 
+            appState.currentRenderedItems = []; // ניקוי הזיכרון כדי למנוע כפילויות
+            
             document.getElementById('channelFilterContainer').classList.add('hidden');
             document.getElementById('channelHeaderContainer').classList.add('hidden');
             document.getElementById('sectionTitle').innerText = `פלייליסט: ${title}`;
             document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים...</div>';
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+            
             loadChannelVideos(null, true); 
         }
 
@@ -1702,7 +1707,6 @@
         }
 
         async function openPlayer(id, title, thumbnail = '', channel = '', duration = '') {
-            // חסימת הפעלת הנגן אם במצב בחירה
             if (appState.isSelectionMode) {
                 toggleVideoSelection(id);
                 return; 
