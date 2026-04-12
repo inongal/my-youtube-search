@@ -263,7 +263,7 @@
             </div>
 
             <div id="pagination" class="hidden mt-12 mb-20 flex justify-center">
-                <button id="loadMoreBtn" onclick="performSearch(true)" 
+                <button id="loadMoreBtn" onclick="handleLoadMore()" 
                     class="bg-white text-black px-12 py-3 rounded-full font-bold hover:bg-gray-200 transition shadow-lg">
                     טען תוצאות נוספות
                 </button>
@@ -1281,6 +1281,18 @@
             });
         }
 
+        function handleLoadMore() {
+            if (appState.searchContext === 'channel') {
+                loadChannelVideos(null, true);
+            } else if (appState.searchContext === 'channel_playlists') {
+                loadChannelPlaylists(appState.activeChannelId, true);
+            } else if (appState.searchContext === 'general') {
+                if (appState.query) {
+                    performSearch(true);
+                }
+            }
+        }
+
         async function loadHomePage(isHistoryNav = false) {
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navHome');
@@ -1351,14 +1363,12 @@
         }
 
         async function performSearch(loadMore, isHistoryNav = false) {
-            const query = document.getElementById('searchInput').value.trim();
+            const query = loadMore ? appState.query : document.getElementById('searchInput').value.trim();
             const order = document.getElementById('searchOrder').value;
             let type = document.getElementById('searchType').value || 'video,channel,playlist'; 
             const duration = document.getElementById('searchDuration').value;
             const dateFilter = document.getElementById('searchDate').value;
 
-            if (!query && appState.searchContext === 'channel' && loadMore) return loadChannelVideos(null, true); 
-            if (!query && appState.searchContext === 'channel_playlists' && loadMore) return loadChannelPlaylists(appState.activeChannelId, true);
             if (!query) return loadHomePage();
 
             if (duration) { type = 'video'; document.getElementById('searchType').value = 'video'; }
@@ -1373,7 +1383,8 @@
 
             if (!loadMore) {
                 if (appState.isSelectionMode) toggleSelectionMode();
-                appState.query = query; appState.pageToken = "";
+                appState.query = query; 
+                appState.pageToken = "";
                 if (!isHistoryNav) { pushHistory({ type: 'search', query: query, filterType: type, order: order, duration: duration, dateFilter: dateFilter }); }
                 if (appState.currentVideoId) { minimizePlayer(); document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>'; } 
                 else { document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>'; }
@@ -1523,7 +1534,7 @@
             appState.searchContext = 'channel'; 
             appState.pageToken = ""; 
             appState.activeChannelId = null; 
-            appState.currentRenderedItems = []; // ניקוי הזיכרון כדי למנוע כפילויות
+            appState.currentRenderedItems = []; 
             
             document.getElementById('channelFilterContainer').classList.add('hidden');
             document.getElementById('channelHeaderContainer').classList.add('hidden');
