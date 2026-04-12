@@ -10,7 +10,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://www.youtube.com/iframe_api"></script> <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://www.youtube.com/iframe_api"></script> 
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap');
@@ -386,7 +387,7 @@
 
             <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                 <div class="aspect-video w-full bg-black flex-shrink-0 relative">
-                    <iframe id="playerFrame" class="w-full h-full absolute inset-0" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                    <div id="playerFrame" class="w-full h-full absolute inset-0"></div>
                 </div>
                 <div class="p-8 player-info-section">
                     <div class="flex justify-between items-start mb-4">
@@ -461,14 +462,6 @@
 
         // --- YouTube Player API ---
         let ytPlayer = null;
-
-        function onYouTubeIframeAPIReady() {
-            ytPlayer = new YT.Player('playerFrame', {
-                events: {
-                    'onStateChange': onPlayerStateChange
-                }
-            });
-        }
 
         function onPlayerStateChange(event) {
             if (event.data === 0) {
@@ -1106,7 +1099,6 @@
         const returnToVideoBtn = document.getElementById('return-to-video-btn');
         const globalPauseBtn = document.getElementById('global-pause-btn');
         const watchView = document.getElementById('watchView');
-        const playerFrame = document.getElementById('playerFrame');
 
         globalPauseBtn.addEventListener('click', () => {
             if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
@@ -1117,12 +1109,11 @@
                     ytPlayer.playVideo();
                 }
             } else {
+                // Fallback (if any iframe postMessage is used outside API)
                 if (appState.isVideoPaused) {
-                    playerFrame.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
                     globalPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
                     appState.isVideoPaused = false;
                 } else {
-                    playerFrame.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
                     globalPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
                     appState.isVideoPaused = true;
                 }
@@ -1784,7 +1775,17 @@
             if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
                 ytPlayer.loadVideoById(id);
             } else {
-                document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1`;
+                ytPlayer = new YT.Player('playerFrame', {
+                    videoId: id,
+                    playerVars: {
+                        'autoplay': 1,
+                        'enablejsapi': 1,
+                        'rel': 0
+                    },
+                    events: {
+                        'onStateChange': onPlayerStateChange
+                    }
+                });
             }
             
             appState.currentVideoId = id;
@@ -1818,8 +1819,6 @@
             document.getElementById('watchView').classList.add('hidden');
             document.getElementById('watchView').classList.remove('floating-mode'); 
             appState.isFloating = false;
-            
-            if (!ytPlayer) document.getElementById('playerFrame').src = '';
             
             document.body.style.overflow = 'auto'; 
             
