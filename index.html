@@ -70,8 +70,8 @@
         .nav-btn:hover { background-color: var(--bg-surface-hover); }
         .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; background-color: transparent !important; }
 
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: var(--bg-main); }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: var(--bg-main); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
 
         .video-card { transition: border-color 0.2s; border: 1px solid transparent; background-color: transparent; }
@@ -1390,7 +1390,8 @@
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navLocalSubs');
             appState.searchContext = 'local_subs'; 
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
+            
+            const headerContainer = document.getElementById('channelHeaderContainer');
             document.getElementById('internalSearch').classList.add('hidden');
 
             const subs = LocalSubsManager.getSubs();
@@ -1399,11 +1400,41 @@
                 document.getElementById('sectionTitle').innerText = "עדכונים מערוצים שלי";
                 document.getElementById('sectionTitle').classList.remove('hidden');
                 document.getElementById('pagination').classList.add('hidden');
+                headerContainer.innerHTML = '';
+                headerContainer.classList.add('hidden');
                 return;
             }
+
+            // --- תצוגת ערוצים נפרדת בחלק העליון ---
+            let channelsHtml = `
+                <div class="w-full rounded-2xl p-5 mb-2 border shadow-sm" style="background-color: var(--bg-card); border-color: var(--border-color);">
+                    <h3 class="font-bold text-lg mb-4" style="color: var(--text-primary);">הערוצים שלך</h3>
+                    <div class="flex gap-6 overflow-x-auto pb-3 custom-scrollbar">
+            `;
             
-            document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים אחרונים...</div>`;
-            document.getElementById('sectionTitle').innerText = "עדכונים מערוצים שלי (5 סרטונים אחרונים)";
+            subs.forEach(sub => {
+                channelsHtml += `
+                    <div class="flex flex-col items-center gap-2 flex-shrink-0 w-24 group">
+                        <div class="relative cursor-pointer" onclick="loadChannelVideos('${sub.id}')" title="צפה בדף הערוץ המלא">
+                            <img src="${sub.thumbnail}" class="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 transition-transform transform group-hover:scale-105" style="border-color: var(--border-color); background-color: var(--bg-surface);">
+                        </div>
+                        <span class="text-xs text-center font-semibold line-clamp-2 w-full cursor-pointer hover:underline transition-colors" style="color: var(--text-primary);" onclick="loadChannelVideos('${sub.id}')">${sub.title}</span>
+                        
+                        <a href="https://www.youtube.com/channel/${sub.id}" target="_blank" class="mt-1 text-[10px] px-3 py-1 rounded-full border transition flex items-center gap-1 hover:opacity-80" style="color: var(--text-secondary); border-color: var(--border-color); background-color: var(--bg-surface);" title="פתח ישירות ב-YouTube">
+                            <i class="fab fa-youtube text-red-500"></i> ביוטיוב
+                        </a>
+                    </div>
+                `;
+            });
+            
+            channelsHtml += `</div></div>`;
+            headerContainer.innerHTML = channelsHtml;
+            headerContainer.classList.remove('hidden');
+            headerContainer.classList.add('flex', 'flex-col');
+            // --- סוף תצוגת הערוצים ---
+
+            document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים אחרונים מכל הערוצים...</div>`;
+            document.getElementById('sectionTitle').innerText = "סרטונים אחרונים (הכל מעורב)";
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
 
@@ -1417,7 +1448,6 @@
             // חזרה לבקשה של מקסימום 5 סרטונים מכל ערוץ
             for (let sub of subs) {
                 try {
-                    // הוספת maxResults=5 והגבלת זמן (publishedAfter) דרך ה-API 
                     const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${sub.id}&maxResults=5&order=date&type=video&publishedAfter=${encodeURIComponent(publishedAfterStr)}&key=${appState.apiKey}`;
                     const res = await fetch(url);
                     const data = await res.json();
@@ -1431,10 +1461,8 @@
             const videoIdsArray = allVideos.map(v => v.id.videoId);
             
             if(videoIdsArray.length > 0) {
-                // המגבלה ב-API לקבלת מידע סרטונים היא 50 לבקשה. לכן נחלק לקבוצות (chunks) במידת הצורך
                 for (let i = 0; i < videoIdsArray.length; i += 50) {
                     const chunk = videoIdsArray.slice(i, i + 50);
-                    // פרמטר clear (לנקות את המסך) יפעל רק בסבב הראשון כדי שלא יימחק מה שכבר נטען בסבבים הבאים
                     await fetchAndRenderVideos(chunk, i === 0);
                 }
             } else { 
