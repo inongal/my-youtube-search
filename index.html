@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="he" dir="rtl" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +8,6 @@
     <link rel="icon" type="image/x-icon" href="https://www.youtube.com/s/desktop/28b67e7f/img/favicon_32x32.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://www.youtube.com/iframe_api"></script> 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -16,18 +15,42 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap');
         
+        /* מערכת ערכות נושא (Theme) */
         :root {
-            --yt-main: #0f0f0f;
-            --yt-surface: #272727;
-            --yt-border: #3f3f3f;
+            --bg-main: #0f0f0f;
+            --bg-card: #1a1a1a;
+            --bg-surface: #272727;
+            --bg-surface-hover: #3f3f3f;
+            --bg-input: #121212;
+            --border-color: #333333;
+            --border-light: #444444;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --text-muted: #777777;
+            --modal-overlay: rgba(0, 0, 0, 0.9);
+        }
+
+        [data-theme="light"] {
+            --bg-main: #f9f9f9;
+            --bg-card: #ffffff;
+            --bg-surface: #eeeeee;
+            --bg-surface-hover: #dddddd;
+            --bg-input: #ffffff;
+            --border-color: #cccccc;
+            --border-light: #bbbbbb;
+            --text-primary: #111111;
+            --text-secondary: #555555;
+            --text-muted: #888888;
+            --modal-overlay: rgba(255, 255, 255, 0.85);
         }
 
         body {
-            background-color: var(--yt-main);
-            color: #ffffff;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
             font-family: 'Assistant', sans-serif;
             margin: 0;
             overflow-x: hidden;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         /* --- Nav Buttons Styling --- */
@@ -39,27 +62,25 @@
             align-items: center;
             justify-content: center;
             background-color: transparent;
-            color: white;
+            color: var(--text-primary);
             transition: all 0.2s;
             cursor: pointer;
             border: none;
         }
-        .nav-btn:hover { background-color: #3f3f3f; }
+        .nav-btn:hover { background-color: var(--bg-surface-hover); }
         .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; background-color: transparent !important; }
 
-        .chart-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; height: 250px; }
-
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: var(--yt-main); }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--yt-border); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: var(--bg-main); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
 
-        .video-card { transition: border-color 0.2s; border: 1px solid transparent; }
+        .video-card { transition: border-color 0.2s; border: 1px solid transparent; background-color: transparent; }
         .video-card img { transition: transform 0.3s ease; }
         .video-card:hover img { transform: scale(1.02); border-radius: 8px; }
 
         /* --- Grid / List View Styles --- */
         #resultsGrid.list-view { display: flex; flex-direction: column; gap: 1rem; }
-        #resultsGrid.list-view .video-card { flex-direction: row; background: #1a1a1a; padding: 16px; border-radius: 16px; border: 1px solid #222; align-items: stretch; }
+        #resultsGrid.list-view .video-card { flex-direction: row; background: var(--bg-card); padding: 16px; border-radius: 16px; border: 1px solid var(--border-color); align-items: stretch; }
         #resultsGrid.list-view .video-card > .relative { width: 280px; margin-bottom: 0; flex-shrink: 0; }
         #resultsGrid.list-view .video-card .flex-1 { display: flex; flex-direction: column; padding-right: 20px; justify-content: center; }
         #resultsGrid.list-view .video-card .line-clamp-2 { -webkit-line-clamp: 1; font-size: 1.1rem; }
@@ -79,20 +100,35 @@
         .selected-card .selection-checkbox i { opacity: 1; }
 
         /* Watch View */
-        #watchView { display: none; backdrop-filter: blur(12px); }
+        #watchView { display: none; backdrop-filter: blur(12px); background-color: var(--modal-overlay); }
         #watchView.hidden { display: none !important; }
         #watchView.active { display: flex !important; }
         
-        #configModal { display: none; backdrop-filter: blur(12px); }
+        #watchView.floating-mode { position: fixed; top: auto; left: 20px; bottom: 20px; right: auto; background: transparent; backdrop-filter: none; padding: 0; z-index: 9999; align-items: flex-end; justify-content: flex-start; pointer-events: none; }
+        #watchView.floating-mode .modal-overlay-bg { display: none; }
+        #watchView.floating-mode .player-container { 
+            width: 400px; height: 225px; /* גודל התחלתי */
+            min-width: 250px; min-height: 140px;
+            max-width: 90vw; max-height: 90vh;
+            resize: both; /* מאפשר שליטה בגודל */
+            overflow: hidden; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid var(--border-color); pointer-events: auto; display: block; position: relative; background: var(--bg-main); 
+        }
+        #watchView.floating-mode .player-info-section, #watchView.floating-mode .player-header { display: none !important; }
+        #watchView.floating-mode .aspect-video { width: 100%; height: 100%; position: absolute; inset: 0; padding: 0; margin: 0; }
+        .floating-controls { display: none; }
+        #watchView.floating-mode .floating-controls { display: flex; position: absolute; top: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); z-index: 20; opacity: 0; transition: opacity 0.3s ease; justify-content: flex-end; gap: 10px; cursor: move; }
+        #watchView.floating-mode .player-container:hover .floating-controls { opacity: 1; }
+
+        #configModal { display: none; backdrop-filter: blur(12px); background-color: var(--modal-overlay); }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         
         /* Sidebar items */
-        .sidebar-item { display: flex; align-items: center; gap: 20px; padding: 12px; cursor: pointer; border-radius: 12px; transition: background 0.2s; }
-        .sidebar-item:hover { background: var(--yt-surface); }
-        .sidebar-item.active { background: var(--yt-surface); font-weight: 600; }
+        .sidebar-item { display: flex; align-items: center; gap: 20px; padding: 12px; cursor: pointer; border-radius: 12px; transition: background 0.2s; color: var(--text-primary); }
+        .sidebar-item:hover { background: var(--bg-surface); }
+        .sidebar-item.active { background: var(--bg-surface); font-weight: 600; }
 
         /* --- Collapsed Sidebar Styles --- */
-        #mainSidebar { transition: width 0.3s ease, padding 0.3s ease; }
+        #mainSidebar { transition: width 0.3s ease, padding 0.3s ease; background-color: var(--bg-main); border-color: var(--border-color); }
         #mainContent { transition: margin-right 0.3s ease; }
         
         .sidebar-collapsed { width: 80px !important; padding: 16px 8px !important; }
@@ -107,17 +143,17 @@
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
         
-        select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: left 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-left: 2.5rem; }
+        select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23888888' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: left 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-left: 2.5rem; }
     </style>
 </head>
 <body class="custom-scrollbar">
 
-    <header class="fixed top-0 left-0 right-0 h-16 bg-[#0f0f0f]/95 border-b border-[#222] flex items-center justify-between px-6 z-[100]">
+    <header class="fixed top-0 left-0 right-0 h-16 border-b flex items-center justify-between px-6 z-[100]" style="background-color: var(--bg-main); border-color: var(--border-color);">
         <div class="flex items-center gap-5">
-            <button onclick="toggleSidebar()" class="text-xl p-2 hover:bg-[#272727] rounded-full transition"><i class="fas fa-bars"></i></button>
+            <button onclick="toggleSidebar()" class="text-xl p-2 rounded-full transition" style="color: var(--text-primary);"><i class="fas fa-bars"></i></button>
             <div class="flex items-center gap-1 cursor-pointer" onclick="loadHomePage()">
                 <i class="fab fa-youtube text-[#ff0000] text-3xl"></i>
-                <span class="text-xl font-bold tracking-tight text-white hidden md:inline">YouTube</span>
+                <span class="text-xl font-bold tracking-tight hidden md:inline" style="color: var(--text-primary);">YouTube</span>
             </div>
         </div>
 
@@ -133,28 +169,28 @@
         <div class="flex-1 max-w-5xl flex items-center gap-2 px-4">
             <div class="flex w-full group">
                 <input type="text" id="searchInput" placeholder="חיפוש" 
-                    class="w-full bg-[#121212] border border-[#303030] rounded-r-full py-2.5 px-5 focus:border-blue-500 outline-none transition text-right text-white">
+                    class="w-full rounded-r-full py-2.5 px-5 outline-none transition text-right" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
                 <button onclick="performSearch(false)" 
-                    class="bg-[#222222] border border-[#303030] border-r-0 rounded-l-full px-6 hover:bg-[#2a2a2a] transition">
-                    <i class="fas fa-search text-gray-300"></i>
+                    class="border-r-0 rounded-l-full px-6 transition" style="background-color: var(--bg-surface); border: 1px solid var(--border-color);">
+                    <i class="fas fa-search" style="color: var(--text-secondary);"></i>
                 </button>
             </div>
             
-            <select id="searchType" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סוג תוצאה">
+            <select id="searchType" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סוג תוצאה" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
                 <option value="">הכל</option>
                 <option value="video">סרטונים</option>
                 <option value="channel">ערוצים</option>
                 <option value="playlist">פלייליסטים</option> 
             </select>
             
-            <select id="searchDuration" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="משך">
+            <select id="searchDuration" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="משך" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
                 <option value="">כל אורך</option>
                 <option value="short">קצר (<4 דק')</option>
                 <option value="medium">בינוני (4-20 דק')</option>
                 <option value="long">ארוך (>20 דק')</option>
             </select>
 
-            <select id="searchDate" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="זמן העלאה">
+            <select id="searchDate" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="זמן העלאה" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
                 <option value="">כל הזמן</option>
                 <option value="today">ב-24 השעות האחרונות</option>
                 <option value="week">בשבוע האחרון</option>
@@ -162,7 +198,7 @@
                 <option value="year">בשנה האחרונה</option>
             </select>
 
-            <select id="searchOrder" class="bg-[#121212] border border-[#303030] text-white text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סינון לפי">
+            <select id="searchOrder" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סינון לפי" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
                 <option value="relevance">רלוונטיות</option>
                 <option value="date">תאריך העלאה</option>
                 <option value="viewCount">מספר צפיות</option>
@@ -170,27 +206,27 @@
         </div>
 
         <div class="flex items-center gap-4">
-            <button id="return-to-video-btn" class="text-white hover:text-blue-400 p-2 px-3 rounded-full hidden transition-colors bg-[#272727] border border-[#333]" title="חזור לסרטון">
+            <button id="return-to-video-btn" class="p-2 px-3 rounded-full hidden transition-colors border" style="color: var(--text-primary); background-color: var(--bg-surface); border-color: var(--border-color);" title="חזור לסרטון">
                 <i class="fa-solid fa-tv"></i>
             </button>
-            <button id="global-pause-btn" class="text-gray-400 hover:text-white p-2 w-10 h-10 flex items-center justify-center rounded-full hidden transition-colors border border-transparent hover:border-[#333]" title="השהה/נגן">
+            <button id="global-pause-btn" class="p-2 w-10 h-10 flex items-center justify-center rounded-full hidden transition-colors border border-transparent" style="color: var(--text-secondary);" title="השהה/נגן">
                 <i class="fa-solid fa-pause"></i>
             </button>
 
-            <button onclick="toggleConfig()" class="p-2 hover:bg-[#272727] rounded-full transition text-gray-400" title="הגדרות API וגוגל">
+            <button onclick="toggleConfig()" class="p-2 rounded-full transition" style="color: var(--text-secondary);" title="הגדרות המערכת">
                 <i class="fas fa-cog text-xl"></i>
             </button>
             
             <div id="authContainer">
-                <button onclick="requestToken()" class="bg-[#272727] hover:bg-[#3f3f3f] px-4 py-2 rounded-full text-sm font-bold border border-[#444] transition">
+                <button onclick="requestToken()" class="px-4 py-2 rounded-full text-sm font-bold border transition" style="background-color: var(--bg-surface); border-color: var(--border-light); color: var(--text-primary);">
                     התחברות
                 </button>
             </div>
             
             <div id="userDisplay" class="hidden flex items-center gap-3">
-                <span id="userName" class="text-xs font-bold hidden md:inline text-gray-400"></span>
-                <img id="userImg" class="w-8 h-8 rounded-full border border-gray-600">
-                <button onclick="handleLogout()" class="p-2 hover:bg-[#272727] rounded-full transition text-red-500" title="התנתק">
+                <span id="userName" class="text-xs font-bold hidden md:inline" style="color: var(--text-secondary);"></span>
+                <img id="userImg" class="w-8 h-8 rounded-full border" style="border-color: var(--border-color);">
+                <button onclick="handleLogout()" class="p-2 rounded-full transition text-red-500" title="התנתק">
                     <i class="fas fa-sign-out-alt text-lg"></i>
                 </button>
             </div>
@@ -198,58 +234,55 @@
     </header>
 
     <div class="flex pt-16 min-h-screen">
-        <aside id="mainSidebar" class="w-64 fixed right-0 top-16 bottom-0 hidden lg:flex flex-col bg-[#0f0f0f] border-l border-[#222] p-4 overflow-y-auto custom-scrollbar">
+        <aside id="mainSidebar" class="w-64 fixed right-0 top-16 bottom-0 hidden lg:flex flex-col overflow-y-auto custom-scrollbar border-l">
             <nav class="space-y-1">
                 <div onclick="loadHomePage()" class="sidebar-item active" id="navHome">
                     <i class="fas fa-house text-lg"></i><span>דף הבית</span>
                 </div>
-                <hr class="my-3 border-[#222]">
+                <hr class="my-3" style="border-color: var(--border-color);">
                 <div onclick="loadWatchHistory()" class="sidebar-item" id="navHistory">
                     <i class="fas fa-history text-lg"></i><span>היסטוריית צפייה</span>
                 </div>
                 <div onclick="loadLocalHistory()" class="sidebar-item" id="navLocalHistory">
                     <i class="fas fa-hdd text-lg"></i><span>היסטוריה מקומית (PC)</span>
                 </div>
-                <div onclick="loadLikedVideos()" class="sidebar-item" id="navLiked">
-                    <i class="fas fa-thumbs-up text-lg"></i><span>סרטונים שאהבתי</span>
+                <div onclick="loadLikedItems()" class="sidebar-item" id="navLiked">
+                    <i class="fas fa-thumbs-up text-lg"></i><span>מועדפים (מקומי)</span>
                 </div>
                 
-                <hr class="my-3 border-[#222]">
-                <div class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">הרשימות שלי</div>
+                <hr class="my-3" style="border-color: var(--border-color);">
+                <div class="px-4 py-2 text-xs font-bold uppercase" style="color: var(--text-muted);">הרשימות שלי</div>
                 <div id="playlistsNavContainer"></div>
-                <div onclick="const n=prompt('שם הרשימה החדשה:'); if(n) PlaylistManager.createPlaylist(n);" class="sidebar-item text-blue-400">
+                <div onclick="const n=prompt('שם הרשימה החדשה:'); if(n) PlaylistManager.createPlaylist(n);" class="sidebar-item text-blue-500">
                     <i class="fas fa-plus text-lg"></i><span>צור רשימה חדשה</span>
                 </div>
             </nav>
-            
-            <div class="mt-8 uppercase-container">
-                <h4 class="px-3 text-xs font-bold text-gray-500 mb-4 uppercase tracking-wider text-right">ניתוח נתונים</h4>
-                <div class="chart-container">
-                    <canvas id="statsChart"></canvas>
-                </div>
-            </div>
         </aside>
 
         <main id="mainContent" class="flex-1 lg:mr-64 p-6 relative">
             
             <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-                <h2 id="sectionTitle" class="text-2xl font-bold hidden">מומלצים</h2>
+                <h2 id="sectionTitle" class="text-2xl font-bold hidden" style="color: var(--text-primary);">מומלצים</h2>
                 <div class="flex items-center gap-3">
-                    <button onclick="toggleViewMode()" class="bg-[#222] hover:bg-[#333] text-white w-10 h-10 rounded-lg text-sm flex items-center justify-center border border-[#444] transition" title="שנה תצוגה (רשת/רשימה)">
+                    <button onclick="toggleViewMode()" class="w-10 h-10 rounded-lg text-sm flex items-center justify-center border transition" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);" title="שנה תצוגה (רשת/רשימה)">
                         <i id="viewToggleIcon" class="fas fa-list"></i>
                     </button>
-                    <button onclick="toggleSelectionMode()" class="bg-[#222] hover:bg-[#333] text-white px-4 py-2 rounded-lg text-sm font-bold border border-[#444] transition flex items-center gap-2">
+                    <button onclick="toggleSelectionMode()" class="px-4 py-2 rounded-lg text-sm font-bold border transition flex items-center gap-2" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                         <i class="fas fa-check-square"></i> <span class="hidden sm:inline">בחר סרטונים</span>
                     </button>
-                    <button id="exportUrlsBtn" onclick="downloadUrls()" class="hidden bg-[#222] hover:bg-[#333] text-white px-4 py-2 rounded-lg text-sm font-bold border border-[#444] transition flex items-center gap-2">
+                    <button id="exportUrlsBtn" onclick="downloadUrls()" class="hidden px-4 py-2 rounded-lg text-sm font-bold border transition flex items-center gap-2" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                         <i class="fas fa-file-download"></i> <span class="hidden sm:inline">הורד הכל</span>
                     </button>
                 </div>
             </div>
             
             <div id="channelHeaderContainer" class="hidden flex-col gap-4 mb-6"></div>
-
-            <div id="channelFilterContainer" class="hidden mb-6 flex gap-2"></div>
+            
+            <div id="likedTabsContainer" class="hidden flex gap-4 mb-6 border-b pb-2" style="border-color: var(--border-color);">
+                <button onclick="renderLikedTab('videos')" id="tab-videos" class="font-bold border-b-2 border-transparent pb-1 transition" style="color: var(--text-secondary);">סרטונים</button>
+                <button onclick="renderLikedTab('channels')" id="tab-channels" class="font-bold border-b-2 border-transparent pb-1 transition" style="color: var(--text-secondary);">ערוצים</button>
+                <button onclick="renderLikedTab('playlists')" id="tab-playlists" class="font-bold border-b-2 border-transparent pb-1 transition" style="color: var(--text-secondary);">פלייליסטים</button>
+            </div>
 
             <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                 <div class="col-span-full flex flex-col items-center justify-center py-32 opacity-20 text-center">
@@ -261,60 +294,68 @@
 
             <div id="pagination" class="hidden mt-12 mb-20 flex justify-center">
                 <button id="loadMoreBtn" onclick="handleLoadMore()" 
-                    class="bg-white text-black px-12 py-3 rounded-full font-bold hover:bg-gray-200 transition shadow-lg">
+                    class="px-12 py-3 rounded-full font-bold transition shadow-lg" style="background-color: var(--text-primary); color: var(--bg-main);">
                     טען תוצאות נוספות
                 </button>
             </div>
         </main>
     </div>
 
-    <div id="batchActionBar" class="fixed bottom-0 left-0 right-0 lg:right-64 bg-[#1a1a1a] border-t border-[#3b82f6] p-4 flex items-center justify-between z-[150] transform translate-y-full transition-transform duration-300 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+    <div id="batchActionBar" class="fixed bottom-0 left-0 right-0 lg:right-64 border-t p-4 flex items-center justify-between z-[150] transform translate-y-full transition-transform duration-300 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]" style="background-color: var(--bg-card); border-color: #3b82f6;">
         <div class="flex items-center gap-4">
-            <button onclick="toggleSelectionMode()" class="w-8 h-8 rounded-full bg-[#333] hover:bg-[#444] flex items-center justify-center transition text-gray-400" title="סגור מצב בחירה">
+            <button onclick="toggleSelectionMode()" class="w-8 h-8 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface-hover); color: var(--text-secondary);" title="סגור מצב בחירה">
                 <i class="fas fa-times"></i>
             </button>
-            <span id="batchCountLabel" class="font-bold text-blue-400">0 נבחרו</span>
-            <button onclick="selectAllVideos()" class="text-xs text-gray-300 hover:text-white transition font-bold px-3 py-1.5 rounded-lg bg-[#222] border border-[#444] hover:border-[#666]">
+            <span id="batchCountLabel" class="font-bold text-blue-500">0 נבחרו</span>
+            <button onclick="selectAllVideos()" class="text-xs transition font-bold px-3 py-1.5 rounded-lg border" style="background-color: var(--bg-surface); color: var(--text-secondary); border-color: var(--border-light);">
                 <i class="fas fa-check-double ml-1"></i> בחר הכל
             </button>
         </div>
         <div class="flex items-center gap-3">
-            <select id="batchQualitySelect" class="bg-[#222] border border-[#444] text-white text-sm rounded-lg px-3 py-2 outline-none hidden sm:block">
+            <select id="batchQualitySelect" class="text-sm rounded-lg px-3 py-2 outline-none hidden sm:block border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                 <option value="1080">1080p</option>
                 <option value="720">720p</option>
                 <option value="480">480p</option>
                 <option value="audio">שמע (MP3)</option>
             </select>
             
-            <button onclick="batchAddToPlaylist()" class="bg-[#222] hover:bg-[#333] border border-[#444] px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2">
+            <button onclick="batchAddToPlaylist()" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                 <i class="fas fa-list-ul"></i> <span class="hidden md:inline">הוסף לרשימה</span>
             </button>
             
-            <button onclick="batchDownloadUrls()" class="bg-[#222] hover:bg-[#333] border border-[#444] px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2" title="ייצא קישורים כקובץ טקסט">
+            <button onclick="batchDownloadUrls()" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 border" title="ייצא קישורים כקובץ טקסט" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                 <i class="fas fa-link"></i> <span class="hidden md:inline">גיבוי קישורים</span>
             </button>
 
-            <button onclick="batchDownloadWithYtDlp()" class="bg-blue-600 hover:bg-blue-700 border border-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg">
+            <button onclick="batchDownloadWithYtDlp()" class="bg-blue-600 hover:bg-blue-700 border border-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg text-white">
                 <i class="fas fa-download"></i> הורדה מרובה
             </button>
         </div>
     </div>
 
-    <div id="watchView" class="fixed inset-0 z-[200] items-center justify-center p-4 bg-black/90">
+    <div id="watchView" class="fixed inset-0 z-[200] items-center justify-center p-4">
         <div class="absolute inset-0 modal-overlay-bg" onclick="minimizePlayer()"></div>
         
-        <div class="player-container relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333] shadow-2xl z-10">
+        <div class="player-container relative w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border shadow-2xl z-10" style="background-color: var(--bg-main); border-color: var(--border-color);">
+            <div class="floating-controls">
+                 <button onclick="toggleFloatingMode()" class="w-8 h-8 bg-black/60 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition" title="חזור למסך רגיל">
+                    <i class="fas fa-expand-alt text-xs"></i>
+                </button>
+                <button onclick="closePlayer()" class="w-8 h-8 bg-black/60 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition" title="סגור">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+            </div>
 
-            <div class="player-header p-4 flex justify-between items-center border-b border-[#222]">
-                <h3 id="modalTitle" class="font-bold text-lg truncate px-2"></h3>
+            <div class="player-header p-4 flex justify-between items-center border-b" style="border-color: var(--border-color);">
+                <h3 id="modalTitle" class="font-bold text-lg truncate px-2" style="color: var(--text-primary);"></h3>
                 <div class="flex gap-2">
-                    <button onclick="toggleExternalPip()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="פתח בחלון צף חיצוני (PiP)">
-                        <i class="fas fa-external-link-alt text-gray-400"></i>
+                    <button onclick="toggleFloatingMode()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="נגן צף פנימי נשלט גודל">
+                        <i class="fas fa-clone"></i>
                     </button>
-                    <button onclick="minimizePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="מזער והמשך לשמוע ברקע">
-                        <i class="fas fa-compress text-gray-400"></i>
+                    <button onclick="minimizePlayer()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="מזער והמשך לשמוע ברקע">
+                        <i class="fas fa-compress"></i>
                     </button>
-                    <button onclick="closePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="סגור נגן">
+                    <button onclick="closePlayer()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="סגור נגן">
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
@@ -326,45 +367,53 @@
                 </div>
                 <div class="p-8 player-info-section">
                     <div class="flex justify-between items-start mb-4">
-                        <h2 id="fullTitle" class="text-2xl font-bold flex-1"></h2>
-                        <button id="playerLikeBtn" onclick="toggleLocalLike()" class="ml-4 w-12 h-12 rounded-full bg-[#222] hover:bg-[#333] flex items-center justify-center transition text-gray-400" title="אהבתי">
+                        <h2 id="fullTitle" class="text-2xl font-bold flex-1" style="color: var(--text-primary);"></h2>
+                        <button id="playerLikeBtn" onclick="toggleLocalLike()" class="ml-4 w-12 h-12 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="אהבתי">
                             <i class="far fa-heart text-xl"></i>
                         </button>
                     </div>
-                    <div class="bg-[#222] p-5 rounded-2xl">
-                        <p id="modalStats" class="text-sm font-bold mb-3 text-gray-300"></p>
-                        <div id="modalDesc" class="text-sm text-gray-400 whitespace-pre-wrap leading-relaxed"></div>
+                    <div class="p-5 rounded-2xl" style="background-color: var(--bg-surface);">
+                        <p id="modalStats" class="text-sm font-bold mb-3" style="color: var(--text-primary);"></p>
+                        <div id="modalDesc" class="text-sm whitespace-pre-wrap leading-relaxed" style="color: var(--text-secondary);"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="configModal" class="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center p-4">
-        <div class="bg-[#1a1a1a] p-8 rounded-3xl w-full max-w-md border border-[#333] shadow-2xl">
-            <h2 class="text-2xl font-bold mb-2 text-center text-white">הגדרות מערכת</h2>
-            <p class="text-gray-500 text-xs text-center mb-6">כאן תוכל לעדכן את מפתחות הגישה שלך</p>
+    <div id="configModal" class="fixed inset-0 z-[300] flex items-center justify-center p-4">
+        <div class="p-8 rounded-3xl w-full max-w-md border shadow-2xl" style="background-color: var(--bg-card); border-color: var(--border-color);">
+            <h2 class="text-2xl font-bold mb-2 text-center" style="color: var(--text-primary);">הגדרות מערכת</h2>
+            <p class="text-xs text-center mb-6" style="color: var(--text-muted);">ניהול מפתחות, נתונים ועיצוב</p>
             <div class="space-y-5 text-right">
                 <div>
-                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">YouTube Data API Key</label>
-                    <input type="password" id="apiKeyInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-red-600 transition text-white">
+                    <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">ערכת נושא</label>
+                    <select id="themeSelect" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                        <option value="system">ברירת מחדל של המערכת</option>
+                        <option value="dark">כהה</option>
+                        <option value="light">בהיר</option>
+                    </select>
                 </div>
                 <div>
-                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Google Client ID</label>
-                    <input type="text" id="clientIdInput" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-blue-600 transition text-white">
+                    <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">YouTube Data API Key</label>
+                    <input type="password" id="apiKeyInput" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
                 <div>
-                    <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">מספר תוצאות לחיפוש (1-50)</label>
-                    <input type="number" id="maxResultsInput" min="1" max="50" value="12" class="w-full bg-[#0f0f0f] border border-[#333] rounded-xl py-3 px-4 outline-none focus:border-green-600 transition text-white">
+                    <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">Google Client ID</label>
+                    <input type="text" id="clientIdInput" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">מספר תוצאות לחיפוש (1-50)</label>
+                    <input type="number" id="maxResultsInput" min="1" max="50" value="12" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
                 
-                <div class="mt-4 border-t border-[#333] pt-4">
-                    <h3 class="text-sm font-bold text-gray-400 mb-3">ניהול נתונים (גיבוי ושחזור)</h3>
+                <div class="mt-4 border-t pt-4" style="border-color: var(--border-color);">
+                    <h3 class="text-sm font-bold mb-3" style="color: var(--text-secondary);">ניהול נתונים (גיבוי ושחזור)</h3>
                     <div class="flex gap-3">
-                        <button onclick="exportData()" class="flex-1 bg-[#222] hover:bg-[#333] text-white py-2 rounded-lg text-xs font-bold border border-[#444] transition">
+                        <button onclick="exportData()" class="flex-1 py-2 rounded-lg text-xs font-bold border transition" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                             <i class="fas fa-download mb-1 block"></i> ייצוא נתונים
                         </button>
-                        <label class="flex-1 bg-[#222] hover:bg-[#333] text-white py-2 rounded-lg text-xs font-bold border border-[#444] cursor-pointer text-center transition">
+                        <label class="flex-1 py-2 rounded-lg text-xs font-bold border cursor-pointer text-center transition" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                             <i class="fas fa-upload mb-1 block"></i> ייבוא נתונים
                             <input type="file" onchange="importData(this)" class="hidden" accept=".json">
                         </label>
@@ -372,35 +421,78 @@
                 </div>
 
                 <div class="flex gap-3 pt-4">
-                    <button onclick="saveAndStart()" class="flex-1 bg-white text-black py-4 rounded-xl font-bold hover:bg-gray-200 transition">שמור והפעל</button>
-                    <button onclick="toggleConfig()" class="px-6 bg-[#222] text-white py-4 rounded-xl font-bold transition">ביטול</button>
+                    <button onclick="saveAndStart()" class="flex-1 py-4 rounded-xl font-bold transition shadow" style="background-color: var(--text-primary); color: var(--bg-main);">שמור והפעל</button>
+                    <button onclick="toggleConfig()" class="px-6 py-4 rounded-xl font-bold transition" style="background-color: var(--bg-surface); color: var(--text-primary);">ביטול</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="toast" class="copy-toast">הקישור הועתק ללוח!</div>
+    <div id="toast" class="copy-toast">הודעה</div>
 
     <script>
+        // ניהול ערכות נושא (Theme) בתחילת הטעינה
+        function applyTheme(theme) {
+            if (theme === 'system') {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            } else {
+                document.documentElement.setAttribute('data-theme', theme);
+            }
+        }
+        
+        const savedTheme = localStorage.getItem('yt_theme') || 'system';
+        applyTheme(savedTheme);
+        
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', e => {
+            if (localStorage.getItem('yt_theme') === 'system' || !localStorage.getItem('yt_theme')) applyTheme('system');
+        });
+
+        // הגדרת State
         let appState = {
             apiKey: "",
             clientId: "",
             pageToken: "",
             query: "",
-            chart: null,
             token: null,
             tokenClient: null,
             searchContext: 'general',
             currentVideoId: null,
             currentVideoDetails: null, 
             isVideoPaused: false,
+            isFloating: false,
             activeChannelId: null,
             currentRenderedItems: [],
             maxResults: 12,
             isListView: false,
             isSelectionMode: false,
-            selectedVideos: new Set()
+            selectedVideos: new Set(),
+            currentLikedTab: 'videos' // 'videos' | 'channels' | 'playlists'
         };
+
+        // הגירת נתוני לייקים לגרסה תומכת סוגים (סרטונים, ערוצים, פלייליסטים)
+        (function migrateOldLikes() {
+            let oldLikes = localStorage.getItem('yt_local_likes');
+            if (oldLikes) {
+                try {
+                    let parsed = JSON.parse(oldLikes);
+                    if (Array.isArray(parsed)) {
+                        localStorage.setItem('yt_local_likes_v2', JSON.stringify({ videos: parsed, channels: [], playlists: [] }));
+                        localStorage.removeItem('yt_local_likes');
+                    }
+                } catch(e){}
+            }
+        })();
+
+        function showToast(message) {
+            const toast = document.getElementById('toast'); 
+            toast.innerText = message;
+            toast.className = "copy-toast show";
+            setTimeout(() => { toast.className = "copy-toast"; }, 3000);
+        }
 
         function toggleSidebar() {
             document.body.classList.toggle('sidebar-is-collapsed');
@@ -495,8 +587,8 @@
 
         function restoreState(state) {
             appState.searchContext = state.context || 'general';
-            document.getElementById('channelFilterContainer').classList.add('hidden'); 
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('likedTabsContainer').classList.add('hidden');
             
             if (appState.isSelectionMode) toggleSelectionMode(); 
             
@@ -519,7 +611,7 @@
             } else if (state.type === 'playlist') {
                 loadPlaylistView(state.playlistName, true);
             } else if (state.type === 'liked') { 
-                loadLikedVideos(true);
+                loadLikedItems(true);
             }
         }
 
@@ -548,7 +640,7 @@
 
         function linkify(text) {
             let safeText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            return safeText.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors">$1</a>');
+            return safeText.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-500 hover:underline">$1</a>');
         }
 
         function parseDuration(duration) {
@@ -600,14 +692,14 @@
             container.innerHTML = `
                 ${bannerUrl ? `<img src="${bannerUrl}" class="w-full h-32 md:h-48 lg:h-56 object-cover rounded-3xl mb-2">` : ''}
                 <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4 px-4 pb-4">
-                    <img src="${avatarUrl}" class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-[#0f0f0f] bg-[#222] ${bannerUrl ? '-mt-12 sm:-mt-16 relative z-10' : ''}">
+                    <img src="${avatarUrl}" class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-[var(--bg-main)] bg-[var(--bg-surface)] ${bannerUrl ? '-mt-12 sm:-mt-16 relative z-10' : ''}">
                     <div class="flex flex-col items-center sm:items-start flex-1 text-center sm:text-right mt-2 sm:mt-0">
-                        <h1 class="text-2xl sm:text-3xl font-bold">${snip.title}</h1>
-                        <p class="text-gray-400 text-sm mt-1">${snip.customUrl || ''} • ${subs} מנויים • ${videos} סרטונים</p>
-                        <p class="text-gray-500 text-sm mt-2 line-clamp-2 max-w-2xl" title="${snip.description ? snip.description.replace(/"/g, '&quot;') : ''}">${linkify(snip.description || '')}</p>
+                        <h1 class="text-2xl sm:text-3xl font-bold" style="color: var(--text-primary);">${snip.title}</h1>
+                        <p class="text-sm mt-1" style="color: var(--text-secondary);">${snip.customUrl || ''} • ${subs} מנויים • ${videos} סרטונים</p>
+                        <p class="text-sm mt-2 line-clamp-2 max-w-2xl" style="color: var(--text-muted);" title="${snip.description ? snip.description.replace(/"/g, '&quot;') : ''}">${linkify(snip.description || '')}</p>
                     </div>
                     <div class="mt-4 sm:mt-0 self-center sm:self-start pt-2">
-                         <a href="https://www.youtube.com/channel/${channel.id}?sub_confirmation=1" target="_blank" class="bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-gray-200 transition whitespace-nowrap inline-block">
+                         <a href="https://www.youtube.com/channel/${channel.id}?sub_confirmation=1" target="_blank" class="px-6 py-2 rounded-full font-bold transition whitespace-nowrap inline-block shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
                              הירשם כמנוי
                          </a>
                     </div>
@@ -725,10 +817,7 @@
             
             let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
             
-            const toast = document.getElementById('toast');
-            toast.innerText = `מתחיל העברה של ${videos.length} סרטונים להורדה (${qualityText})...`;
-            toast.className = "copy-toast show";
-            setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
+            showToast(`מתחיל העברה של ${videos.length} סרטונים להורדה (${qualityText})...`);
 
             let delay = 0;
             videos.forEach((item) => {
@@ -776,11 +865,7 @@
                 }, true);
             });
             
-            const toast = document.getElementById('toast');
-            toast.innerText = `${videos.length} סרטונים נוספו ל-${playlistName}`;
-            toast.className = "copy-toast show";
-            setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
-
+            showToast(`${videos.length} סרטונים נוספו ל-${playlistName}`);
             toggleSelectionMode(); 
         }
 
@@ -840,21 +925,12 @@
                 }
                 
                 playlists[playlistName].push({
-                    id: video.id,
-                    title: video.title,
-                    thumbnail: video.thumbnail,
-                    channel: video.channel,
-                    duration: video.duration,
-                    addedAt: new Date().toISOString()
+                    id: video.id, title: video.title, thumbnail: video.thumbnail,
+                    channel: video.channel, duration: video.duration, addedAt: new Date().toISOString()
                 });
                 PlaylistManager.savePlaylists(playlists);
                 
-                if(!silent) {
-                    const toast = document.getElementById('toast');
-                    toast.innerText = `נוסף ל-${playlistName === 'Watch Later' ? 'צפייה בהמשך' : playlistName}`;
-                    toast.className = "copy-toast show";
-                    setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
-                }
+                if(!silent) showToast(`נוסף ל-${playlistName === 'Watch Later' ? 'צפייה בהמשך' : playlistName}`);
             },
 
             removeFromPlaylist: (playlistName, videoId) => {
@@ -862,31 +938,58 @@
                 if (playlists[playlistName]) {
                     playlists[playlistName] = playlists[playlistName].filter(v => v.id !== videoId);
                     PlaylistManager.savePlaylists(playlists);
-                    loadPlaylistView(playlistName, true); 
+                    if (appState.searchContext === 'playlist_' + playlistName) {
+                        loadPlaylistView(playlistName, true); 
+                    }
+                }
+            },
+            
+            toggleWatchLater: (btn, video, event) => {
+                if(event) event.stopPropagation();
+                const playlists = PlaylistManager.getPlaylists();
+                let wl = playlists['Watch Later'] || [];
+                const existingIndex = wl.findIndex(v => v.id === video.id);
+                const icon = btn.querySelector('i');
+                
+                if (existingIndex > -1) {
+                    wl.splice(existingIndex, 1);
+                    icon.className = 'fas fa-clock';
+                    icon.parentElement.style.color = '';
+                    showToast('הוסר מ-צפייה בהמשך');
+                } else {
+                    video.addedAt = new Date().toISOString();
+                    wl.push(video);
+                    icon.className = 'fas fa-clock text-blue-500';
+                    showToast('נוסף ל-צפייה בהמשך');
+                }
+                playlists['Watch Later'] = wl;
+                PlaylistManager.savePlaylists(playlists);
+                
+                if (appState.searchContext === 'playlist_Watch Later') {
+                    loadPlaylistView('Watch Later', true);
                 }
             }
         };
 
         const LocalLikesManager = {
-            getLikes: () => JSON.parse(localStorage.getItem('yt_local_likes') || '[]'),
-            isLiked: (videoId) => {
+            getLikes: () => JSON.parse(localStorage.getItem('yt_local_likes_v2') || '{"videos":[],"channels":[],"playlists":[]}'),
+            isLiked: (id, type = 'videos') => {
                 const likes = LocalLikesManager.getLikes();
-                return likes.some(v => v.id === videoId);
+                return likes[type] && likes[type].some(v => v.id === id);
             },
-            toggleLike: (video) => {
+            toggleLike: (item, type = 'videos') => {
                 let likes = LocalLikesManager.getLikes();
-                const existingIndex = likes.findIndex(v => v.id === video.id);
+                if (!likes[type]) likes[type] = [];
+                const existingIndex = likes[type].findIndex(v => v.id === item.id);
                 
                 if (existingIndex > -1) {
-                    likes.splice(existingIndex, 1);
-                    localStorage.setItem('yt_local_likes', JSON.stringify(likes));
+                    likes[type].splice(existingIndex, 1);
+                    localStorage.setItem('yt_local_likes_v2', JSON.stringify(likes));
                     return false; 
                 } else {
-                    likes.unshift({
-                        id: video.id, title: video.title, thumbnail: video.thumbnail,
-                        channel: video.channel, duration: video.duration, addedAt: new Date().toISOString()
-                    });
-                    localStorage.setItem('yt_local_likes', JSON.stringify(likes));
+                    item.addedAt = new Date().toISOString();
+                    likes[type].unshift(item);
+                    localStorage.setItem('yt_local_likes_v2', JSON.stringify(likes));
                     return true; 
                 }
             }
@@ -894,20 +997,20 @@
 
         function toggleLocalLike() {
             if (!appState.currentVideoId || !appState.currentVideoDetails) return;
-            const isLiked = LocalLikesManager.toggleLike(appState.currentVideoDetails);
+            const isLiked = LocalLikesManager.toggleLike(appState.currentVideoDetails, 'videos');
             updateLikeButtonUI(isLiked);
-            if (appState.searchContext === 'liked') loadLikedVideos(true);
+            if (appState.searchContext === 'liked' && appState.currentLikedTab === 'videos') loadLikedItems(true);
         }
 
-        function toggleLikeBtn(btn, id, title, thumb, channel, duration) {
-             const video = {id, title, thumbnail: thumb, channel, duration};
-             const isLiked = LocalLikesManager.toggleLike(video);
+        function toggleLikeItem(btn, item, type, event) {
+             if(event) event.stopPropagation();
+             const isLiked = LocalLikesManager.toggleLike(item, type);
              const icon = btn.querySelector('i');
              
              if (isLiked) icon.className = 'fas fa-heart text-red-500';
-             else icon.className = 'far fa-heart';
+             else icon.className = `far fa-heart`;
              
-             if (appState.searchContext === 'liked') loadLikedVideos(true);
+             if (appState.searchContext === 'liked' && appState.currentLikedTab === type) renderLikedTab(type);
         }
 
         function playRandomFromPlaylist(playlistName) {
@@ -922,41 +1025,78 @@
             const btn = document.getElementById('playerLikeBtn');
             const icon = btn.querySelector('i');
             if (isLiked) {
-                icon.classList.remove('far'); icon.classList.add('fas', 'text-red-500'); btn.classList.add('text-white');
+                icon.classList.remove('far'); icon.classList.add('fas', 'text-red-500');
             } else {
-                icon.classList.remove('fas', 'text-red-500'); icon.classList.add('far'); btn.classList.remove('text-white');
+                icon.classList.remove('fas', 'text-red-500'); icon.classList.add('far'); 
             }
         }
 
-        function loadLikedVideos(isHistoryNav = false) {
+        function loadLikedItems(isHistoryNav = false) {
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navLiked');
             appState.searchContext = 'liked';
-            document.getElementById('channelFilterContainer').classList.add('hidden');
             document.getElementById('channelHeaderContainer').classList.add('hidden');
             if (!isHistoryNav) pushHistory({ type: 'liked' });
 
             const titleEl = document.getElementById('sectionTitle');
-            titleEl.innerText = "סרטונים שאהבתי (מקומי)";
+            titleEl.innerText = "מועדפים (מקומי)";
             titleEl.classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+            document.getElementById('exportUrlsBtn').classList.add('hidden'); // רלוונטי רק לסרטונים
+            
+            document.getElementById('likedTabsContainer').classList.remove('hidden');
             
             if (appState.currentVideoId) minimizePlayer();
 
-            const likes = LocalLikesManager.getLikes();
-            if (likes.length === 0) {
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">עדיין לא סימנת סרטונים ב"אהבתי".<br>לחץ על כפתור הלב בנגן כדי להוסיף.</div>';
-                appState.currentRenderedItems = [];
+            renderLikedTab(appState.currentLikedTab);
+        }
+        
+        function renderLikedTab(tabType) {
+            appState.currentLikedTab = tabType;
+            
+            // עדכון חיווי לשוניות (UI)
+            document.querySelectorAll('#likedTabsContainer button').forEach(b => {
+                b.classList.remove('border-blue-500'); b.classList.add('border-transparent');
+                b.style.color = 'var(--text-secondary)';
+            });
+            const activeTab = document.getElementById(`tab-${tabType}`);
+            activeTab.classList.remove('border-transparent'); activeTab.classList.add('border-blue-500');
+            activeTab.style.color = 'var(--text-primary)';
+            
+            const likesObj = LocalLikesManager.getLikes();
+            const items = likesObj[tabType] || [];
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = '';
+            appState.currentRenderedItems = [];
+
+            if (items.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">אין עדיין פריטים מסומנים בלשונית זו.</div>`;
                 return;
             }
 
-            const formattedItems = likes.map(item => ({
-                id: { kind: 'youtube#video', videoId: item.id },
-                snippet: { title: item.title, channelTitle: item.channel, thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } }, publishedAt: item.addedAt },
-                contentDetails: { duration: item.duration }, statistics: { viewCount: 0 }
-            }));
-            renderResults(formattedItems, true);
+            if (tabType === 'videos') {
+                document.getElementById('exportUrlsBtn').classList.remove('hidden');
+                const formattedItems = items.map(item => ({
+                    id: { kind: 'youtube#video', videoId: item.id },
+                    snippet: { title: item.title, channelTitle: item.channel, thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } }, publishedAt: item.addedAt },
+                    contentDetails: { duration: item.duration }, statistics: { viewCount: 0 }
+                }));
+                renderResults(formattedItems, true);
+            } else if (tabType === 'channels') {
+                document.getElementById('exportUrlsBtn').classList.add('hidden');
+                const formattedItems = items.map(item => ({
+                    id: { kind: 'youtube#channel', channelId: item.id },
+                    snippet: { title: item.title, thumbnails: { high: { url: item.thumbnail } } }
+                }));
+                renderResults(formattedItems, true);
+            } else if (tabType === 'playlists') {
+                document.getElementById('exportUrlsBtn').classList.add('hidden');
+                const formattedItems = items.map(item => ({
+                    id: { kind: 'youtube#playlist', playlistId: item.id },
+                    snippet: { title: item.title, thumbnails: { high: { url: item.thumbnail } } }
+                }));
+                renderResults(formattedItems, true);
+            }
         }
 
         function loadPlaylistsToSidebar() {
@@ -980,8 +1120,8 @@
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem(''); 
             appState.searchContext = 'playlist_' + name;
-            document.getElementById('channelFilterContainer').classList.add('hidden');
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('likedTabsContainer').classList.add('hidden');
             if (!isInternal) pushHistory({ type: 'playlist', playlistName: name });
 
             const titleEl = document.getElementById('sectionTitle');
@@ -992,11 +1132,11 @@
             if (!isWatchLater) {
                 titleHTML += `
                     <span class="mr-4 text-sm font-normal">
-                        <button onclick="const newName = prompt('שם חדש:', '${safeName}'); if(newName) PlaylistManager.renamePlaylist('${safeName}', newName)" class="mx-1 text-blue-400 hover:text-blue-300" title="שנה שם"><i class="fas fa-edit"></i></button>
-                        <button onclick="PlaylistManager.deletePlaylist('${safeName}')" class="mx-1 text-red-500 hover:text-red-400" title="מחק רשימה"><i class="fas fa-trash-alt"></i></button>
+                        <button onclick="const newName = prompt('שם חדש:', '${safeName}'); if(newName) PlaylistManager.renamePlaylist('${safeName}', newName)" class="mx-1 text-blue-500 hover:opacity-80 transition" title="שנה שם"><i class="fas fa-edit"></i></button>
+                        <button onclick="PlaylistManager.deletePlaylist('${safeName}')" class="mx-1 text-red-500 hover:opacity-80 transition" title="מחק רשימה"><i class="fas fa-trash-alt"></i></button>
                     </span>`;
             }
-            titleHTML += `<button onclick="playRandomFromPlaylist('${safeName}')" class="mr-4 bg-[#cc0000] text-white text-xs px-3 py-1.5 rounded-full font-bold hover:bg-red-700 transition inline-flex items-center gap-2"><i class="fas fa-random"></i> נגן באקראי</button>`;
+            titleHTML += `<button onclick="playRandomFromPlaylist('${safeName}')" class="mr-4 text-xs px-3 py-1.5 rounded-full font-bold transition inline-flex items-center gap-2" style="background-color: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-light);"><i class="fas fa-random text-blue-500"></i> נגן באקראי</button>`;
 
             titleEl.innerHTML = titleHTML;
             titleEl.classList.remove('hidden');
@@ -1009,7 +1149,7 @@
             const videos = playlists[name] || [];
 
             if (videos.length === 0) {
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">הרשימה ריקה.</div>';
+                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">הרשימה ריקה.</div>`;
                 appState.currentRenderedItems = [];
                 return;
             }
@@ -1026,8 +1166,8 @@
             const data = {
                 history: localStorage.getItem('yt_local_history'),
                 playlists: localStorage.getItem('yt_playlists'),
-                likes: localStorage.getItem('yt_local_likes'),
-                settings: { apiKey: localStorage.getItem('yt_api_key'), clientId: localStorage.getItem('yt_client_id'), maxResults: localStorage.getItem('yt_max_results') }
+                likesV2: localStorage.getItem('yt_local_likes_v2'),
+                settings: { apiKey: localStorage.getItem('yt_api_key'), clientId: localStorage.getItem('yt_client_id'), maxResults: localStorage.getItem('yt_max_results'), theme: localStorage.getItem('yt_theme') }
             };
             triggerDownloadBlob(JSON.stringify(data), `yt_backup_${new Date().toISOString().slice(0,10)}.json`);
         }
@@ -1041,11 +1181,12 @@
                     const data = JSON.parse(e.target.result);
                     if(data.history) localStorage.setItem('yt_local_history', data.history);
                     if(data.playlists) localStorage.setItem('yt_playlists', data.playlists);
-                    if(data.likes) localStorage.setItem('yt_local_likes', data.likes); 
+                    if(data.likesV2) localStorage.setItem('yt_local_likes_v2', data.likesV2); 
                     if(data.settings) {
                         if(data.settings.apiKey) localStorage.setItem('yt_api_key', data.settings.apiKey);
                         if(data.settings.clientId) localStorage.setItem('yt_client_id', data.settings.clientId);
                         if(data.settings.maxResults) localStorage.setItem('yt_max_results', data.settings.maxResults);
+                        if(data.settings.theme) localStorage.setItem('yt_theme', data.settings.theme);
                     }
                     alert('הנתונים שוחזרו בהצלחה! הדף יתרענן כעת.');
                     location.reload();
@@ -1059,7 +1200,6 @@
             let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             history = history.filter(item => item.id !== id);
             history.unshift({ id: id, title: title, thumbnail: thumbnail, channel: channelName, timestamp: new Date().toISOString() });
-            /* הוסרה הגבלת 50 הסרטונים לפי בקשתך - כעת שמירת היסטוריית הצפייה אינה מוגבלת */
             localStorage.setItem('yt_local_history', JSON.stringify(history));
         }
 
@@ -1067,8 +1207,8 @@
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navLocalHistory');
             appState.searchContext = 'local_history'; 
-            document.getElementById('channelFilterContainer').classList.add('hidden');
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('likedTabsContainer').classList.add('hidden');
             if (!isHistoryNav) pushHistory({ type: 'local_history' });
 
             document.getElementById('sectionTitle').innerText = "היסטוריית צפייה מקומית (מהמחשב הזה)";
@@ -1080,7 +1220,7 @@
 
             const history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             if (history.length === 0) {
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">עדיין אין היסטוריה מקומית.<br>צפה בסרטונים כדי לראות אותם כאן.</div>';
+                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">עדיין אין היסטוריה מקומית.<br>צפה בסרטונים כדי לראות אותם כאן.</div>`;
                 appState.currentRenderedItems = [];
                 return;
             }
@@ -1096,7 +1236,7 @@
             const grid = document.getElementById('resultsGrid');
             const clearBtn = document.createElement('div');
             clearBtn.className = "col-span-full flex justify-center mt-8";
-            clearBtn.innerHTML = `<button onclick="clearLocalHistory()" class="bg-red-900/50 hover:bg-red-800 text-red-200 px-6 py-2 rounded-full text-sm border border-red-800 transition"><i class="fas fa-trash-alt ml-2"></i> מחק הכל</button>`;
+            clearBtn.innerHTML = `<button onclick="clearLocalHistory()" class="px-6 py-2 rounded-full text-sm border transition flex items-center" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;"><i class="fas fa-trash-alt ml-2"></i> מחק הכל</button>`;
             grid.appendChild(clearBtn);
         }
 
@@ -1117,37 +1257,6 @@
             }
         }
 
-        async function toggleExternalPip() {
-            const playerContainer = document.querySelector('.player-container');
-            const watchView = document.getElementById('watchView');
-
-            if (!('documentPictureInPicture' in window)) {
-                return alert("הדפדפן שלך לא תומך במצב PiP חיצוני מלא (Document PiP).");
-            }
-            try {
-                if (window.documentPictureInPicture.window) {
-                    window.documentPictureInPicture.window.close();
-                    return;
-                }
-                const pipWindow = await window.documentPictureInPicture.requestWindow({ width: playerContainer.clientWidth, height: playerContainer.clientHeight });
-                [...document.styleSheets].forEach((styleSheet) => {
-                    try {
-                        const style = document.createElement('style'); style.textContent = [...styleSheet.cssRules].map((r) => r.cssText).join('');
-                        pipWindow.document.head.appendChild(style);
-                    } catch (e) {
-                        const link = document.createElement('link'); link.rel = 'stylesheet'; link.type = styleSheet.type; link.media = styleSheet.media; link.href = styleSheet.href;
-                        pipWindow.document.head.appendChild(link);
-                    }
-                });
-                pipWindow.document.body.append(playerContainer);
-                playerContainer.classList.add('h-screen', 'w-screen');
-                pipWindow.addEventListener("pagehide", () => {
-                     document.getElementById('watchView').append(playerContainer);
-                     playerContainer.classList.remove('h-screen', 'w-screen');
-                });
-            } catch (err) { console.error("PiP Error:", err); }
-        }
-
         const returnToVideoBtn = document.getElementById('return-to-video-btn');
         const globalPauseBtn = document.getElementById('global-pause-btn');
         const watchView = document.getElementById('watchView');
@@ -1163,17 +1272,23 @@
         });
 
         returnToVideoBtn.addEventListener('click', () => {
-            watchView.classList.add('active'); 
-            watchView.classList.remove('hidden');
+            if (appState.isFloating) watchView.classList.remove('hidden');
+            else { watchView.classList.add('active'); watchView.classList.remove('hidden'); }
             returnToVideoBtn.classList.add('hidden'); 
         });
 
+        function toggleFloatingMode() {
+            const view = document.getElementById('watchView');
+            appState.isFloating = !appState.isFloating;
+            if (appState.isFloating) { view.classList.add('floating-mode'); document.body.style.overflow = 'auto'; }
+            else { view.classList.remove('floating-mode'); document.body.style.overflow = 'hidden'; }
+        }
+
         function minimizePlayer() {
-            if (appState.currentVideoId) {
-                watchView.classList.remove('active', 'hidden'); 
-                watchView.classList.add('hidden'); 
-                returnToVideoBtn.classList.remove('hidden'); 
-                document.body.style.overflow = 'auto'; 
+            if (appState.isFloating) {
+                document.getElementById('watchView').classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
+            } else if (appState.currentVideoId) {
+                watchView.classList.remove('active', 'hidden'); watchView.classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
             } else { closePlayer(); }
         }
 
@@ -1186,6 +1301,7 @@
             const newKey = document.getElementById('apiKeyInput').value.trim();
             const newClientId = document.getElementById('clientIdInput').value.trim();
             const newMaxResults = document.getElementById('maxResultsInput').value;
+            const newTheme = document.getElementById('themeSelect').value;
             
             if (!newKey) return alert("נא להזין API Key לפחות.");
             
@@ -1196,11 +1312,13 @@
             localStorage.setItem('yt_api_key', appState.apiKey);
             localStorage.setItem('yt_client_id', appState.clientId);
             localStorage.setItem('yt_max_results', appState.maxResults);
+            localStorage.setItem('yt_theme', newTheme);
+            
+            applyTheme(newTheme);
             
             document.getElementById('configModal').style.display = 'none';
             
             if (appState.clientId) initAuth();
-            initChart();
             loadHomePage();
         }
 
@@ -1217,14 +1335,16 @@
             const savedKey = localStorage.getItem('yt_api_key');
             const savedClient = localStorage.getItem('yt_client_id');
             const savedMaxResults = localStorage.getItem('yt_max_results');
+            const storedTheme = localStorage.getItem('yt_theme');
 
             if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
             if(savedMaxResults) { document.getElementById('maxResultsInput').value = savedMaxResults; appState.maxResults = parseInt(savedMaxResults); }
+            if(storedTheme) document.getElementById('themeSelect').value = storedTheme;
             
             loadPlaylistsToSidebar();
 
-            if(savedKey) { appState.apiKey = savedKey; appState.clientId = savedClient; saveAndStart(); } 
+            if(savedKey) { appState.apiKey = savedKey; appState.clientId = savedClient; } 
             else { toggleConfig(); }
         };
 
@@ -1255,20 +1375,9 @@
             } catch(e) { console.error("UserInfo fetch error", e); }
         }
 
-        function initChart() {
-            const ctx = document.getElementById('statsChart').getContext('2d');
-            if(appState.chart) appState.chart.destroy();
-            appState.chart = new Chart(ctx, {
-                type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: '#ff0000', borderRadius: 4 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#555', font: { size: 8 } } } } }
-            });
-        }
-
         function handleLoadMore() {
             if (appState.searchContext === 'channel') {
                 loadChannelVideos(null, true);
-            } else if (appState.searchContext === 'channel_playlists') {
-                loadChannelPlaylists(appState.activeChannelId, true);
             } else if (appState.searchContext === 'general') {
                 if (appState.query) {
                     performSearch(true);
@@ -1280,15 +1389,15 @@
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navHome');
             appState.searchContext = 'general';
-            document.getElementById('channelFilterContainer').classList.add('hidden');
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('likedTabsContainer').classList.add('hidden');
             document.getElementById('searchInput').value = "";
             appState.pageToken = "";
 
             if (!isHistoryNav) pushHistory({ type: 'home' });
             
             if (appState.currentVideoId) minimizePlayer();
-            else document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען...</div>';
+            else document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען...</div>`;
 
             document.getElementById('pagination').classList.add('hidden');
             const titleEl = document.getElementById('sectionTitle');
@@ -1311,7 +1420,7 @@
                 } else if (data.items) { videoIds = data.items.map(i => i.id); }
 
                 if (videoIds.length > 0) fetchAndRenderVideos(videoIds, true);
-                else { document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים להצגה.</div>'; appState.currentRenderedItems = []; }
+                else { document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים להצגה.</div>`; appState.currentRenderedItems = []; }
             } catch (err) { console.error(err); }
         }
 
@@ -1320,13 +1429,13 @@
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navHistory');
             appState.searchContext = 'general';
-            document.getElementById('channelFilterContainer').classList.add('hidden');
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('likedTabsContainer').classList.add('hidden');
             
             if (!isHistoryNav) pushHistory({ type: 'history' });
 
             if (appState.currentVideoId) minimizePlayer();
-            else document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">טוען פעילות...</div>';
+            else document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">טוען פעילות...</div>`;
             
             document.getElementById('pagination').classList.add('hidden');
             const titleEl = document.getElementById('sectionTitle');
@@ -1341,7 +1450,7 @@
                 const videoIds = (data.items || []).map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId || i.contentDetails.like?.resourceId?.videoId).filter(Boolean);
 
                 if(videoIds.length > 0) fetchAndRenderVideos(videoIds, true);
-                else { document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאה פעילות אחרונה.</div>'; appState.currentRenderedItems = []; }
+                else { document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאה פעילות אחרונה.</div>`; appState.currentRenderedItems = []; }
             } catch(e) { console.error(e); }
         }
 
@@ -1357,8 +1466,8 @@
             if (duration) { type = 'video'; document.getElementById('searchType').value = 'video'; }
 
             appState.searchContext = 'general';
-            document.getElementById('channelFilterContainer').classList.add('hidden');
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('likedTabsContainer').classList.add('hidden');
             setActiveNavItem('');
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
@@ -1369,8 +1478,8 @@
                 appState.query = query; 
                 appState.pageToken = "";
                 if (!isHistoryNav) { pushHistory({ type: 'search', query: query, filterType: type, order: order, duration: duration, dateFilter: dateFilter }); }
-                if (appState.currentVideoId) { minimizePlayer(); document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>'; } 
-                else { document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">מחפש...</div>'; }
+                if (appState.currentVideoId) { minimizePlayer(); document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">מחפש...</div>`; } 
+                else { document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">מחפש...</div>`; }
             }
 
             try {
@@ -1402,7 +1511,6 @@
                      const statsData = await statsRes.json();
                      const combinedItems = [...otherItems, ...statsData.items.map(i => ({ id: { kind: 'youtube#video', videoId: i.id }, snippet: i.snippet, statistics: i.statistics, contentDetails: i.contentDetails }))];
                      renderResults(combinedItems, !loadMore);
-                     updateChart(statsData.items || []);
                 } else {
                     renderResults(otherItems, !loadMore);
                 }
@@ -1416,7 +1524,6 @@
                 const data = await res.json();
                 const formatted = data.items.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: item.snippet, statistics: item.statistics, contentDetails: item.contentDetails }));
                 renderResults(formatted, clear);
-                updateChart(data.items || []);
             } catch (e) { console.error(e); }
         }
 
@@ -1426,9 +1533,10 @@
                 if (appState.isSelectionMode) toggleSelectionMode();
                 if (appState.currentVideoId) minimizePlayer();
                 if (!isHistoryNav && channelId) pushHistory({ type: 'channel', channelId: channelId });
+                document.getElementById('likedTabsContainer').classList.add('hidden');
 
                 try {
-                    document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען ערוץ...</div>';
+                    document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען ערוץ...</div>`;
                     document.getElementById('sectionTitle').innerText = "טוען...";
                     document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
                     
@@ -1448,12 +1556,6 @@
                     
                     document.getElementById('sectionTitle').innerText = `סרטונים מאת: ${channel.snippet.title}`;
 
-                    const filterContainer = document.getElementById('channelFilterContainer');
-                    filterContainer.innerHTML = `
-                        <button onclick="loadChannelVideos('${channelId}')" class="bg-white text-black px-4 py-1.5 rounded-full text-sm font-bold">סרטונים</button>
-                        <button onclick="loadChannelPlaylists('${channelId}')" class="bg-[#222] hover:bg-[#333] text-white px-4 py-1.5 rounded-full text-sm font-bold border border-[#333] transition">פלייליסטים</button>
-                    `;
-                    filterContainer.classList.remove('hidden');
                 } catch(e) { console.error(e); return; }
             }
 
@@ -1473,41 +1575,8 @@
                     const statsData = await statsRes.json();
                      const formatted = statsData.items.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: item.snippet, statistics: item.statistics, contentDetails: item.contentDetails }));
                     renderResults(formatted, !loadMore);
-                    updateChart(statsData.items);
                 }
             } catch(e) { console.error(e); }
-        }
-
-        async function loadChannelPlaylists(channelId, loadMore = false) {
-             if (!loadMore) {
-                if (appState.isSelectionMode) toggleSelectionMode();
-                appState.searchContext = 'channel_playlists'; appState.activeChannelId = channelId; appState.pageToken = "";
-                const filterContainer = document.getElementById('channelFilterContainer');
-                filterContainer.innerHTML = `
-                    <button onclick="loadChannelVideos('${channelId}')" class="bg-[#222] hover:bg-[#333] text-white px-4 py-1.5 rounded-full text-sm font-bold border border-[#333] transition">סרטונים</button>
-                    <button onclick="loadChannelPlaylists('${channelId}')" class="bg-white text-black px-4 py-1.5 rounded-full text-sm font-bold">פלייליסטים</button>
-                `;
-                document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען פלייליסטים...</div>';
-            }
-
-            try {
-                let url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
-                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
-
-                const res = await fetch(url);
-                const data = await res.json();
-
-                appState.pageToken = data.nextPageToken || "";
-                document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
-
-                if (!data.items || data.items.length === 0) {
-                    if (!loadMore) document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50">לא נמצאו פלייליסטים לערוץ זה.</div>';
-                    return;
-                }
-
-                const formatted = data.items.map(item => ({ id: { kind: 'youtube#playlist', playlistId: item.id }, snippet: item.snippet, contentDetails: item.contentDetails }));
-                renderResults(formatted, !loadMore);
-            } catch (e) { console.error(e); document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 text-red-400">שגיאה בטעינת פלייליסטים.</div>'; }
         }
 
         async function openExternalPlaylist(playlistId, title) {
@@ -1519,10 +1588,10 @@
             appState.activeChannelId = null; 
             appState.currentRenderedItems = []; 
             
-            document.getElementById('channelFilterContainer').classList.add('hidden');
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('likedTabsContainer').classList.add('hidden');
             document.getElementById('sectionTitle').innerText = `פלייליסט: ${title}`;
-            document.getElementById('resultsGrid').innerHTML = '<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים...</div>';
+            document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען סרטונים...</div>`;
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
             
             loadChannelVideos(null, true); 
@@ -1534,7 +1603,6 @@
             
             appState.currentRenderedItems = [...appState.currentRenderedItems, ...items];
             
-            // יצירת Set של סרטונים נצפו לבדיקה מהירה
             const localHistory = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             const watchedIds = new Set(localHistory.map(h => h.id));
 
@@ -1543,14 +1611,22 @@
                 
                 if (kind === 'youtube#channel') {
                     const channelId = item.id.channelId;
+                    const isLikedCh = LocalLikesManager.isLiked(channelId, 'channels');
+                    const likeIconCh = isLikedCh ? 'fas fa-heart text-red-500' : 'far fa-heart';
+                    
                     const card = document.createElement('div');
-                    card.className = "video-card group flex flex-col items-center p-4 bg-[#1a1a1a] rounded-2xl cursor-pointer hover:bg-[#252525] transition border border-[#222]";
+                    card.className = "video-card group flex flex-col items-center p-4 rounded-2xl cursor-pointer transition border";
+                    card.style.backgroundColor = "var(--bg-card)";
+                    card.style.borderColor = "var(--border-color)";
                     card.onclick = () => loadChannelVideos(channelId);
                     card.innerHTML = `
-                        <div class="mb-4"><img src="${snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url}" class="w-32 h-32 rounded-full object-cover border-2 border-[#333]"></div>
-                        <h3 class="font-bold text-lg text-center mb-1">${snip.title}</h3>
-                        <p class="text-gray-500 text-xs text-center mb-3">ערוץ</p>
-                        <button class="bg-[#cc0000] text-white text-xs font-bold px-4 py-2 rounded-full hover:bg-red-700 transition">צפה בערוץ</button>
+                        <div class="relative w-full flex justify-center mb-4">
+                            <img src="${snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url}" class="w-32 h-32 rounded-full object-cover border-2" style="border-color: var(--border-color);">
+                            <button onclick="event.stopPropagation(); toggleLikeItem(this, {id: '${channelId}', title: '${snip.title}', thumbnail: '${snip.thumbnails?.high?.url || snip.thumbnails?.default?.url}'}, 'channels', event)" class="absolute top-0 right-0 p-2 rounded-full transition" style="color: var(--text-primary);"><i class="${likeIconCh} text-lg"></i></button>
+                        </div>
+                        <h3 class="font-bold text-lg text-center mb-1" style="color: var(--text-primary);">${snip.title}</h3>
+                        <p class="text-xs text-center mb-3" style="color: var(--text-secondary);">ערוץ</p>
+                        <button class="text-white text-xs font-bold px-4 py-2 rounded-full transition" style="background-color: var(--text-primary); color: var(--bg-main);">צפה בערוץ</button>
                     `;
                     grid.appendChild(card);
                     return;
@@ -1558,6 +1634,9 @@
 
                 if (kind === 'youtube#playlist') {
                     const playlistId = item.id.playlistId;
+                    const isLikedPl = LocalLikesManager.isLiked(playlistId, 'playlists');
+                    const likeIconPl = isLikedPl ? 'fas fa-heart text-red-500' : 'far fa-heart';
+                    
                     const card = document.createElement('div');
                     card.className = "video-card group flex flex-col cursor-pointer";
                     const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -1567,19 +1646,20 @@
                     card.innerHTML = `
                          <div class="relative mb-4 group/img" onclick="openExternalPlaylist('${playlistId}', '${title}')">
                             <div class="relative">
-                                <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
+                                <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl" style="background-color: var(--bg-surface);">
                                 <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition rounded-2xl">
                                     <span class="text-white font-bold">נגן הכל</span>
                                 </div>
                                 <div class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
-                                    <i class="fas fa-list-ul"></i><span>${item.contentDetails?.itemCount || ''} סרטונים</span>
+                                    <i class="fas fa-list-ul"></i><span>${item.contentDetails?.itemCount ? item.contentDetails.itemCount + ' סרטונים' : 'פלייליסט'}</span>
                                 </div>
+                                <button onclick="event.stopPropagation(); toggleLikeItem(this, {id: '${playlistId}', title: '${title}', thumbnail: '${thumbUrl}'}, 'playlists', event)" class="absolute top-2 left-2 bg-black/60 p-2 rounded-full transition opacity-0 group-hover/img:opacity-100 backdrop-blur-sm z-10" style="color: white;"><i class="${likeIconPl}"></i></button>
                             </div>
                         </div>
                         <div class="flex-1 px-1">
-                            <h3 class="text-white font-semibold text-base leading-snug line-clamp-2 mb-1" title="${snip.title}">${snip.title}</h3>
-                            <p class="text-[#aaaaaa] text-sm hover:text-white transition-colors" onclick="event.stopPropagation(); loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
-                            <button onclick="event.stopPropagation(); openExternalPlaylist('${playlistId}', '${title}')" class="mt-2 bg-[#cc0000] text-white text-xs px-3 py-1.5 rounded-full font-bold hover:bg-red-700 transition flex items-center gap-2 w-fit">
+                            <h3 class="font-semibold text-base leading-snug line-clamp-2 mb-1" title="${snip.title}" style="color: var(--text-primary);">${snip.title}</h3>
+                            <p class="text-sm transition-colors hover:underline" style="color: var(--text-secondary);" onclick="event.stopPropagation(); loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
+                            <button onclick="event.stopPropagation(); openExternalPlaylist('${playlistId}', '${title}')" class="mt-2 text-xs px-3 py-1.5 rounded-full font-bold transition flex items-center gap-2 w-fit shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
                                 <i class="fas fa-play"></i> נגן הכל
                             </button>
                         </div>
@@ -1616,15 +1696,18 @@
                 if(appState.selectedVideos.has(videoId)) card.classList.add('selected-card');
                 
                 const durationForSave = item.contentDetails?.duration || '';
-                const isLiked = LocalLikesManager.isLiked(videoId);
+                const isLiked = LocalLikesManager.isLiked(videoId, 'videos');
                 const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
                 
                 const isWatched = watchedIds.has(videoId);
                 const watchedBadge = isWatched ? `<div class="absolute top-2 right-10 bg-green-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow">נצפה <i class="fas fa-check ml-0.5"></i></div>` : '';
 
+                const isWatchLater = PlaylistManager.getPlaylists()['Watch Later']?.some(v => v.id === videoId);
+                const watchLaterIconClass = isWatchLater ? 'fas fa-clock text-blue-500' : 'fas fa-clock';
+
                 card.innerHTML = `
                     <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">
-                        <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
+                        <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl" style="background-color: var(--bg-surface);">
                         ${durationText}
                         ${watchedBadge}
                         
@@ -1633,57 +1716,57 @@
                             <i class="fas fa-check text-blue-500 opacity-0 transition-opacity"></i>
                         </div>
 
-                        <button onclick="event.stopPropagation(); PlaylistManager.addToPlaylist('Watch Later', {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'})" 
-                            class="absolute top-2 left-2 bg-black/60 hover:bg-blue-600 text-white p-1.5 rounded-lg opacity-0 group-hover/img:opacity-100 transition backdrop-blur-sm shadow-lg" title="צפייה בהמשך">
-                            <i class="fas fa-clock"></i>
+                        <button onclick="PlaylistManager.toggleWatchLater(this, {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'}, event)" 
+                            class="absolute top-2 left-2 bg-black/60 text-white p-1.5 rounded-lg opacity-0 group-hover/img:opacity-100 transition backdrop-blur-sm shadow-lg hover:scale-110" title="הוסף/הסר מצפייה בהמשך">
+                            <i class="${watchLaterIconClass}"></i>
                         </button>
                     </div>
                     <div class="flex-1 flex gap-3 px-1">
-                        <div class="w-9 h-9 rounded-full bg-gray-800 flex-shrink-0 border border-[#333] flex items-center justify-center">
-                            <i class="fas fa-play text-[10px] opacity-30"></i>
+                        <div class="w-9 h-9 rounded-full flex-shrink-0 border flex items-center justify-center" style="background-color: var(--bg-surface); border-color: var(--border-color);">
+                            <i class="fas fa-play text-[10px] opacity-30" style="color: var(--text-primary);"></i>
                         </div>
                         <div class="flex-1 flex flex-col">
-                            <h3 class="text-white font-semibold text-base leading-snug line-clamp-2" title="${snip.title}" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">${snip.title}</h3>
-                            <div class="text-[#aaaaaa] text-sm mt-1">
-                                <p class="hover:text-white transition-colors" onclick="loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
+                            <h3 class="font-semibold text-base leading-snug line-clamp-2" title="${snip.title}" style="color: var(--text-primary);" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">${snip.title}</h3>
+                            <div class="text-sm mt-1" style="color: var(--text-secondary);">
+                                <p class="transition-colors hover:underline" onclick="loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
                                 <p>${viewsText}${likesText}${timeText}</p> 
                             </div>
                             <div class="flex items-center gap-2 mt-auto pt-3 flex-wrap">
-                                <button onclick="event.stopPropagation(); copyLink('${videoId}')" class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]">
+                                <button onclick="event.stopPropagation(); copyLink('${videoId}')" class="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-full transition w-fit border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">
                                     <i class="fas fa-link"></i>
                                 </button>
                                 
-                                <button onclick="event.stopPropagation(); toggleLikeBtn(this, '${videoId}', '${title.replace(/'/g, "\\'")}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')" 
-                                    class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]" title="אהבתי">
+                                <button onclick="event.stopPropagation(); toggleLikeItem(this, {id: '${videoId}', title: '${title.replace(/'/g, "\\'")}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'}, 'videos', event)" 
+                                    class="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-full transition w-fit border" title="אהבתי" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">
                                     <i class="${likeIconClass}"></i>
                                 </button>
                                 
                                 <button onclick="event.stopPropagation(); const name = prompt('הכנס שם רשימה (למשל: מוזיקה, הרצאות):'); if(name) PlaylistManager.addToPlaylist(name, {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'})" 
-                                    class="flex items-center gap-2 text-[10px] bg-[#272727] hover:bg-[#444] px-3 py-1.5 rounded-full transition w-fit border border-[#333]" title="שמור לרשימה">
+                                    class="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-full transition w-fit border" title="שמור לרשימה" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">
                                     <i class="fas fa-list-ul"></i> שמירה
                                 </button>
 
-                                <div class="flex items-center gap-2 bg-[#272727] hover:bg-[#333] px-3 py-1.5 rounded-full transition w-fit border border-[#333]" onclick="event.stopPropagation();">
-                                    <select id="dl-qual-${videoId}" class="bg-transparent text-[10px] text-gray-300 outline-none cursor-pointer">
-                                        <option value="1080" class="bg-[#222]">1080p</option>
-                                        <option value="720" class="bg-[#222]">720p</option>
-                                        <option value="480" class="bg-[#222]">480p</option>
-                                        <option value="audio" class="bg-[#222]">שמע (MP3)</option>
+                                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full transition w-fit border" onclick="event.stopPropagation();" style="background-color: var(--bg-surface); border-color: var(--border-color);">
+                                    <select id="dl-qual-${videoId}" class="bg-transparent text-[10px] outline-none cursor-pointer" style="color: var(--text-secondary);">
+                                        <option value="1080" style="background-color: var(--bg-surface);">1080p</option>
+                                        <option value="720" style="background-color: var(--bg-surface);">720p</option>
+                                        <option value="480" style="background-color: var(--bg-surface);">480p</option>
+                                        <option value="audio" style="background-color: var(--bg-surface);">שמע (MP3)</option>
                                     </select>
-                                    <div class="w-px h-3 bg-[#555]"></div>
-                                    <button onclick="downloadWithYtDlp('${videoId}')" class="text-green-400 hover:text-green-300 transition flex items-center gap-1" title="הורד עכשיו">
+                                    <div class="w-px h-3" style="background-color: var(--border-light);"></div>
+                                    <button onclick="downloadWithYtDlp('${videoId}')" class="transition flex items-center gap-1" style="color: #3b82f6;" title="הורד עכשיו">
                                         <i class="fas fa-download"></i>
                                     </button>
                                 </div>
                                 ${appState.searchContext === 'local_history' ? `
-                                <button onclick="removeFromLocalHistory('${videoId}', event)" class="flex items-center justify-center text-[10px] bg-[#330000] text-red-400 hover:bg-red-900 px-3 py-1.5 rounded-full transition w-fit border border-red-900/50" title="הסר מההיסטוריה">
+                                <button onclick="removeFromLocalHistory('${videoId}', event)" class="flex items-center justify-center text-[10px] px-3 py-1.5 rounded-full transition w-fit border" title="הסר מההיסטוריה" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;">
                                     <i class="fas fa-trash-alt"></i>
                                 </button>
                                 ` : ''}
 
                                 ${appState.searchContext.startsWith('playlist_') ? `
                                 <button onclick="event.stopPropagation(); PlaylistManager.removeFromPlaylist('${appState.searchContext.replace('playlist_', '')}', '${videoId}')" 
-                                    class="text-[10px] bg-red-900/50 hover:bg-red-800 text-red-300 px-3 py-1.5 rounded-full border border-red-900/50 transition" title="הסר מרשימה">
+                                    class="text-[10px] px-3 py-1.5 rounded-full border transition" title="הסר מרשימה" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;">
                                     <i class="fas fa-trash"></i>
                                 </button>
                                 ` : ''}
@@ -1692,14 +1775,6 @@
                     </div>`;
                 grid.appendChild(card);
             });
-        }
-
-        function updateChart(items) {
-            if (!appState.chart || !items.length) return;
-            const videoItems = items.filter(v => v.statistics);
-            appState.chart.data.labels = videoItems.slice(0, 5).map(v => v.snippet.title.substring(0, 8) + '..');
-            appState.chart.data.datasets[0].data = videoItems.slice(0, 5).map(v => parseInt(v.statistics?.likeCount || 0));
-            appState.chart.update();
         }
 
         function setActiveNavItem(id) {
@@ -1721,7 +1796,7 @@
             document.getElementById('fullTitle').innerText = title;
             
             appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
-            updateLikeButtonUI(LocalLikesManager.isLiked(id));
+            updateLikeButtonUI(LocalLikesManager.isLiked(id, 'videos'));
 
             if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
                 ytPlayer.loadVideoById(id);
@@ -1767,22 +1842,7 @@
             const url = `https://www.youtube.com/watch?v=${id}`;
             const dummy = document.createElement("input"); document.body.appendChild(dummy);
             dummy.value = url; dummy.select(); document.execCommand('copy'); document.body.removeChild(dummy);
-            
-            const toast = document.getElementById('toast'); toast.className = "copy-toast show";
-            setTimeout(() => { toast.className = "copy-toast"; }, 3000);
-        }
-        
-        function downloadWithYtDlp(videoId) {
-            if (!videoId) return;
-            const qualSelect = document.getElementById(`dl-qual-${videoId}`);
-            const quality = qualSelect ? qualSelect.value : '1080';
-            
-            const toast = document.getElementById('toast');
-            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
-            toast.innerText = `מעביר הורדה (${qualityText}) ל-yt-dlp...`; toast.className = "copy-toast show";
-            setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
-
-            window.location.href = `ytdlp://${videoId}/${quality}`;
+            showToast("הקישור הועתק ללוח!");
         }
 
         document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') performSearch(false); });
