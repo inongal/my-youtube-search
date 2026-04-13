@@ -28,7 +28,6 @@
             --text-secondary: #aaaaaa;
             --text-muted: #777777;
             --modal-overlay: rgba(0, 0, 0, 0.9);
-            --accent-color: #3b82f6;
         }
 
         [data-theme="light"] {
@@ -43,7 +42,6 @@
             --text-secondary: #555555;
             --text-muted: #888888;
             --modal-overlay: rgba(255, 255, 255, 0.85);
-            --accent-color: #2563eb;
         }
 
         body {
@@ -96,9 +94,9 @@
         .selection-checkbox { display: none; }
         body.selection-mode-active .selection-checkbox { display: flex; }
         body.selection-mode-active .video-card { cursor: copy; }
-        body.selection-mode-active .video-card:hover { border-color: var(--accent-color); }
-        .video-card.selected-card { border-color: var(--accent-color) !important; background-color: rgba(59, 130, 246, 0.05) !important; }
-        .selected-card .selection-checkbox { border-color: var(--accent-color); background-color: white; }
+        body.selection-mode-active .video-card:hover { border-color: #3b82f6; }
+        .video-card.selected-card { border-color: #3b82f6 !important; background-color: rgba(59, 130, 246, 0.05) !important; }
+        .selected-card .selection-checkbox { border-color: #3b82f6; background-color: white; }
         .selected-card .selection-checkbox i { opacity: 1; }
 
         /* Watch View */
@@ -156,33 +154,6 @@
             background-size: 1.5em 1.5em; 
             padding-left: 2.5rem; 
         }
-
-        /* Progress bar for resume playback */
-        .resume-progress-container { width: 100%; height: 4px; background: rgba(255,255,255,0.2); position: absolute; bottom: 0; left: 0; }
-        .resume-progress-bar { height: 100%; background: #ff0000; width: 0%; }
-
-        /* Split Screen Styles */
-        #splitScreenContainer { display: none; }
-        #splitScreenContainer.active { display: flex; flex-direction: column; position: fixed; inset: 0; z-index: 300; background: var(--bg-main); padding-top: 64px; }
-        @media (min-width: 1024px) {
-            #splitScreenContainer.active { flex-direction: row; }
-        }
-        .split-pane { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--border-color); position: relative; }
-        .split-search-bar { display: flex; padding: 8px; background: var(--bg-surface); border-bottom: 1px solid var(--border-color); }
-        .split-results { flex: 1; overflow-y: auto; display: none; padding: 8px; background: var(--bg-main); position: absolute; top: 56px; bottom: 0; left: 0; right: 0; z-index: 10; }
-        .split-results.active { display: block; }
-        .split-video-container { flex: 1; background: #000; position: relative; }
-
-        /* Queue Bar Styles */
-        #queueBar { position: fixed; bottom: 0; right: 64px; left: 0; background: var(--bg-surface); border-top: 1px solid var(--border-color); z-index: 140; transform: translateY(100%); transition: transform 0.3s ease; display: flex; flex-direction: column; max-height: 400px; }
-        #queueBar.active { transform: translateY(0); }
-        #queueHeader { padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: var(--bg-card); border-top: 2px solid var(--accent-color); }
-        #queueList { overflow-y: auto; display: none; padding: 10px; gap: 8px; flex-direction: column; }
-        #queueBar.expanded #queueList { display: flex; }
-        .queue-item { display: flex; gap: 10px; align-items: center; padding: 8px; background: var(--bg-main); border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
-        .queue-item:hover { border-color: var(--border-light); }
-        .queue-item.playing { border-color: var(--accent-color); background: rgba(59, 130, 246, 0.1); }
-        .queue-item img { width: 80px; height: 45px; object-fit: cover; border-radius: 4px; }
     </style>
 </head>
 <body class="custom-scrollbar">
@@ -245,10 +216,6 @@
         </div>
 
         <div class="flex items-center gap-4">
-            <button onclick="toggleSplitScreen()" class="p-2 rounded-full transition" style="color: var(--text-secondary);" title="פיצול מסך">
-                <i class="fas fa-columns text-lg"></i>
-            </button>
-
             <button id="return-to-video-btn" class="p-2 px-3 rounded-full hidden transition-colors border" style="color: var(--text-primary); background-color: var(--bg-surface); border-color: var(--border-color);" title="חזור לסרטון">
                 <i class="fa-solid fa-tv"></i>
             </button>
@@ -277,30 +244,24 @@
     </header>
 
     <div class="flex pt-16 min-h-screen">
-        <aside id="mainSidebar" class="w-64 fixed right-0 top-16 bottom-0 hidden lg:flex flex-col overflow-y-auto custom-scrollbar border-l z-40">
+        <aside id="mainSidebar" class="w-64 fixed right-0 top-16 bottom-0 hidden lg:flex flex-col overflow-y-auto custom-scrollbar border-l">
             <nav class="space-y-1">
                 <div onclick="loadHomePage()" class="sidebar-item active" id="navHome">
                     <i class="fas fa-house text-lg"></i><span>דף הבית</span>
                 </div>
-                
                 <hr class="my-3" style="border-color: var(--border-color);">
-                
-                <div onclick="loadWatchHistory()" class="sidebar-item hidden" id="navHistory">
+                <div onclick="loadWatchHistory()" class="sidebar-item" id="navHistory" style="display: none;">
                     <i class="fas fa-history text-lg"></i><span>היסטוריית צפייה (Google)</span>
                 </div>
-                
                 <div onclick="loadLocalHistory()" class="sidebar-item" id="navLocalHistory">
-                    <i class="fas fa-hdd text-lg"></i><span>היסטוריה מקומית</span>
+                    <i class="fas fa-hdd text-lg"></i><span>היסטוריה מקומית (PC)</span>
                 </div>
-                
-                <div onclick="loadResumeList()" class="sidebar-item" id="navResume">
-                    <i class="fas fa-play-circle text-lg"></i><span>המשך צפייה</span>
+                <div onclick="loadResumeTab()" class="sidebar-item" id="navResume">
+                    <i class="fas fa-play-circle text-lg text-blue-500"></i><span>המשך צפייה</span>
                 </div>
-                
-                <div onclick="loadLocalSubscriptions()" class="sidebar-item" id="navLocalSubs">
-                    <i class="fas fa-user-check text-lg"></i><span>מנויים (מקומי)</span>
+                <div onclick="loadLocalSubscriptionsFeed()" class="sidebar-item" id="navLocalSubs">
+                    <i class="fas fa-users text-lg text-purple-500"></i><span>עדכונים מערוצים</span>
                 </div>
-                
                 <hr class="my-3" style="border-color: var(--border-color);">
                 
                 <div class="px-4 py-2 text-xs font-bold uppercase" style="color: var(--text-muted);">מועדפים</div>
@@ -323,17 +284,13 @@
             </nav>
         </aside>
 
-        <main id="mainContent" class="flex-1 lg:mr-64 p-6 relative pb-24">
+        <main id="mainContent" class="flex-1 lg:mr-64 p-6 relative">
             
             <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-                <h2 id="sectionTitle" class="text-2xl font-bold hidden" style="color: var(--text-primary);">מומלצים</h2>
-                
-                <div id="localSearchContainer" class="hidden flex-1 max-w-md mx-4 relative">
-                    <input type="text" id="localSearchInput" placeholder="סינון בתוצאות אלו..." 
-                        class="w-full rounded-full py-2 px-4 outline-none transition text-right text-sm" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
-                    <i class="fas fa-filter absolute left-4 top-2.5" style="color: var(--text-muted);"></i>
+                <div class="flex items-center">
+                    <h2 id="sectionTitle" class="text-2xl font-bold hidden" style="color: var(--text-primary);">מומלצים</h2>
+                    <input type="text" id="internalSearch" oninput="filterLocalItems(this.value)" placeholder="חיפוש מהיר ברשימה..." class="hidden rounded-lg px-3 py-1.5 outline-none transition text-sm mr-4 border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
-
                 <div class="flex items-center gap-3">
                     <button onclick="toggleViewMode()" class="w-10 h-10 rounded-lg text-sm flex items-center justify-center border transition" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);" title="שנה תצוגה (רשת/רשימה)">
                         <i id="viewToggleIcon" class="fas fa-list"></i>
@@ -366,50 +323,12 @@
         </main>
     </div>
 
-    <div id="queueBar">
-        <div id="queueHeader" onclick="toggleQueueExpanded()">
-            <div class="flex items-center gap-3">
-                <i class="fas fa-list-ol" style="color: var(--text-primary);"></i>
-                <span class="font-bold text-sm" style="color: var(--text-primary);">תור השמעה (<span id="queueCount">0</span>)</span>
-            </div>
-            <div class="flex items-center gap-4">
-                <button onclick="QueueManager.clearQueue(); event.stopPropagation();" class="text-xs hover:text-red-500 transition" style="color: var(--text-muted);"><i class="fas fa-trash"></i> נקה</button>
-                <i id="queueChevron" class="fas fa-chevron-up transition-transform" style="color: var(--text-secondary);"></i>
-            </div>
-        </div>
-        <div id="queueList" class="custom-scrollbar"></div>
-    </div>
-
-    <div id="splitScreenContainer">
-        <div class="split-pane" id="splitPane1">
-            <div class="split-search-bar gap-2">
-                <input type="text" id="splitSearch1" placeholder="חיפוש לצד ימין..." class="flex-1 rounded-full py-1.5 px-4 outline-none text-sm border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
-                <button onclick="performSplitSearch(1)" class="px-4 rounded-full text-sm font-bold border transition" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);"><i class="fas fa-search"></i></button>
-                <button onclick="closeSplitScreen()" class="px-3 rounded-full text-red-500 hover:bg-red-500/20 transition"><i class="fas fa-times"></i></button>
-            </div>
-            <div id="splitResults1" class="split-results custom-scrollbar"></div>
-            <div class="split-video-container">
-                <div id="splitPlayer1" class="w-full h-full"></div>
-            </div>
-        </div>
-        <div class="split-pane" id="splitPane2">
-            <div class="split-search-bar gap-2">
-                <input type="text" id="splitSearch2" placeholder="חיפוש לצד שמאל..." class="flex-1 rounded-full py-1.5 px-4 outline-none text-sm border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
-                <button onclick="performSplitSearch(2)" class="px-4 rounded-full text-sm font-bold border transition" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);"><i class="fas fa-search"></i></button>
-            </div>
-            <div id="splitResults2" class="split-results custom-scrollbar"></div>
-            <div class="split-video-container">
-                <div id="splitPlayer2" class="w-full h-full"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="batchActionBar" class="fixed bottom-0 left-0 right-0 lg:right-64 border-t p-4 flex items-center justify-between z-[150] transform translate-y-full transition-transform duration-300 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]" style="background-color: var(--bg-card); border-color: var(--accent-color);">
+    <div id="batchActionBar" class="fixed bottom-0 left-0 right-0 lg:right-64 border-t p-4 flex items-center justify-between z-[150] transform translate-y-full transition-transform duration-300 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]" style="background-color: var(--bg-card); border-color: #3b82f6;">
         <div class="flex items-center gap-4">
             <button onclick="toggleSelectionMode()" class="w-8 h-8 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface-hover); color: var(--text-secondary);" title="סגור מצב בחירה">
                 <i class="fas fa-times"></i>
             </button>
-            <span id="batchCountLabel" class="font-bold" style="color: var(--accent-color);">0 נבחרו</span>
+            <span id="batchCountLabel" class="font-bold text-blue-500">0 נבחרו</span>
             <button onclick="selectAllVideos()" class="text-xs transition font-bold px-3 py-1.5 rounded-lg border" style="background-color: var(--bg-surface); color: var(--text-secondary); border-color: var(--border-light);">
                 <i class="fas fa-check-double ml-1"></i> בחר הכל
             </button>
@@ -422,10 +341,6 @@
                 <option value="audio">שמע (MP3)</option>
             </select>
             
-            <button onclick="batchAddToQueue()" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
-                <i class="fas fa-list-ol"></i> <span class="hidden md:inline">הוסף לתור</span>
-            </button>
-
             <button onclick="batchAddToPlaylist()" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                 <i class="fas fa-list-ul"></i> <span class="hidden md:inline">הוסף לרשימה</span>
             </button>
@@ -434,8 +349,8 @@
                 <i class="fas fa-link"></i> <span class="hidden md:inline">גיבוי קישורים</span>
             </button>
 
-            <button onclick="batchDownloadWithYtDlp()" class="hover:bg-blue-700 border border-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg text-white" style="background-color: var(--accent-color);">
-                <i class="fas fa-download"></i> הורדה
+            <button onclick="batchDownloadWithYtDlp()" class="bg-blue-600 hover:bg-blue-700 border border-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg text-white">
+                <i class="fas fa-download"></i> הורדה מרובה
             </button>
         </div>
     </div>
@@ -456,6 +371,9 @@
             <div class="player-header p-4 flex justify-between items-center border-b" style="border-color: var(--border-color);">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2" style="color: var(--text-primary);"></h3>
                 <div class="flex gap-2">
+                    <button onclick="toggleSplitScreen()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="תצוגה מפוצלת">
+                        <i class="fas fa-columns"></i>
+                    </button>
                     <button onclick="toggleFloatingMode()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="נגן צף פנימי נשלט גודל">
                         <i class="fas fa-clone"></i>
                     </button>
@@ -470,7 +388,10 @@
 
             <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                 <div class="aspect-video w-full bg-black flex-shrink-0 relative">
-                    <div id="playerFrame" class="w-full h-full absolute inset-0"></div>
+                    <div id="playerFramesContainer" class="w-full flex flex-col md:flex-row h-full absolute inset-0">
+                        <div id="playerFrame" class="flex-1 w-full h-full"></div>
+                        <div id="playerFrame2" class="flex-1 w-full h-full hidden border-r" style="border-color: var(--border-color);"></div>
+                    </div>
                 </div>
                 <div class="p-8 player-info-section">
                     <div class="flex justify-between items-start mb-4">
@@ -538,7 +459,7 @@
     <div id="toast" class="copy-toast">הודעה</div>
 
     <script>
-        // --- 1. Theme Management ---
+        // ניהול ערכות נושא (Theme) בתחילת הטעינה
         function applyTheme(theme) {
             if (theme === 'system') {
                 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
@@ -558,7 +479,7 @@
             if (localStorage.getItem('yt_theme') === 'system' || !localStorage.getItem('yt_theme')) applyTheme('system');
         });
 
-        // --- 2. State & Migrations ---
+        // הגדרת State
         let appState = {
             apiKey: "",
             clientId: "",
@@ -573,16 +494,19 @@
             isFloating: false,
             activeChannelId: null,
             currentRenderedItems: [],
-            unfilteredItems: [], // עבור חיפוש מקומי
             maxResults: 12,
             isListView: false,
             isSelectionMode: false,
             selectedVideos: new Set(),
             currentLikedTab: 'videos',
-            positionSaveInterval: null,
-            isSplitScreen: false
+            tempQueue: [] // תור השמעה זמני
         };
 
+        let ytPlayer = null;
+        let ytPlayer2 = null;
+        let isSplitScreen = false;
+
+        // הגירת נתוני לייקים לגרסה תומכת סוגים
         (function migrateOldLikes() {
             let oldLikes = localStorage.getItem('yt_local_likes');
             if (oldLikes) {
@@ -596,114 +520,474 @@
             }
         })();
 
-        // --- 3. Managers (Storage & Data) ---
-        
-        // Resume Manager
-        const ResumeManager = {
-            getPositions: () => JSON.parse(localStorage.getItem('yt_resume_positions') || '{}'),
-            savePosition: (videoId, time, durationSec) => {
-                if (!videoId || !time) return;
-                const pos = ResumeManager.getPositions();
-                // לא נשמור אם צפה פחות מ-5 שניות או סיים (95%)
-                if (time < 5 || (durationSec && time > durationSec * 0.95)) {
-                    delete pos[videoId];
-                } else {
-                    pos[videoId] = { time: Math.floor(time), lastUpdated: new Date().toISOString() };
-                }
-                localStorage.setItem('yt_resume_positions', JSON.stringify(pos));
-            },
-            getPosition: (videoId) => {
-                const pos = ResumeManager.getPositions();
-                return pos[videoId]?.time || 0;
-            },
-            getDurationSec: (durationStr) => {
-                if(!durationStr) return null;
-                const match = durationStr.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
-                if(!match) return null;
-                const h = parseInt(match[1]) || 0;
-                const m = parseInt(match[2]) || 0;
-                const s = parseInt(match[3]) || 0;
-                return h*3600 + m*60 + s;
+        // שמירת מיקום הוידאו כל 5 שניות
+        setInterval(() => {
+            if (ytPlayer && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1 && appState.currentVideoId && appState.currentVideoDetails) {
+                let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+                positions[appState.currentVideoId] = {
+                    time: ytPlayer.getCurrentTime(),
+                    details: appState.currentVideoDetails
+                };
+                localStorage.setItem('yt_resume_positions', JSON.stringify(positions));
             }
-        };
+        }, 5000);
 
-        // Queue Manager
-        const QueueManager = {
-            queue: [],
-            currentIndex: -1,
-            add: (video) => {
-                QueueManager.queue.push(video);
-                QueueManager.render();
-                showToast(`נוסף לתור (${QueueManager.queue.length})`);
-                
-                // פתיחה אוטומטית של התור אם זה הסרטון הראשון
-                const queueBar = document.getElementById('queueBar');
-                if (!queueBar.classList.contains('active')) {
-                    queueBar.classList.add('active');
+        function showToast(message) {
+            const toast = document.getElementById('toast'); 
+            toast.innerText = message;
+            toast.className = "copy-toast show";
+            setTimeout(() => { toast.className = "copy-toast"; }, 3000);
+        }
+
+        function toggleSidebar() {
+            document.body.classList.toggle('sidebar-is-collapsed');
+            document.getElementById('mainSidebar').classList.toggle('sidebar-collapsed');
+        }
+
+        document.getElementById('resultsGrid').addEventListener('click', (e) => {
+            if (appState.isSelectionMode) {
+                const card = e.target.closest('.video-card');
+                if (card && card.dataset.videoId) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleVideoSelection(card.dataset.videoId);
                 }
-            },
-            playNext: () => {
-                if (QueueManager.currentIndex < QueueManager.queue.length - 1) {
-                    QueueManager.currentIndex++;
-                    const nextVid = QueueManager.queue[QueueManager.currentIndex];
-                    openPlayer(nextVid.id, nextVid.title, nextVid.thumbnail, nextVid.channel, nextVid.duration);
-                    QueueManager.render();
+            }
+        }, true);
+
+        function onPlayerStateChange(event) {
+            if (event.data === 0) { 
+                if (appState.tempQueue.length > 0) {
+                    const nextVideo = appState.tempQueue.shift();
+                    openPlayer(nextVideo.id, nextVideo.title, nextVideo.thumbnail, nextVideo.channel, nextVideo.duration);
+                    showToast(`מנגן מהתור. נותרו: ${appState.tempQueue.length}`);
                 } else {
-                    showToast("התור הסתיים");
+                    playNextVideo(); 
                 }
-            },
-            playFromIndex: (index) => {
-                QueueManager.currentIndex = index;
-                const vid = QueueManager.queue[index];
-                openPlayer(vid.id, vid.title, vid.thumbnail, vid.channel, vid.duration);
-                QueueManager.render();
-            },
-            clearQueue: () => {
-                QueueManager.queue = [];
-                QueueManager.currentIndex = -1;
-                QueueManager.render();
-                document.getElementById('queueBar').classList.remove('active', 'expanded');
-            },
-            render: () => {
-                const list = document.getElementById('queueList');
-                document.getElementById('queueCount').innerText = QueueManager.queue.length;
-                list.innerHTML = '';
-                
-                QueueManager.queue.forEach((vid, index) => {
-                    const el = document.createElement('div');
-                    el.className = `queue-item ${index === QueueManager.currentIndex ? 'playing' : ''}`;
-                    el.onclick = () => QueueManager.playFromIndex(index);
-                    el.innerHTML = `
-                        <img src="${vid.thumbnail}">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-bold truncate" style="color: var(--text-primary);">${vid.title}</p>
-                            <p class="text-xs truncate" style="color: var(--text-secondary);">${vid.channel}</p>
-                        </div>
-                        ${index === QueueManager.currentIndex ? `<i class="fas fa-volume-up" style="color: var(--accent-color);"></i>` : ''}
-                    `;
-                    list.appendChild(el);
+            }
+            if (event.data === 1) { 
+                appState.isVideoPaused = false;
+                document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
+            } else if (event.data === 2) { 
+                appState.isVideoPaused = true;
+                document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-play"></i>';
+            }
+        }
+
+        function playNextVideo() {
+            const currentList = appState.currentRenderedItems;
+            const currentId = appState.currentVideoId;
+            if (!currentList || !currentId) return;
+
+            const idx = currentList.findIndex(item => {
+                const itemId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
+                return itemId === currentId;
+            });
+
+            if (idx > -1) {
+                for (let i = idx + 1; i < currentList.length; i++) {
+                    const nextItem = currentList[i];
+                    const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
+                    
+                    if (nextId) {
+                        const snip = nextItem.snippet;
+                        const title = snip.title; 
+                        const thumb = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url || '';
+                        const channel = snip.channelTitle || '';
+                        const duration = nextItem.contentDetails?.duration || '';
+                        
+                        openPlayer(nextId, title, thumb, channel, duration);
+                        return;
+                    }
+                }
+            }
+        }
+
+        function addToQueue(videoObj, event) {
+            if(event) event.stopPropagation();
+            appState.tempQueue.push(videoObj);
+            showToast(`נוסף לתור ההשמעה (${appState.tempQueue.length} בתור)`);
+        }
+
+        let navHistory = [];
+        let navIndex = -1;
+        let isInternalNav = false; 
+
+        function pushHistory(state) {
+            if (isInternalNav) return;
+            if (navIndex < navHistory.length - 1) navHistory = navHistory.slice(0, navIndex + 1);
+            const currentState = navHistory[navIndex];
+            if (currentState && JSON.stringify(currentState) === JSON.stringify(state)) return;
+            navHistory.push(state);
+            navIndex++;
+            updateNavUI();
+        }
+
+        function handleHistoryNav(direction) {
+            const newIndex = navIndex + direction;
+            if (newIndex >= 0 && newIndex < navHistory.length) {
+                navIndex = newIndex;
+                const state = navHistory[navIndex];
+                isInternalNav = true; 
+                restoreState(state);
+                isInternalNav = false;
+                updateNavUI();
+            }
+        }
+
+        function updateNavUI() {
+            const backBtn = document.getElementById('navBackBtn');
+            const fwdBtn = document.getElementById('navForwardBtn');
+            if(backBtn) backBtn.disabled = (navIndex <= 0);
+            if(fwdBtn) fwdBtn.disabled = (navIndex >= navHistory.length - 1);
+        }
+
+        function restoreState(state) {
+            appState.searchContext = state.context || 'general';
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.add('hidden');
+            
+            if (appState.isSelectionMode) toggleSelectionMode(); 
+            
+            if (state.type === 'home') {
+                document.getElementById('searchInput').value = "";
+                loadHomePage(true);
+            } else if (state.type === 'search') {
+                document.getElementById('searchInput').value = state.query;
+                document.getElementById('searchType').value = state.filterType || '';
+                document.getElementById('searchOrder').value = state.order || 'relevance';
+                document.getElementById('searchDuration').value = state.duration || '';
+                document.getElementById('searchDate').value = state.dateFilter || '';
+                performSearch(false, true); 
+            } else if (state.type === 'channel') {
+                loadChannelVideos(state.channelId, false, true); 
+            } else if (state.type === 'history') {
+                loadWatchHistory(true);
+            } else if (state.type === 'local_history') {
+                loadLocalHistory(true);
+            } else if (state.type === 'playlist') {
+                loadPlaylistView(state.playlistName, true);
+            } else if (state.type === 'liked') { 
+                loadLikedItems(state.likedType, true);
+            }
+        }
+
+        function formatCount(num) {
+            const n = parseInt(num);
+            if (!n) return '0';
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+            return n.toLocaleString();
+        }
+
+        function timeSince(date) {
+            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+            let interval = seconds / 31536000;
+            if (interval > 1) return "לפני " + Math.floor(interval) + " שנים";
+            interval = seconds / 2592000;
+            if (interval > 1) return "לפני " + Math.floor(interval) + " חודשים";
+            interval = seconds / 86400;
+            if (interval > 1) return "לפני " + Math.floor(interval) + " ימים";
+            interval = seconds / 3600;
+            if (interval > 1) return "לפני " + Math.floor(interval) + " שעות";
+            interval = seconds / 60;
+            if (interval > 1) return "לפני " + Math.floor(interval) + " דקות";
+            return "ממש עכשיו";
+        }
+
+        function linkify(text) {
+            let safeText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return safeText.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-500 hover:underline">$1</a>');
+        }
+
+        function parseDuration(duration) {
+            if (!duration) return "";
+            const matches = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+            if (!matches) return "";
+            const hours = (matches[1] || '').replace('H', '');
+            const minutes = (matches[2] || '').replace('M', '');
+            const seconds = (matches[3] || '').replace('S', '');
+            
+            let result = [];
+            if (hours) result.push(hours);
+            result.push(minutes ? (minutes.length === 1 && hours ? '0' + minutes : minutes) : (hours ? '00' : '0'));
+            result.push(seconds ? (seconds.length === 1 ? '0' + seconds : seconds) : '00');
+            
+            return result.join(':');
+        }
+
+        function filterLocalItems(text) {
+            const query = text.toLowerCase();
+            document.querySelectorAll('#resultsGrid .video-card').forEach(card => {
+                const title = card.querySelector('h3').innerText.toLowerCase();
+                const textElements = card.querySelectorAll('p, span');
+                let foundInText = false;
+                textElements.forEach(el => {
+                    if (el.innerText.toLowerCase().includes(query)) foundInText = true;
                 });
                 
-                if (QueueManager.queue.length > 0) {
-                    document.getElementById('queueBar').classList.add('active');
+                if (title.includes(query) || foundInText) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
                 }
+            });
+        }
+
+        function downloadUrls() {
+            const videos = appState.currentRenderedItems.filter(i => 
+                (i.id && i.id.kind === 'youtube#video') || 
+                (i.id && typeof i.id === 'string') || 
+                (i.id && i.id.videoId)
+            );
+            
+            if (!videos.length) {
+                return alert('אין סרטונים להורדה ברשימה הנוכחית.');
+            }
+            
+            const urlList = videos.map(item => {
+                const vidId = item.id.videoId || (typeof item.id === 'string' ? item.id : null);
+                return vidId ? `https://www.youtube.com/watch?v=${vidId}` : null;
+            }).filter(Boolean).join('\n');
+            
+            triggerDownloadBlob(urlList, `youtube_links_${new Date().toISOString().slice(0,10)}.txt`);
+        }
+
+        const LocalSubsManager = {
+            getSubs: () => JSON.parse(localStorage.getItem('yt_local_subs') || '[]'),
+            toggleSub: (channelId, title, thumbnail) => {
+                let subs = LocalSubsManager.getSubs();
+                const index = subs.findIndex(s => s.id === channelId);
+                let isSubbed = false;
+                if (index > -1) {
+                    subs.splice(index, 1);
+                    showToast('הוסר ממנויים מקומיים');
+                } else {
+                    subs.push({ id: channelId, title, thumbnail });
+                    showToast('נוסף למנויים מקומיים');
+                    isSubbed = true;
+                }
+                localStorage.setItem('yt_local_subs', JSON.stringify(subs));
+                return isSubbed;
+            },
+            isSubbed: (channelId) => {
+                return LocalSubsManager.getSubs().some(s => s.id === channelId);
             }
         };
 
-        function toggleQueueExpanded() {
-            const bar = document.getElementById('queueBar');
-            const chev = document.getElementById('queueChevron');
-            bar.classList.toggle('expanded');
-            if (bar.classList.contains('expanded')) {
-                chev.classList.remove('fa-chevron-up'); chev.classList.add('fa-chevron-down');
+        function renderChannelHeader(channel) {
+            const container = document.getElementById('channelHeaderContainer');
+            const snip = channel.snippet;
+            const stats = channel.statistics;
+            const branding = channel.brandingSettings?.image;
+
+            const bannerUrl = branding?.bannerExternalUrl ? branding.bannerExternalUrl + '=w1920-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj' : ''; 
+            const avatarUrl = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url;
+            const subs = formatCount(stats.subscriberCount);
+            const videos = formatCount(stats.videoCount);
+            
+            const isSubbedLocally = LocalSubsManager.isSubbed(channel.id);
+
+            container.innerHTML = `
+                ${bannerUrl ? `<img src="${bannerUrl}" class="w-full h-32 md:h-48 lg:h-56 object-cover rounded-3xl mb-2">` : ''}
+                <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4 px-4 pb-4">
+                    <img src="${avatarUrl}" class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-[var(--bg-main)] bg-[var(--bg-surface)] ${bannerUrl ? '-mt-12 sm:-mt-16 relative z-10' : ''}">
+                    <div class="flex flex-col items-center sm:items-start flex-1 text-center sm:text-right mt-2 sm:mt-0">
+                        <h1 class="text-2xl sm:text-3xl font-bold" style="color: var(--text-primary);">${snip.title}</h1>
+                        <p class="text-sm mt-1" style="color: var(--text-secondary);">${snip.customUrl || ''} • ${subs} מנויים • ${videos} סרטונים</p>
+                        <p class="text-sm mt-2 line-clamp-2 max-w-2xl" style="color: var(--text-muted);" title="${snip.description ? snip.description.replace(/"/g, '&quot;') : ''}">${linkify(snip.description || '')}</p>
+                    </div>
+                    <div class="mt-4 sm:mt-0 self-center sm:self-start pt-2 flex gap-2">
+                         <a href="https://www.youtube.com/channel/${channel.id}?sub_confirmation=1" target="_blank" class="px-6 py-2 rounded-full font-bold transition whitespace-nowrap inline-block shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
+                             YouTube
+                         </a>
+                         <button onclick="const btn=this; const isSubbed = LocalSubsManager.toggleSub('${channel.id}', '${snip.title.replace(/'/g, "\\'")}', '${avatarUrl}'); btn.innerHTML = isSubbed ? '<i class=\\'fas fa-bell-slash\\'></i> ביטול מעקב' : '<i class=\\'fas fa-bell\\'></i> מעקב מקומי';" class="px-6 py-2 rounded-full font-bold transition whitespace-nowrap inline-block shadow border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">
+                             ${isSubbedLocally ? '<i class="fas fa-bell-slash"></i> ביטול מעקב' : '<i class="fas fa-bell"></i> מעקב מקומי'}
+                         </button>
+                    </div>
+                </div>
+            `;
+            container.classList.remove('hidden');
+            container.classList.add('flex');
+        }
+
+        function toggleViewMode() {
+            appState.isListView = !appState.isListView;
+            const grid = document.getElementById('resultsGrid');
+            const icon = document.getElementById('viewToggleIcon');
+            
+            if (appState.isListView) {
+                grid.classList.add('list-view');
+                grid.classList.remove('grid', 'grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3', '2xl:grid-cols-4');
+                icon.className = 'fas fa-th-large';
             } else {
-                chev.classList.remove('fa-chevron-down'); chev.classList.add('fa-chevron-up');
+                grid.classList.remove('list-view');
+                grid.classList.add('grid', 'grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3', '2xl:grid-cols-4');
+                icon.className = 'fas fa-list';
             }
+        }
+
+        function toggleSelectionMode() {
+            appState.isSelectionMode = !appState.isSelectionMode;
+            appState.selectedVideos.clear();
+            
+            document.body.classList.toggle('selection-mode-active', appState.isSelectionMode);
+            
+            document.querySelectorAll('.video-card').forEach(card => card.classList.remove('selected-card'));
+            document.querySelectorAll('.selection-checkbox input').forEach(cb => cb.checked = false);
+            
+            updateBatchActionBar();
+        }
+
+        function toggleVideoSelection(videoId) {
+            const card = document.querySelector(`.video-card[data-video-id="${videoId}"]`);
+            const checkbox = card ? card.querySelector('.selection-checkbox input') : null;
+            
+            if (appState.selectedVideos.has(videoId)) {
+                appState.selectedVideos.delete(videoId);
+                if (card) card.classList.remove('selected-card');
+                if (checkbox) checkbox.checked = false;
+            } else {
+                appState.selectedVideos.add(videoId);
+                if (card) card.classList.add('selected-card');
+                if (checkbox) checkbox.checked = true;
+            }
+            updateBatchActionBar();
+        }
+
+        function updateBatchActionBar() {
+            const bar = document.getElementById('batchActionBar');
+            const countLabel = document.getElementById('batchCountLabel');
+            
+            if (appState.isSelectionMode && appState.selectedVideos.size > 0) {
+                bar.classList.remove('translate-y-full');
+                countLabel.innerText = `${appState.selectedVideos.size} סרטונים נבחרו`;
+            } else {
+                bar.classList.add('translate-y-full');
+            }
+        }
+
+        function batchDownloadUrls() {
+            if (appState.selectedVideos.size === 0) return;
+            
+            const videos = appState.currentRenderedItems.filter(item => 
+                item.id && (item.id.videoId || typeof item.id === 'string') &&
+                appState.selectedVideos.has(item.id.videoId || item.id)
+            );
+            
+            const urlList = videos.map(item => `https://www.youtube.com/watch?v=${item.id.videoId || item.id}`).join('\n');
+            triggerDownloadBlob(urlList, `youtube_batch_links_${new Date().toISOString().slice(0,10)}.txt`);
+            
+            toggleSelectionMode(); 
+        }
+
+        function selectAllVideos() {
+            const videosToSelect = appState.currentRenderedItems.filter(item => item.id && (item.id.videoId || typeof item.id === 'string'));
+            if (videosToSelect.length === 0) return;
+            
+            const allSelected = videosToSelect.every(item => appState.selectedVideos.has(item.id.videoId || item.id));
+            
+            if (allSelected) {
+                appState.selectedVideos.clear();
+                document.querySelectorAll('.video-card').forEach(card => card.classList.remove('selected-card'));
+                document.querySelectorAll('.selection-checkbox input').forEach(cb => cb.checked = false);
+            } else {
+                videosToSelect.forEach(item => {
+                    const vidId = item.id.videoId || item.id;
+                    appState.selectedVideos.add(vidId);
+                    const card = document.querySelector(`.video-card[data-video-id="${vidId}"]`);
+                    if (card) {
+                        card.classList.add('selected-card');
+                        const cb = card.querySelector('.selection-checkbox input');
+                        if (cb) cb.checked = true;
+                    }
+                });
+            }
+            updateBatchActionBar();
+        }
+
+        function batchDownloadWithYtDlp() {
+            if (appState.selectedVideos.size === 0) return;
+            
+            const qualitySelect = document.getElementById('batchQualitySelect');
+            const quality = qualitySelect ? qualitySelect.value : '1080';
+            
+            const videos = appState.currentRenderedItems.filter(item => 
+                item.id && (item.id.videoId || typeof item.id === 'string') &&
+                appState.selectedVideos.has(item.id.videoId || item.id)
+            );
+            
+            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
+            
+            showToast(`מתחיל העברה של ${videos.length} סרטונים להורדה (${qualityText})...`);
+
+            let delay = 0;
+            videos.forEach((item) => {
+                const vidId = item.id.videoId || item.id;
+                setTimeout(() => {
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    iframe.src = `ytdlp://${vidId}/${quality}`;
+                    document.body.appendChild(iframe);
+                    
+                    setTimeout(() => {
+                        if (document.body.contains(iframe)) {
+                            document.body.removeChild(iframe);
+                        }
+                    }, 2000);
+                }, delay);
+                
+                delay += 800; 
+            });
+
+            setTimeout(() => { 
+                toggleSelectionMode(); 
+            }, delay + 500);
+        }
+
+        function batchAddToPlaylist() {
+            if (appState.selectedVideos.size === 0) return;
+            
+            const playlistName = prompt('הכנס שם רשימה כדי להוסיף אליה את הסרטונים הנבחרים (למשל: Watch Later):');
+            if (!playlistName) return;
+
+            const videos = appState.currentRenderedItems.filter(item => 
+                item.id && (item.id.videoId || typeof item.id === 'string') &&
+                appState.selectedVideos.has(item.id.videoId || item.id)
+            );
+
+            videos.forEach(item => {
+                const vidId = item.id.videoId || item.id;
+                PlaylistManager.addToPlaylist(playlistName, {
+                    id: vidId,
+                    title: item.snippet.title,
+                    thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url,
+                    channel: item.snippet.channelTitle,
+                    duration: item.contentDetails?.duration || ''
+                }, true);
+            });
+            
+            showToast(`${videos.length} סרטונים נוספו ל-${playlistName}`);
+            toggleSelectionMode(); 
+        }
+
+        function triggerDownloadBlob(text, filename) {
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
         }
 
         const PlaylistManager = {
             getPlaylists: () => JSON.parse(localStorage.getItem('yt_playlists') || '{"Watch Later": []}'),
             savePlaylists: (playlists) => localStorage.setItem('yt_playlists', JSON.stringify(playlists)),
+            
             createPlaylist: (name) => {
                 if (!name) return;
                 const playlists = PlaylistManager.getPlaylists();
@@ -712,6 +996,7 @@
                 PlaylistManager.savePlaylists(playlists);
                 loadPlaylistsToSidebar(); 
             },
+
             renamePlaylist: (oldName, newName) => {
                 if (!newName || oldName === newName) return;
                 const playlists = PlaylistManager.getPlaylists();
@@ -722,6 +1007,7 @@
                 loadPlaylistsToSidebar();
                 loadPlaylistView(newName); 
             },
+
             deletePlaylist: (name) => {
                 if (!confirm(`האם אתה בטוח שברצונך למחוק את הרשימה "${name}"?`)) return;
                 const playlists = PlaylistManager.getPlaylists();
@@ -730,6 +1016,7 @@
                 loadPlaylistsToSidebar();
                 loadHomePage(); 
             },
+
             addToPlaylist: (playlistName, video, silent = false) => {
                 const playlists = PlaylistManager.getPlaylists();
                 if (!playlists[playlistName]) playlists[playlistName] = [];
@@ -747,6 +1034,7 @@
                 
                 if(!silent) showToast(`נוסף ל-${playlistName === 'Watch Later' ? 'צפייה בהמשך' : playlistName}`);
             },
+
             removeFromPlaylist: (playlistName, videoId) => {
                 const playlists = PlaylistManager.getPlaylists();
                 if (playlists[playlistName]) {
@@ -757,6 +1045,7 @@
                     }
                 }
             },
+            
             toggleWatchLater: (btn, video, event) => {
                 if(event) event.stopPropagation();
                 const playlists = PlaylistManager.getPlaylists();
@@ -807,530 +1096,42 @@
                 }
             }
         };
-        
-        // Local Subscriptions Manager
-        const LocalSubsManager = {
-            getSubs: () => JSON.parse(localStorage.getItem('yt_local_subs') || '[]'),
-            isSubbed: (channelId) => {
-                return LocalSubsManager.getSubs().some(c => c.id === channelId);
-            },
-            toggleSub: (channel) => {
-                let subs = LocalSubsManager.getSubs();
-                const existingIndex = subs.findIndex(c => c.id === channel.id);
-                if (existingIndex > -1) {
-                    subs.splice(existingIndex, 1);
-                    localStorage.setItem('yt_local_subs', JSON.stringify(subs));
-                    return false;
-                } else {
-                    subs.push({id: channel.id, title: channel.title, thumbnail: channel.thumbnail, addedAt: new Date().toISOString()});
-                    localStorage.setItem('yt_local_subs', JSON.stringify(subs));
-                    return true;
-                }
-            }
-        };
 
-        // --- 4. Core UI & Utility Functions ---
-
-        function showToast(message) {
-            const toast = document.getElementById('toast'); 
-            toast.innerText = message;
-            toast.className = "copy-toast show";
-            setTimeout(() => { toast.className = "copy-toast"; }, 3000);
+        function toggleLocalLike() {
+            if (!appState.currentVideoId || !appState.currentVideoDetails) return;
+            const isLiked = LocalLikesManager.toggleLike(appState.currentVideoDetails, 'videos');
+            updateLikeButtonUI(isLiked);
+            if (appState.searchContext === 'liked' && appState.currentLikedTab === 'videos') loadLikedItems('videos', true);
         }
 
-        function toggleSidebar() {
-            document.body.classList.toggle('sidebar-is-collapsed');
-            document.getElementById('mainSidebar').classList.toggle('sidebar-collapsed');
+        function toggleLikeItem(btn, item, type, event) {
+             if(event) event.stopPropagation();
+             const isLiked = LocalLikesManager.toggleLike(item, type);
+             const icon = btn.querySelector('i');
+             
+             if (isLiked) icon.className = 'fas fa-heart text-red-500';
+             else icon.className = `far fa-heart`;
+             
+             if (appState.searchContext === 'liked' && appState.currentLikedTab === type) renderLikedTab(type);
         }
 
-        document.getElementById('resultsGrid').addEventListener('click', (e) => {
-            if (appState.isSelectionMode) {
-                const card = e.target.closest('.video-card');
-                if (card && card.dataset.videoId) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleVideoSelection(card.dataset.videoId);
-                }
-            }
-        }, true);
+        function playRandomFromPlaylist(playlistName) {
+            const playlists = PlaylistManager.getPlaylists();
+            const videos = playlists[playlistName] || [];
+            if (videos.length === 0) return alert('הפלייליסט ריק');
+            const randomVideo = videos[Math.floor(Math.random() * videos.length)];
+            openPlayer(randomVideo.id, randomVideo.title, randomVideo.thumbnail, randomVideo.channel, randomVideo.duration);
+        }
 
-        // Local Search Functionality
-        document.getElementById('localSearchInput').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            if (!term) {
-                renderResults(appState.unfilteredItems, true, true);
-                return;
-            }
-            
-            const filtered = appState.unfilteredItems.filter(item => {
-                const title = item.snippet.title.toLowerCase();
-                const channel = (item.snippet.channelTitle || '').toLowerCase();
-                return title.includes(term) || channel.includes(term);
-            });
-            renderResults(filtered, true, true);
-        });
-
-        function setupLocalSearch(show, items) {
-            const container = document.getElementById('localSearchContainer');
-            const input = document.getElementById('localSearchInput');
-            if (show) {
-                appState.unfilteredItems = [...items];
-                input.value = '';
-                container.classList.remove('hidden');
+        function updateLikeButtonUI(isLiked) {
+            const btn = document.getElementById('playerLikeBtn');
+            const icon = btn.querySelector('i');
+            if (isLiked) {
+                icon.classList.remove('far'); icon.classList.add('fas', 'text-red-500');
             } else {
-                container.classList.add('hidden');
-                appState.unfilteredItems = [];
+                icon.classList.remove('fas', 'text-red-500'); icon.classList.add('far'); 
             }
         }
-
-        // Split Screen Logic
-        let splitPlayer1 = null;
-        let splitPlayer2 = null;
-
-        function toggleSplitScreen() {
-            if (appState.isSplitScreen) {
-                closeSplitScreen();
-            } else {
-                appState.isSplitScreen = true;
-                document.getElementById('splitScreenContainer').classList.add('active');
-                document.body.style.overflow = 'hidden';
-                if(ytPlayer) ytPlayer.pauseVideo();
-            }
-        }
-
-        function closeSplitScreen() {
-            appState.isSplitScreen = false;
-            document.getElementById('splitScreenContainer').classList.remove('active');
-            document.body.style.overflow = 'auto';
-            if(splitPlayer1) { splitPlayer1.destroy(); splitPlayer1 = null; }
-            if(splitPlayer2) { splitPlayer2.destroy(); splitPlayer2 = null; }
-        }
-
-        async function performSplitSearch(paneIndex) {
-            const query = document.getElementById(`splitSearch${paneIndex}`).value.trim();
-            if (!query) return;
-            const resDiv = document.getElementById(`splitResults${paneIndex}`);
-            resDiv.innerHTML = '<div class="text-center p-4">מחפש...</div>';
-            resDiv.classList.add('active');
-
-            try {
-                const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q=${encodeURIComponent(query)}&type=video&key=${appState.apiKey}`;
-                const res = await fetch(url);
-                const data = await res.json();
-                
-                resDiv.innerHTML = '';
-                data.items.forEach(item => {
-                    const vid = document.createElement('div');
-                    vid.className = "flex gap-2 p-2 hover:bg-[#333] cursor-pointer rounded mb-2";
-                    vid.innerHTML = `
-                        <img src="${item.snippet.thumbnails.default.url}" class="w-24 h-auto object-cover">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-bold truncate text-white">${item.snippet.title}</p>
-                            <p class="text-xs text-gray-400">${item.snippet.channelTitle}</p>
-                        </div>
-                    `;
-                    vid.onclick = () => loadSplitVideo(paneIndex, item.id.videoId);
-                    resDiv.appendChild(vid);
-                });
-                
-                const closeBtn = document.createElement('button');
-                closeBtn.className = "w-full py-2 bg-red-600 text-white font-bold mt-2 rounded";
-                closeBtn.innerText = "סגור תוצאות";
-                closeBtn.onclick = () => resDiv.classList.remove('active');
-                resDiv.appendChild(closeBtn);
-
-            } catch (e) {
-                resDiv.innerHTML = '<div class="text-red-500 p-4">שגיאה בחיפוש</div>';
-            }
-        }
-
-        function loadSplitVideo(paneIndex, videoId) {
-            document.getElementById(`splitResults${paneIndex}`).classList.remove('active');
-            
-            const containerId = `splitPlayer${paneIndex}`;
-            
-            if (paneIndex === 1) {
-                if (splitPlayer1) splitPlayer1.loadVideoById(videoId);
-                else splitPlayer1 = new YT.Player(containerId, { videoId: videoId, playerVars: { 'autoplay': 1 } });
-            } else {
-                if (splitPlayer2) splitPlayer2.loadVideoById(videoId);
-                else splitPlayer2 = new YT.Player(containerId, { videoId: videoId, playerVars: { 'autoplay': 1 } });
-            }
-        }
-
-
-        // --- Player Logic ---
-        function onPlayerStateChange(event) {
-            if (event.data === 0) { 
-                if(QueueManager.queue.length > 0 && QueueManager.currentIndex < QueueManager.queue.length - 1) {
-                    QueueManager.playNext();
-                } else {
-                    playNextVideo(); 
-                }
-            }
-            if (event.data === 1) { 
-                appState.isVideoPaused = false;
-                document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
-                
-                // Start tracking position
-                if(appState.positionSaveInterval) clearInterval(appState.positionSaveInterval);
-                appState.positionSaveInterval = setInterval(() => {
-                    if(ytPlayer && typeof ytPlayer.getCurrentTime === 'function' && appState.currentVideoId) {
-                        const time = ytPlayer.getCurrentTime();
-                        const dur = ytPlayer.getDuration();
-                        ResumeManager.savePosition(appState.currentVideoId, time, dur);
-                    }
-                }, 5000);
-
-            } else if (event.data === 2) { 
-                appState.isVideoPaused = true;
-                document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-play"></i>';
-                if(appState.positionSaveInterval) clearInterval(appState.positionSaveInterval);
-            }
-        }
-
-        // --- Nav & History ---
-        let navHistory = [];
-        let navIndex = -1;
-        let isInternalNav = false; 
-
-        function pushHistory(state) {
-            if (isInternalNav) return;
-            if (navIndex < navHistory.length - 1) navHistory = navHistory.slice(0, navIndex + 1);
-            const currentState = navHistory[navIndex];
-            if (currentState && JSON.stringify(currentState) === JSON.stringify(state)) return;
-            navHistory.push(state);
-            navIndex++;
-            updateNavUI();
-        }
-
-        function handleHistoryNav(direction) {
-            const newIndex = navIndex + direction;
-            if (newIndex >= 0 && newIndex < navHistory.length) {
-                navIndex = newIndex;
-                const state = navHistory[navIndex];
-                isInternalNav = true; 
-                restoreState(state);
-                isInternalNav = false;
-                updateNavUI();
-            }
-        }
-
-        function updateNavUI() {
-            const backBtn = document.getElementById('navBackBtn');
-            const fwdBtn = document.getElementById('navForwardBtn');
-            if(backBtn) backBtn.disabled = (navIndex <= 0);
-            if(fwdBtn) fwdBtn.disabled = (navIndex >= navHistory.length - 1);
-        }
-
-        function restoreState(state) {
-            appState.searchContext = state.context || 'general';
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
-            setupLocalSearch(false, []);
-            
-            if (appState.isSelectionMode) toggleSelectionMode(); 
-            
-            if (state.type === 'home') {
-                document.getElementById('searchInput').value = "";
-                loadHomePage(true);
-            } else if (state.type === 'search') {
-                document.getElementById('searchInput').value = state.query;
-                document.getElementById('searchType').value = state.filterType || '';
-                document.getElementById('searchOrder').value = state.order || 'relevance';
-                document.getElementById('searchDuration').value = state.duration || '';
-                document.getElementById('searchDate').value = state.dateFilter || '';
-                performSearch(false, true); 
-            } else if (state.type === 'channel') {
-                loadChannelVideos(state.channelId, false, true); 
-            } else if (state.type === 'history') {
-                loadWatchHistory(true);
-            } else if (state.type === 'local_history') {
-                loadLocalHistory(true);
-            } else if (state.type === 'resume') {
-                loadResumeList(true);
-            } else if (state.type === 'local_subs') {
-                loadLocalSubscriptions(true);
-            } else if (state.type === 'playlist') {
-                loadPlaylistView(state.playlistName, true);
-            } else if (state.type === 'liked') { 
-                loadLikedItems(state.likedType, true);
-            }
-        }
-
-        // --- Helpers ---
-        function formatCount(num) {
-            const n = parseInt(num);
-            if (!n) return '0';
-            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-            return n.toLocaleString();
-        }
-
-        function timeSince(date) {
-            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-            let interval = seconds / 31536000;
-            if (interval > 1) return "לפני " + Math.floor(interval) + " שנים";
-            interval = seconds / 2592000;
-            if (interval > 1) return "לפני " + Math.floor(interval) + " חודשים";
-            interval = seconds / 86400;
-            if (interval > 1) return "לפני " + Math.floor(interval) + " ימים";
-            interval = seconds / 3600;
-            if (interval > 1) return "לפני " + Math.floor(interval) + " שעות";
-            interval = seconds / 60;
-            if (interval > 1) return "לפני " + Math.floor(interval) + " דקות";
-            return "ממש עכשיו";
-        }
-
-        function formatTimeSec(seconds) {
-            if(!seconds) return "0:00";
-            const m = Math.floor(seconds / 60);
-            const s = Math.floor(seconds % 60);
-            return `${m}:${s.toString().padStart(2, '0')}`;
-        }
-
-        function linkify(text) {
-            let safeText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            return safeText.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-500 hover:underline">$1</a>');
-        }
-
-        function parseDuration(duration) {
-            if (!duration) return "";
-            const matches = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
-            if (!matches) return "";
-            const hours = (matches[1] || '').replace('H', '');
-            const minutes = (matches[2] || '').replace('M', '');
-            const seconds = (matches[3] || '').replace('S', '');
-            
-            let result = [];
-            if (hours) result.push(hours);
-            result.push(minutes ? (minutes.length === 1 && hours ? '0' + minutes : minutes) : (hours ? '00' : '0'));
-            result.push(seconds ? (seconds.length === 1 ? '0' + seconds : seconds) : '00');
-            
-            return result.join(':');
-        }
-
-        function downloadUrls() {
-            const videos = appState.currentRenderedItems.filter(i => 
-                (i.id && i.id.kind === 'youtube#video') || 
-                (i.id && typeof i.id === 'string') || 
-                (i.id && i.id.videoId)
-            );
-            
-            if (!videos.length) return alert('אין סרטונים להורדה ברשימה הנוכחית.');
-            
-            const urlList = videos.map(item => {
-                const vidId = item.id.videoId || (typeof item.id === 'string' ? item.id : null);
-                return vidId ? `https://www.youtube.com/watch?v=${vidId}` : null;
-            }).filter(Boolean).join('\n');
-            
-            triggerDownloadBlob(urlList, `youtube_links_${new Date().toISOString().slice(0,10)}.txt`);
-        }
-
-        // --- Renderers ---
-        function renderChannelHeader(channel) {
-            const container = document.getElementById('channelHeaderContainer');
-            const snip = channel.snippet;
-            const stats = channel.statistics;
-            const branding = channel.brandingSettings?.image;
-
-            const bannerUrl = branding?.bannerExternalUrl ? branding.bannerExternalUrl + '=w1920-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj' : ''; 
-            const avatarUrl = snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url;
-            const subs = formatCount(stats.subscriberCount);
-            const videos = formatCount(stats.videoCount);
-
-            const isLocalSub = LocalSubsManager.isSubbed(channel.id);
-            const subBtnClass = isLocalSub ? 'bg-gray-600 text-white' : 'bg-red-600 text-white';
-            const subBtnText = isLocalSub ? 'בטל מנוי (מקומי)' : 'הירשם כמנוי (מקומי)';
-
-            container.innerHTML = `
-                ${bannerUrl ? `<img src="${bannerUrl}" class="w-full h-32 md:h-48 lg:h-56 object-cover rounded-3xl mb-2">` : ''}
-                <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4 px-4 pb-4">
-                    <img src="${avatarUrl}" class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-[var(--bg-main)] bg-[var(--bg-surface)] ${bannerUrl ? '-mt-12 sm:-mt-16 relative z-10' : ''}">
-                    <div class="flex flex-col items-center sm:items-start flex-1 text-center sm:text-right mt-2 sm:mt-0">
-                        <h1 class="text-2xl sm:text-3xl font-bold" style="color: var(--text-primary);">${snip.title}</h1>
-                        <p class="text-sm mt-1" style="color: var(--text-secondary);">${snip.customUrl || ''} • ${subs} מנויים • ${videos} סרטונים</p>
-                        <p class="text-sm mt-2 line-clamp-2 max-w-2xl" style="color: var(--text-muted);" title="${snip.description ? snip.description.replace(/"/g, '&quot;') : ''}">${linkify(snip.description || '')}</p>
-                    </div>
-                    <div class="mt-4 sm:mt-0 self-center sm:self-start pt-2 flex flex-col gap-2">
-                        <button onclick="toggleLocalSub('${channel.id}', '${snip.title.replace(/'/g,"\\'")}', '${avatarUrl}')" id="localSubBtn" class="px-6 py-2 rounded-full font-bold transition shadow ${subBtnClass}">
-                             ${subBtnText}
-                         </button>
-                         <a href="https://www.youtube.com/channel/${channel.id}?sub_confirmation=1" target="_blank" class="px-6 py-2 rounded-full font-bold transition whitespace-nowrap inline-block shadow text-center" style="background-color: var(--text-primary); color: var(--bg-main);">
-                             הירשם ביוטיוב
-                         </a>
-                    </div>
-                </div>
-            `;
-            container.classList.remove('hidden');
-            container.classList.add('flex');
-        }
-
-        function toggleLocalSub(id, title, thumbnail) {
-            const isSubbed = LocalSubsManager.toggleSub({id, title, thumbnail});
-            const btn = document.getElementById('localSubBtn');
-            if (btn) {
-                if (isSubbed) {
-                    btn.className = 'px-6 py-2 rounded-full font-bold transition shadow bg-gray-600 text-white';
-                    btn.innerText = 'בטל מנוי (מקומי)';
-                    showToast('נרשמת לערוץ מקומית');
-                } else {
-                    btn.className = 'px-6 py-2 rounded-full font-bold transition shadow bg-red-600 text-white';
-                    btn.innerText = 'הירשם כמנוי (מקומי)';
-                    showToast('הוסר ממנויים מקומיים');
-                }
-            }
-        }
-
-        // --- Batch Actions ---
-        function toggleViewMode() {
-            appState.isListView = !appState.isListView;
-            const grid = document.getElementById('resultsGrid');
-            const icon = document.getElementById('viewToggleIcon');
-            
-            if (appState.isListView) {
-                grid.classList.add('list-view');
-                grid.classList.remove('grid', 'grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3', '2xl:grid-cols-4');
-                icon.className = 'fas fa-th-large';
-            } else {
-                grid.classList.remove('list-view');
-                grid.classList.add('grid', 'grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3', '2xl:grid-cols-4');
-                icon.className = 'fas fa-list';
-            }
-        }
-
-        function toggleSelectionMode() {
-            appState.isSelectionMode = !appState.isSelectionMode;
-            appState.selectedVideos.clear();
-            document.body.classList.toggle('selection-mode-active', appState.isSelectionMode);
-            document.querySelectorAll('.video-card').forEach(card => card.classList.remove('selected-card'));
-            document.querySelectorAll('.selection-checkbox input').forEach(cb => cb.checked = false);
-            updateBatchActionBar();
-        }
-
-        function toggleVideoSelection(videoId) {
-            const card = document.querySelector(`.video-card[data-video-id="${videoId}"]`);
-            const checkbox = card ? card.querySelector('.selection-checkbox input') : null;
-            if (appState.selectedVideos.has(videoId)) {
-                appState.selectedVideos.delete(videoId);
-                if (card) card.classList.remove('selected-card');
-                if (checkbox) checkbox.checked = false;
-            } else {
-                appState.selectedVideos.add(videoId);
-                if (card) card.classList.add('selected-card');
-                if (checkbox) checkbox.checked = true;
-            }
-            updateBatchActionBar();
-        }
-
-        function updateBatchActionBar() {
-            const bar = document.getElementById('batchActionBar');
-            const countLabel = document.getElementById('batchCountLabel');
-            if (appState.isSelectionMode && appState.selectedVideos.size > 0) {
-                bar.classList.remove('translate-y-full');
-                countLabel.innerText = `${appState.selectedVideos.size} נבחרו`;
-            } else {
-                bar.classList.add('translate-y-full');
-            }
-        }
-
-        function batchDownloadUrls() {
-            if (appState.selectedVideos.size === 0) return;
-            const videos = appState.currentRenderedItems.filter(item => 
-                item.id && (item.id.videoId || typeof item.id === 'string') &&
-                appState.selectedVideos.has(item.id.videoId || item.id)
-            );
-            const urlList = videos.map(item => `https://www.youtube.com/watch?v=${item.id.videoId || item.id}`).join('\n');
-            triggerDownloadBlob(urlList, `youtube_batch_links_${new Date().toISOString().slice(0,10)}.txt`);
-            toggleSelectionMode(); 
-        }
-
-        function selectAllVideos() {
-            const videosToSelect = appState.currentRenderedItems.filter(item => item.id && (item.id.videoId || typeof item.id === 'string'));
-            if (videosToSelect.length === 0) return;
-            const allSelected = videosToSelect.every(item => appState.selectedVideos.has(item.id.videoId || item.id));
-            if (allSelected) {
-                appState.selectedVideos.clear();
-                document.querySelectorAll('.video-card').forEach(card => card.classList.remove('selected-card'));
-                document.querySelectorAll('.selection-checkbox input').forEach(cb => cb.checked = false);
-            } else {
-                videosToSelect.forEach(item => {
-                    const vidId = item.id.videoId || item.id;
-                    appState.selectedVideos.add(vidId);
-                    const card = document.querySelector(`.video-card[data-video-id="${vidId}"]`);
-                    if (card) {
-                        card.classList.add('selected-card');
-                        const cb = card.querySelector('.selection-checkbox input');
-                        if (cb) cb.checked = true;
-                    }
-                });
-            }
-            updateBatchActionBar();
-        }
-
-        function batchDownloadWithYtDlp() {
-            if (appState.selectedVideos.size === 0) return;
-            const qualitySelect = document.getElementById('batchQualitySelect');
-            const quality = qualitySelect ? qualitySelect.value : '1080';
-            const videos = appState.currentRenderedItems.filter(item => 
-                item.id && (item.id.videoId || typeof item.id === 'string') &&
-                appState.selectedVideos.has(item.id.videoId || item.id)
-            );
-            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
-            showToast(`מתחיל העברה של ${videos.length} סרטונים להורדה (${qualityText})...`);
-
-            let delay = 0;
-            videos.forEach((item) => {
-                const vidId = item.id.videoId || item.id;
-                setTimeout(() => {
-                    const iframe = document.createElement('iframe');
-                    iframe.style.display = 'none';
-                    iframe.src = `ytdlp://${vidId}/${quality}`;
-                    document.body.appendChild(iframe);
-                    setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 2000);
-                }, delay);
-                delay += 800; 
-            });
-            setTimeout(() => { toggleSelectionMode(); }, delay + 500);
-        }
-
-        function batchAddToPlaylist() {
-            if (appState.selectedVideos.size === 0) return;
-            const playlistName = prompt('הכנס שם רשימה כדי להוסיף אליה את הסרטונים הנבחרים (למשל: Watch Later):');
-            if (!playlistName) return;
-            const videos = appState.currentRenderedItems.filter(item => 
-                item.id && (item.id.videoId || typeof item.id === 'string') &&
-                appState.selectedVideos.has(item.id.videoId || item.id)
-            );
-            videos.forEach(item => {
-                const vidId = item.id.videoId || item.id;
-                PlaylistManager.addToPlaylist(playlistName, {
-                    id: vidId, title: item.snippet.title,
-                    thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url,
-                    channel: item.snippet.channelTitle, duration: item.contentDetails?.duration || ''
-                }, true);
-            });
-            showToast(`${videos.length} סרטונים נוספו ל-${playlistName}`);
-            toggleSelectionMode(); 
-        }
-
-        function batchAddToQueue() {
-            if (appState.selectedVideos.size === 0) return;
-            const videos = appState.currentRenderedItems.filter(item => 
-                item.id && (item.id.videoId || typeof item.id === 'string') &&
-                appState.selectedVideos.has(item.id.videoId || item.id)
-            );
-            videos.forEach(item => {
-                const vidId = item.id.videoId || item.id;
-                QueueManager.add({
-                    id: vidId, title: item.snippet.title,
-                    thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url,
-                    channel: item.snippet.channelTitle, duration: item.contentDetails?.duration || ''
-                });
-            });
-            toggleSelectionMode();
-        }
-
-        // --- Data Loading Functions ---
 
         function loadLikedItems(type = 'videos', isHistoryNav = false) {
             if (appState.isSelectionMode) toggleSelectionMode();
@@ -1344,6 +1145,7 @@
             appState.searchContext = 'liked';
             appState.currentLikedTab = type;
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.remove('hidden');
             if (!isHistoryNav) pushHistory({ type: 'liked', likedType: type });
 
             const titleEl = document.getElementById('sectionTitle');
@@ -1353,8 +1155,13 @@
             
             if (appState.currentVideoId) minimizePlayer();
 
+            renderLikedTab(type);
+        }
+        
+        function renderLikedTab(tabType) {
+            appState.currentLikedTab = tabType;
             const likesObj = LocalLikesManager.getLikes();
-            const items = likesObj[type] || [];
+            const items = likesObj[tabType] || [];
             const grid = document.getElementById('resultsGrid');
             grid.innerHTML = '';
             appState.currentRenderedItems = [];
@@ -1362,144 +1169,31 @@
             if (items.length === 0) {
                 grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">אין עדיין פריטים מסומנים בלשונית זו.</div>`;
                 document.getElementById('exportUrlsBtn').classList.add('hidden');
-                setupLocalSearch(false, []);
                 return;
             }
 
-            let formattedItems = [];
-            if (type === 'videos') {
+            if (tabType === 'videos') {
                 document.getElementById('exportUrlsBtn').classList.remove('hidden');
-                formattedItems = items.map(item => ({
+                const formattedItems = items.map(item => ({
                     id: { kind: 'youtube#video', videoId: item.id },
                     snippet: { title: item.title, channelTitle: item.channel, thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } }, publishedAt: item.addedAt },
                     contentDetails: { duration: item.duration }, statistics: { viewCount: 0 }
                 }));
-            } else if (type === 'channels') {
+                renderResults(formattedItems, true);
+            } else if (tabType === 'channels') {
                 document.getElementById('exportUrlsBtn').classList.add('hidden');
-                formattedItems = items.map(item => ({
+                const formattedItems = items.map(item => ({
                     id: { kind: 'youtube#channel', channelId: item.id },
                     snippet: { title: item.title, thumbnails: { high: { url: item.thumbnail } } }
                 }));
-            } else if (type === 'playlists') {
+                renderResults(formattedItems, true);
+            } else if (tabType === 'playlists') {
                 document.getElementById('exportUrlsBtn').classList.add('hidden');
-                formattedItems = items.map(item => ({
+                const formattedItems = items.map(item => ({
                     id: { kind: 'youtube#playlist', playlistId: item.id },
                     snippet: { title: item.title, thumbnails: { high: { url: item.thumbnail } } }
                 }));
-            }
-            
-            setupLocalSearch(true, formattedItems);
-            renderResults(formattedItems, true);
-        }
-
-        function loadResumeList(isHistoryNav = false) {
-            if (appState.isSelectionMode) toggleSelectionMode();
-            setActiveNavItem('navResume');
-            appState.searchContext = 'resume';
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
-            if (!isHistoryNav) pushHistory({ type: 'resume' });
-
-            const titleEl = document.getElementById('sectionTitle');
-            titleEl.innerText = "המשך צפייה";
-            titleEl.classList.remove('hidden');
-            document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.add('hidden'); 
-            
-            if (appState.currentVideoId) minimizePlayer();
-
-            const positions = ResumeManager.getPositions();
-            const history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
-            
-            // מצא את הסרטונים שיש להם מיקום שמור, ושאב את הפרטים שלהם מההיסטוריה
-            let resumeItems = [];
-            for (const [id, data] of Object.entries(positions)) {
-                const histItem = history.find(h => h.id === id);
-                if (histItem) {
-                    resumeItems.push({...histItem, savedTime: data.time, lastUpdated: data.lastUpdated});
-                }
-            }
-
-            // מיין לפי תאריך עדכון אחרון (הכי חדש למעלה)
-            resumeItems.sort((a,b) => new Date(b.lastUpdated) - new Date(a.lastUpdated));
-
-            if (resumeItems.length === 0) {
-                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">אין סרטונים להמשך צפייה.</div>`;
-                appState.currentRenderedItems = [];
-                setupLocalSearch(false, []);
-                return;
-            }
-
-            const formattedItems = resumeItems.map(item => ({
-                id: { kind: 'youtube#video', videoId: item.id },
-                snippet: { title: item.title, channelTitle: item.channel, thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } } },
-                statistics: { viewCount: 0, likeCount: 0 },
-                resumeData: { time: item.savedTime }
-            }));
-
-            setupLocalSearch(true, formattedItems);
-            renderResults(formattedItems, true);
-        }
-
-        async function loadLocalSubscriptions(isHistoryNav = false) {
-            if (appState.isSelectionMode) toggleSelectionMode();
-            setActiveNavItem('navLocalSubs');
-            appState.searchContext = 'local_subs';
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
-            if (!isHistoryNav) pushHistory({ type: 'local_subs' });
-
-            const titleEl = document.getElementById('sectionTitle');
-            titleEl.innerText = "עדכונים מערוצים במעקב (מקומי)";
-            titleEl.classList.remove('hidden');
-            document.getElementById('pagination').classList.add('hidden');
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-            
-            if (appState.currentVideoId) minimizePlayer();
-
-            const subs = LocalSubsManager.getSubs();
-            if (subs.length === 0) {
-                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא עקבת אחרי אף ערוץ.<br>חפש ערוץ ולחץ על "הירשם כמנוי (מקומי)".</div>`;
-                appState.currentRenderedItems = [];
-                setupLocalSearch(false, []);
-                return;
-            }
-
-            document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">אוסף סרטונים...</div>`;
-            setupLocalSearch(false, []);
-
-            // מושך סרטונים אחרונים (ע"י חיפוש) מכל הערוצים במעקב
-            try {
-                let allVideos = [];
-                // נריץ קריאות במקביל לביצועים טובים יותר, מוגבל לעד 10 ערוצים כדי לא לחרוג ב-Quota
-                const subSubset = subs.slice(0, 10); 
-                const promises = subSubset.map(sub => 
-                    fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${sub.id}&maxResults=3&order=date&type=video&key=${appState.apiKey}`)
-                    .then(r => r.json())
-                );
-                
-                const results = await Promise.all(promises);
-                results.forEach(data => {
-                    if(data.items) allVideos.push(...data.items);
-                });
-
-                // מיין הכל לפי תאריך יורד
-                allVideos.sort((a,b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt));
-                
-                if(allVideos.length > 0) {
-                    // להביא סטטיסטיקות כדי שיראה כמו שאר הרשת
-                    const videoIds = allVideos.map(i => i.id.videoId).join(',');
-                    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${appState.apiKey}`);
-                    const statsData = await statsRes.json();
-                    
-                    const formatted = statsData.items.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: item.snippet, statistics: item.statistics, contentDetails: item.contentDetails }));
-                    setupLocalSearch(true, formatted);
-                    renderResults(formatted, true);
-                } else {
-                    document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים חדשים בערוצים אלו.</div>`;
-                }
-
-            } catch(e) {
-                console.error(e);
-                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 text-red-500">שגיאה בטעינת סרטונים מהמנויים.</div>`;
+                renderResults(formattedItems, true);
             }
         }
 
@@ -1525,6 +1219,7 @@
             setActiveNavItem(''); 
             appState.searchContext = 'playlist_' + name;
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.remove('hidden');
             if (!isInternal) pushHistory({ type: 'playlist', playlistName: name });
 
             const titleEl = document.getElementById('sectionTitle');
@@ -1554,7 +1249,6 @@
             if (videos.length === 0) {
                 document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">הרשימה ריקה.</div>`;
                 appState.currentRenderedItems = [];
-                setupLocalSearch(false, []);
                 return;
             }
 
@@ -1563,8 +1257,6 @@
                 snippet: { title: item.title, channelTitle: item.channel, thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } }, publishedAt: item.addedAt },
                 contentDetails: { duration: item.duration }, statistics: { viewCount: 0 } 
             }));
-            
-            setupLocalSearch(true, formattedItems);
             renderResults(formattedItems, true);
         }
 
@@ -1573,8 +1265,8 @@
                 history: localStorage.getItem('yt_local_history'),
                 playlists: localStorage.getItem('yt_playlists'),
                 likesV2: localStorage.getItem('yt_local_likes_v2'),
-                resume: localStorage.getItem('yt_resume_positions'),
-                subs: localStorage.getItem('yt_local_subs'),
+                resumePositions: localStorage.getItem('yt_resume_positions'),
+                localSubs: localStorage.getItem('yt_local_subs'),
                 settings: { apiKey: localStorage.getItem('yt_api_key'), clientId: localStorage.getItem('yt_client_id'), maxResults: localStorage.getItem('yt_max_results'), theme: localStorage.getItem('yt_theme') }
             };
             triggerDownloadBlob(JSON.stringify(data), `yt_backup_${new Date().toISOString().slice(0,10)}.json`);
@@ -1590,8 +1282,8 @@
                     if(data.history) localStorage.setItem('yt_local_history', data.history);
                     if(data.playlists) localStorage.setItem('yt_playlists', data.playlists);
                     if(data.likesV2) localStorage.setItem('yt_local_likes_v2', data.likesV2); 
-                    if(data.resume) localStorage.setItem('yt_resume_positions', data.resume); 
-                    if(data.subs) localStorage.setItem('yt_local_subs', data.subs); 
+                    if(data.resumePositions) localStorage.setItem('yt_resume_positions', data.resumePositions);
+                    if(data.localSubs) localStorage.setItem('yt_local_subs', data.localSubs);
                     if(data.settings) {
                         if(data.settings.apiKey) localStorage.setItem('yt_api_key', data.settings.apiKey);
                         if(data.settings.clientId) localStorage.setItem('yt_client_id', data.settings.clientId);
@@ -1605,11 +1297,20 @@
             reader.readAsText(file);
         }
 
+        function saveToLocalHistory(id, title, thumbnail, channelName) {
+            if (!id) return;
+            let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
+            history = history.filter(item => item.id !== id);
+            history.unshift({ id: id, title: title, thumbnail: thumbnail, channel: channelName, timestamp: new Date().toISOString() });
+            localStorage.setItem('yt_local_history', JSON.stringify(history));
+        }
+
         function loadLocalHistory(isHistoryNav = false) {
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navLocalHistory');
             appState.searchContext = 'local_history'; 
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.remove('hidden');
             if (!isHistoryNav) pushHistory({ type: 'local_history' });
 
             document.getElementById('sectionTitle').innerText = "היסטוריית צפייה מקומית (מהמחשב הזה)";
@@ -1623,7 +1324,6 @@
             if (history.length === 0) {
                 document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">עדיין אין היסטוריה מקומית.<br>צפה בסרטונים כדי לראות אותם כאן.</div>`;
                 appState.currentRenderedItems = [];
-                setupLocalSearch(false, []);
                 return;
             }
 
@@ -1633,7 +1333,6 @@
                 statistics: { viewCount: 0, likeCount: 0 }
             }));
 
-            setupLocalSearch(true, formattedItems);
             renderResults(formattedItems, true);
 
             const grid = document.getElementById('resultsGrid');
@@ -1643,12 +1342,153 @@
             grid.appendChild(clearBtn);
         }
 
+        function loadResumeTab() {
+            if (appState.isSelectionMode) toggleSelectionMode();
+            setActiveNavItem('navResume');
+            appState.searchContext = 'local_resume'; 
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.remove('hidden');
+
+            document.getElementById('sectionTitle').innerText = "המשך צפייה (סרטונים שהותחלו)";
+            document.getElementById('sectionTitle').classList.remove('hidden');
+            document.getElementById('pagination').classList.add('hidden');
+            document.getElementById('exportUrlsBtn').classList.add('hidden'); 
+            
+            if (appState.currentVideoId) minimizePlayer();
+
+            const positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+            const items = Object.values(positions).filter(p => p && p.details).sort((a,b) => b.time - a.time);
+
+            if (items.length === 0) {
+                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">אין סרטונים שהופסקו באמצע.</div>`;
+                appState.currentRenderedItems = [];
+                return;
+            }
+
+            const formattedItems = items.map(item => ({
+                id: { kind: 'youtube#video', videoId: item.details.id },
+                snippet: { title: item.details.title, channelTitle: item.details.channel, thumbnails: { high: { url: item.details.thumbnail }, medium: { url: item.details.thumbnail } }, publishedAt: new Date().toISOString() },
+                contentDetails: { duration: item.details.duration },
+                statistics: { viewCount: 0, likeCount: 0 }
+            }));
+
+            renderResults(formattedItems, true);
+        }
+
+        async function loadLocalSubscriptionsFeed() {
+            if (appState.isSelectionMode) toggleSelectionMode();
+            setActiveNavItem('navLocalSubs');
+            appState.searchContext = 'local_subs'; 
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.add('hidden');
+
+            const subs = LocalSubsManager.getSubs();
+            if (subs.length === 0) {
+                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50">לא עקבת אחרי ערוצים עדיין (מעקב מקומי).<br>חפש ערוץ ולחץ "מעקב מקומי".</div>`;
+                document.getElementById('sectionTitle').innerText = "עדכונים מערוצים שלי";
+                document.getElementById('sectionTitle').classList.remove('hidden');
+                document.getElementById('pagination').classList.add('hidden');
+                return;
+            }
+            
+            document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים אחרונים...</div>`;
+            document.getElementById('sectionTitle').innerText = "עדכונים מערוצים שלי";
+            document.getElementById('sectionTitle').classList.remove('hidden');
+            document.getElementById('pagination').classList.add('hidden');
+
+            let allVideos = [];
+            for (let sub of subs) {
+                try {
+                    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${sub.id}&maxResults=5&order=date&type=video&key=${appState.apiKey}`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    if(data.items) allVideos = allVideos.concat(data.items);
+                } catch(e) { console.error("שגיאה בטעינת ערוץ", sub.title) }
+            }
+
+            allVideos.sort((a, b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt));
+            
+            const videoIds = allVideos.map(v => v.id.videoId).join(',');
+            if(videoIds) fetchAndRenderVideos(videoIds.split(','), true);
+            else document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים.</div>`;
+        }
+
         function clearLocalHistory() {
-            if(confirm("האם למחוק את כל ההיסטוריה המקומית (והמיקומים השמורים)?")) {
+            if(confirm("האם למחוק את כל ההיסטוריה המקומית?")) {
                 localStorage.removeItem('yt_local_history');
-                localStorage.removeItem('yt_resume_positions');
                 loadLocalHistory();
             }
+        }
+
+        function removeFromLocalHistory(id, event) {
+            if (event) event.stopPropagation();
+            if(confirm("להסיר סרטון זה מההיסטוריה?")) {
+                let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
+                history = history.filter(item => item.id !== id);
+                localStorage.setItem('yt_local_history', JSON.stringify(history));
+                loadLocalHistory(true); 
+            }
+        }
+
+        const returnToVideoBtn = document.getElementById('return-to-video-btn');
+        const globalPauseBtn = document.getElementById('global-pause-btn');
+        const watchView = document.getElementById('watchView');
+
+        globalPauseBtn.addEventListener('click', () => {
+            if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
+                const state = ytPlayer.getPlayerState();
+                if (state === 1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
+            } else {
+                if (appState.isVideoPaused) { globalPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>'; appState.isVideoPaused = false; }
+                else { globalPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>'; appState.isVideoPaused = true; }
+            }
+        });
+
+        returnToVideoBtn.addEventListener('click', () => {
+            if (appState.isFloating) watchView.classList.remove('hidden');
+            else { watchView.classList.add('active'); watchView.classList.remove('hidden'); }
+            returnToVideoBtn.classList.add('hidden'); 
+        });
+
+        function toggleFloatingMode() {
+            const view = document.getElementById('watchView');
+            appState.isFloating = !appState.isFloating;
+            if (appState.isFloating) { view.classList.add('floating-mode'); document.body.style.overflow = 'auto'; }
+            else { view.classList.remove('floating-mode'); document.body.style.overflow = 'hidden'; }
+        }
+
+        function minimizePlayer() {
+            if (appState.isFloating) {
+                document.getElementById('watchView').classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
+            } else if (appState.currentVideoId) {
+                watchView.classList.remove('active', 'hidden'); watchView.classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
+            } else { closePlayer(); }
+        }
+
+        function toggleSplitScreen() {
+            isSplitScreen = !isSplitScreen;
+            const frame2 = document.getElementById('playerFrame2');
+            
+            if (isSplitScreen) {
+                frame2.classList.remove('hidden');
+                if (!ytPlayer2) {
+                    ytPlayer2 = new YT.Player('playerFrame2', {
+                        videoId: '', 
+                        playerVars: { 'autoplay': 0, 'enablejsapi': 1, 'rel': 0 }
+                    });
+                }
+                showToast('תצוגה מפוצלת. לחץ על סרטון נוסף כדי לנגן בו.');
+                document.querySelector('.player-container').style.maxWidth = '95vw';
+            } else {
+                frame2.classList.add('hidden');
+                if (ytPlayer2 && typeof ytPlayer2.stopVideo === 'function') ytPlayer2.stopVideo();
+                document.querySelector('.player-container').style.maxWidth = '1024px';
+            }
+        }
+
+        function toggleConfig() {
+            const modal = document.getElementById('configModal');
+            modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
         }
 
         function saveAndStart() {
@@ -1682,7 +1522,7 @@
             document.getElementById('authContainer').classList.remove('hidden');
             document.getElementById('userDisplay').classList.add('hidden');
             document.getElementById('userName').innerText = ''; document.getElementById('userImg').src = '';
-            document.getElementById('navHistory').classList.add('hidden');
+            document.getElementById('navHistory').style.display = 'none';
             loadHomePage(); 
         }
 
@@ -1709,10 +1549,7 @@
                     client_id: appState.clientId, scope: 'https://www.googleapis.com/auth/youtube.readonly',
                     callback: (tokenResponse) => {
                         if (tokenResponse.error !== undefined) throw (tokenResponse);
-                        appState.token = tokenResponse.access_token; 
-                        updateUserInfo(); 
-                        document.getElementById('navHistory').classList.remove('hidden');
-                        loadHomePage();
+                        appState.token = tokenResponse.access_token; updateUserInfo(); loadHomePage();
                     },
                 });
             } catch (e) { console.error("Auth init error", e); }
@@ -1730,6 +1567,7 @@
                 document.getElementById('authContainer').classList.add('hidden');
                 document.getElementById('userDisplay').classList.remove('hidden');
                 document.getElementById('userImg').src = data.picture; document.getElementById('userName').innerText = data.name;
+                document.getElementById('navHistory').style.display = 'flex';
             } catch(e) { console.error("UserInfo fetch error", e); }
         }
 
@@ -1748,9 +1586,9 @@
             setActiveNavItem('navHome');
             appState.searchContext = 'general';
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.add('hidden');
             document.getElementById('searchInput').value = "";
             appState.pageToken = "";
-            setupLocalSearch(false, []);
 
             if (!isHistoryNav) pushHistory({ type: 'home' });
             
@@ -1788,7 +1626,7 @@
             setActiveNavItem('navHistory');
             appState.searchContext = 'general';
             document.getElementById('channelHeaderContainer').classList.add('hidden');
-            setupLocalSearch(false, []);
+            document.getElementById('internalSearch').classList.add('hidden');
             
             if (!isHistoryNav) pushHistory({ type: 'history' });
 
@@ -1797,7 +1635,7 @@
             
             document.getElementById('pagination').classList.add('hidden');
             const titleEl = document.getElementById('sectionTitle');
-            titleEl.classList.remove('hidden'); titleEl.innerText = "פעילות אחרונה בחשבון";
+            titleEl.classList.remove('hidden'); titleEl.innerText = "פעילות אחרונה בחשבון (Google)";
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
 
             try {
@@ -1825,11 +1663,11 @@
 
             appState.searchContext = 'general';
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.add('hidden');
             setActiveNavItem('');
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('sectionTitle').innerText = `תוצאות חיפוש: ${query}`;
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-            setupLocalSearch(false, []);
 
             if (!loadMore) {
                 if (appState.isSelectionMode) toggleSelectionMode();
@@ -1891,12 +1729,12 @@
                 if (appState.isSelectionMode) toggleSelectionMode();
                 if (appState.currentVideoId) minimizePlayer();
                 if (!isHistoryNav && channelId) pushHistory({ type: 'channel', channelId: channelId });
-                setupLocalSearch(false, []);
 
                 try {
                     document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען ערוץ...</div>`;
                     document.getElementById('sectionTitle').innerText = "טוען...";
                     document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+                    document.getElementById('internalSearch').classList.add('hidden');
                     
                     const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet,statistics,brandingSettings&id=${channelId}&key=${appState.apiKey}`);
                     const data = await res.json();
@@ -1947,29 +1785,22 @@
             appState.currentRenderedItems = []; 
             
             document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.add('hidden');
             document.getElementById('sectionTitle').innerText = `פלייליסט: ${title}`;
             document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען סרטונים...</div>`;
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-            setupLocalSearch(false, []);
             
             loadChannelVideos(null, true); 
         }
 
-        function renderResults(items, clear, isFiltered = false) {
+        function renderResults(items, clear) {
             const grid = document.getElementById('resultsGrid');
-            if (clear) { grid.innerHTML = ''; if(!isFiltered) appState.currentRenderedItems = []; }
+            if (clear) { grid.innerHTML = ''; appState.currentRenderedItems = []; }
             
-            if(!isFiltered) {
-                appState.currentRenderedItems = [...appState.currentRenderedItems, ...items];
-            }
+            appState.currentRenderedItems = [...appState.currentRenderedItems, ...items];
             
             const localHistory = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             const watchedIds = new Set(localHistory.map(h => h.id));
-
-            if (items.length === 0 && isFiltered) {
-                grid.innerHTML = `<div class="col-span-full text-center py-10 opacity-50" style="color: var(--text-secondary);">לא נמצאו תוצאות לסינון זה.</div>`;
-                return;
-            }
 
             items.forEach(item => {
                 const snip = item.snippet; const kind = item.id.kind;
@@ -1980,14 +1811,14 @@
                     const likeIconCh = isLikedCh ? 'fas fa-heart text-red-500' : 'far fa-heart';
                     
                     const card = document.createElement('div');
-                    card.className = "video-card group flex flex-col items-center p-4 rounded-2xl cursor-pointer transition border relative";
+                    card.className = "video-card group flex flex-col items-center p-4 rounded-2xl cursor-pointer transition border";
                     card.style.backgroundColor = "var(--bg-card)";
                     card.style.borderColor = "var(--border-color)";
                     card.onclick = () => loadChannelVideos(channelId);
                     card.innerHTML = `
                         <div class="relative w-full flex justify-center mb-4">
                             <img src="${snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url}" class="w-32 h-32 rounded-full object-cover border-2" style="border-color: var(--border-color);">
-                            <button onclick="event.stopPropagation(); toggleLikeItem(this, {id: '${channelId}', title: '${snip.title.replace(/'/g, "\\'")}', thumbnail: '${snip.thumbnails?.high?.url || snip.thumbnails?.default?.url}'}, 'channels', event)" class="absolute top-0 right-0 p-2 rounded-full transition hover:scale-110" style="color: var(--text-primary);"><i class="${likeIconCh} text-lg"></i></button>
+                            <button onclick="event.stopPropagation(); toggleLikeItem(this, {id: '${channelId}', title: '${snip.title.replace(/'/g, "\\'")}', thumbnail: '${snip.thumbnails?.high?.url || snip.thumbnails?.default?.url}'}, 'channels', event)" class="absolute top-0 right-0 p-2 rounded-full transition" style="color: var(--text-primary);"><i class="${likeIconCh} text-lg"></i></button>
                         </div>
                         <h3 class="font-bold text-lg text-center mb-1" style="color: var(--text-primary);">${snip.title}</h3>
                         <p class="text-xs text-center mb-3" style="color: var(--text-secondary);">ערוץ</p>
@@ -2003,7 +1834,7 @@
                     const likeIconPl = isLikedPl ? 'fas fa-heart text-red-500' : 'far fa-heart';
                     
                     const card = document.createElement('div');
-                    card.className = "video-card group flex flex-col cursor-pointer relative";
+                    card.className = "video-card group flex flex-col cursor-pointer";
                     const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     const thumbUrl = snip.thumbnails?.medium?.url || snip.thumbnails?.high?.url || snip.thumbnails?.default?.url || '';
                     const channelTitle = snip.channelTitle || '';
@@ -2018,7 +1849,7 @@
                                 <div class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
                                     <i class="fas fa-list-ul"></i><span>${item.contentDetails?.itemCount ? item.contentDetails.itemCount + ' סרטונים' : 'פלייליסט'}</span>
                                 </div>
-                                <button onclick="event.stopPropagation(); toggleLikeItem(this, {id: '${playlistId}', title: '${title}', thumbnail: '${thumbUrl}'}, 'playlists', event)" class="absolute top-2 left-2 bg-black/60 p-2 rounded-full transition opacity-0 group-hover/img:opacity-100 backdrop-blur-sm z-10 hover:scale-110" style="color: white;"><i class="${likeIconPl}"></i></button>
+                                <button onclick="event.stopPropagation(); toggleLikeItem(this, {id: '${playlistId}', title: '${title}', thumbnail: '${thumbUrl}'}, 'playlists', event)" class="absolute top-2 left-2 bg-black/60 p-2 rounded-full transition opacity-0 group-hover/img:opacity-100 backdrop-blur-sm z-10" style="color: white;"><i class="${likeIconPl}"></i></button>
                             </div>
                         </div>
                         <div class="flex-1 px-1">
@@ -2070,23 +1901,9 @@
                 const isWatchLater = PlaylistManager.getPlaylists()['Watch Later']?.some(v => v.id === videoId);
                 const watchLaterIconClass = isWatchLater ? 'fas fa-clock text-blue-500' : 'fas fa-clock';
 
-                // Resume Logic visually
-                let progressHtml = '';
-                if (appState.searchContext === 'resume' && item.resumeData) {
-                    const durSec = ResumeManager.getDurationSec(item.contentDetails?.duration);
-                    if (durSec) {
-                        const pct = Math.min(100, (item.resumeData.time / durSec) * 100);
-                        progressHtml = `<div class="resume-progress-container"><div class="resume-progress-bar" style="width: ${pct}%"></div></div>`;
-                        durationText = `<span class="absolute bottom-2 left-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-bold">נותרו ${formatTimeSec(durSec - item.resumeData.time)}</span>`;
-                    }
-                }
-
                 card.innerHTML = `
                     <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">
-                        <div class="relative overflow-hidden rounded-2xl">
-                            <img src="${thumbUrl}" class="w-full aspect-video object-cover" style="background-color: var(--bg-surface);">
-                            ${progressHtml}
-                        </div>
+                        <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl" style="background-color: var(--bg-surface);">
                         ${durationText}
                         ${watchedBadge}
                         
@@ -2098,11 +1915,6 @@
                         <button onclick="PlaylistManager.toggleWatchLater(this, {id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'}, event)" 
                             class="absolute top-2 left-2 bg-black/60 text-white p-1.5 rounded-lg opacity-0 group-hover/img:opacity-100 transition backdrop-blur-sm shadow-lg hover:scale-110" title="הוסף/הסר מצפייה בהמשך">
                             <i class="${watchLaterIconClass}"></i>
-                        </button>
-                        
-                        <button onclick="event.stopPropagation(); QueueManager.add({id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'})" 
-                            class="absolute top-12 left-2 bg-black/60 hover:bg-blue-600 text-white p-1.5 rounded-lg opacity-0 group-hover/img:opacity-100 transition backdrop-blur-sm shadow-lg hover:scale-110" title="הוסף לתור">
-                            <i class="fas fa-list-ol"></i>
                         </button>
                     </div>
                     <div class="flex-1 flex gap-3 px-1">
@@ -2129,6 +1941,11 @@
                                     class="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-full transition w-fit border" title="שמור לרשימה" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">
                                     <i class="fas fa-list-ul"></i> שמירה
                                 </button>
+                                
+                                <button onclick="event.stopPropagation(); addToQueue({id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'}, event)" 
+                                    class="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-full transition w-fit border" title="הוסף לתור ההשמעה (זמני)" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">
+                                    <i class="fas fa-step-forward"></i> לתור
+                                </button>
 
                                 <div class="flex items-center gap-2 px-3 py-1.5 rounded-full transition w-fit border" onclick="event.stopPropagation();" style="background-color: var(--bg-surface); border-color: var(--border-color);">
                                     <select id="dl-qual-${videoId}" class="bg-transparent text-[10px] outline-none cursor-pointer" style="color: var(--text-secondary);">
@@ -2138,15 +1955,35 @@
                                         <option value="audio" style="background-color: var(--bg-surface);">שמע (MP3)</option>
                                     </select>
                                     <div class="w-px h-3" style="background-color: var(--border-light);"></div>
-                                    <button onclick="downloadWithYtDlp('${videoId}')" class="transition flex items-center gap-1" style="color: var(--accent-color);" title="הורד עכשיו">
+                                    <button onclick="downloadWithYtDlp('${videoId}')" class="transition flex items-center gap-1" style="color: #3b82f6;" title="הורד עכשיו">
                                         <i class="fas fa-download"></i>
                                     </button>
                                 </div>
+                                ${appState.searchContext === 'local_history' ? `
+                                <button onclick="removeFromLocalHistory('${videoId}', event)" class="flex items-center justify-center text-[10px] px-3 py-1.5 rounded-full transition w-fit border" title="הסר מההיסטוריה" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                ` : ''}
+
+                                ${appState.searchContext.startsWith('playlist_') ? `
+                                <button onclick="event.stopPropagation(); PlaylistManager.removeFromPlaylist('${appState.searchContext.replace('playlist_', '')}', '${videoId}')" 
+                                    class="text-[10px] px-3 py-1.5 rounded-full border transition" title="הסר מרשימה" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                ` : ''}
                             </div>
                         </div>
                     </div>`;
                 grid.appendChild(card);
             });
+        }
+
+        function setActiveNavItem(id) {
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+            if(id) {
+                const navItem = document.getElementById(id);
+                if(navItem) navItem.classList.add('active');
+            }
         }
 
         async function openPlayer(id, title, thumbnail = '', channel = '', duration = '') {
@@ -2165,7 +2002,19 @@
             appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
             updateLikeButtonUI(LocalLikesManager.isLiked(id, 'videos'));
 
-            const startSeconds = ResumeManager.getPosition(id);
+            let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+            let startSeconds = 0;
+            if (positions[id] && positions[id].time) {
+                startSeconds = Math.floor(positions[id].time);
+            }
+
+            if (isSplitScreen && ytPlayer) {
+                if (ytPlayer2 && typeof ytPlayer2.loadVideoById === 'function') {
+                    ytPlayer2.loadVideoById({videoId: id, startSeconds: startSeconds});
+                }
+                showToast(`נטען לנגן המפוצל: ${title}`);
+                return; 
+            }
 
             if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
                 ytPlayer.loadVideoById({videoId: id, startSeconds: startSeconds});
@@ -2196,13 +2045,27 @@
             
             view.classList.add('active'); view.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            
-            // Highlight in queue if relevant
-            if(QueueManager.queue.length > 0) {
-                QueueManager.currentIndex = QueueManager.queue.findIndex(v => v.id === id);
-                QueueManager.render();
-            }
         }
+
+        function closePlayer() {
+            if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+            if (ytPlayer2 && typeof ytPlayer2.stopVideo === 'function') ytPlayer2.stopVideo();
+            
+            document.getElementById('watchView').classList.remove('active');
+            document.getElementById('watchView').classList.add('hidden');
+            document.body.style.overflow = 'auto'; 
+            appState.currentVideoId = null; appState.isVideoPaused = false;
+            document.getElementById('global-pause-btn').classList.add('hidden'); document.getElementById('return-to-video-btn').classList.add('hidden');
+        }
+
+        function copyLink(id) {
+            const url = `https://www.youtube.com/watch?v=${id}`;
+            const dummy = document.createElement("input"); document.body.appendChild(dummy);
+            dummy.value = url; dummy.select(); document.execCommand('copy'); document.body.removeChild(dummy);
+            showToast("הקישור הועתק ללוח!");
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') performSearch(false); });
     </script>
 </body>
 </html>
