@@ -511,7 +511,7 @@
             }
         })();
 
-        // שמירת מיקום הוידאו כל 5 שניות
+        // שמירת מיקום הוידאו כל 5 שניות (עודכן למניעת באגים)
         setInterval(() => {
             if (ytPlayer && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1 && appState.currentVideoId && appState.currentVideoDetails) {
                 let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
@@ -548,7 +548,7 @@
 
         function onPlayerStateChange(event) {
             if (event.data === 0) { 
-                // מחיקה מהמשך צפייה כשהסרטון נגמר אוטומטית
+                // מחיקה מהמשך צפייה כשהסרטון נגמר אוטומטית - וידוא מחיקה סופית
                 if (appState.currentVideoId) {
                     let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
                     if (positions[appState.currentVideoId]) {
@@ -1360,7 +1360,8 @@
             if (appState.currentVideoId) minimizePlayer();
 
             const positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
-            const items = Object.values(positions).filter(p => p && p.details).sort((a,b) => b.time - a.time);
+            // מוודאים שאין ערכים ריקים בטעות
+            const items = Object.values(positions).filter(p => p && p.details && p.details.id).sort((a,b) => b.time - a.time);
 
             if (items.length === 0) {
                 document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">אין סרטונים שהופסקו באמצע.</div>`;
@@ -1376,6 +1377,13 @@
             }));
 
             renderResults(formattedItems, true);
+
+            // תוספת: כפתור נקה הכל למניעת באגים של נתונים תקועים
+            const grid = document.getElementById('resultsGrid');
+            const clearBtn = document.createElement('div');
+            clearBtn.className = "col-span-full flex justify-center mt-8";
+            clearBtn.innerHTML = `<button onclick="if(confirm('לנקות את כל רשימת המשך צפייה?')) { localStorage.setItem('yt_resume_positions', '{}'); loadResumeTab(true); }" class="px-6 py-2 rounded-full text-sm border transition flex items-center" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;"><i class="fas fa-trash-alt ml-2"></i> נקה את כל הרשימה</button>`;
+            grid.appendChild(clearBtn);
         }
 
         async function loadLocalSubscriptionsFeed() {
@@ -1394,22 +1402,17 @@
                 return;
             }
             
-            document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים מהחודש האחרון...</div>`;
-            document.getElementById('sectionTitle').innerText = "עדכונים מערוצים שלי (חודש אחרון)";
+            document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים אחרונים...</div>`;
+            document.getElementById('sectionTitle').innerText = "עדכונים מערוצים שלי (5 סרטונים אחרונים)";
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
 
             let allVideos = [];
             
-            // חישוב התאריך של לפני חודש בדיוק כדי למשוך סרטונים שהועלו רק מאז
-            const oneMonthAgo = new Date();
-            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-            const publishedAfterStr = oneMonthAgo.toISOString();
-
+            // חזרה לבקשה של מקסימום 5 סרטונים מכל ערוץ
             for (let sub of subs) {
                 try {
-                    // הוספת maxResults=50 והגבלת זמן (publishedAfter) דרך ה-API 
-                    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${sub.id}&maxResults=50&order=date&type=video&publishedAfter=${encodeURIComponent(publishedAfterStr)}&key=${appState.apiKey}`;
+                    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${sub.id}&maxResults=5&order=date&type=video&key=${appState.apiKey}`;
                     const res = await fetch(url);
                     const data = await res.json();
                     if(data.items) allVideos = allVideos.concat(data.items);
@@ -1422,14 +1425,12 @@
             const videoIdsArray = allVideos.map(v => v.id.videoId);
             
             if(videoIdsArray.length > 0) {
-                // המגבלה ב-API לקבלת מידע סרטונים היא 50 לבקשה. לכן נחלק לקבוצות (chunks) במידת הצורך
                 for (let i = 0; i < videoIdsArray.length; i += 50) {
                     const chunk = videoIdsArray.slice(i, i + 50);
-                    // פרמטר clear (לנקות את המסך) יפעל רק בסבב הראשון כדי שלא יימחק מה שכבר נטען בסבבים הבאים
                     await fetchAndRenderVideos(chunk, i === 0);
                 }
             } else { 
-                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים בחודש האחרון מהערוצים שאחריהם אתה עוקב.</div>`;
+                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים מערוצים אלו.</div>`;
             }
         }
 
@@ -1454,12 +1455,12 @@
             if (event) event.stopPropagation();
             if(confirm("להסיר סרטון זה מרשימת 'המשך צפייה'?")) {
                 let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
-                if (positions[id]) {
-                    delete positions[id];
-                    localStorage.setItem('yt_resume_positions', JSON.stringify(positions));
-                    if (appState.searchContext === 'local_resume') {
-                        loadResumeTab(true); 
-                    }
+                // מחיקה ודאית
+                delete positions[id];
+                localStorage.setItem('yt_resume_positions', JSON.stringify(positions));
+                
+                if (appState.searchContext === 'local_resume') {
+                    loadResumeTab(true); 
                 }
             }
         }
@@ -2007,7 +2008,7 @@
 
         async function openPlayer(id, title, thumbnail = '', channel = '', duration = '') {
             if (appState.isSelectionMode) {
-                toggleSelectionMode();
+                toggleVideoSelection(id);
                 return; 
             }
 
@@ -2027,15 +2028,26 @@
                 startSeconds = Math.floor(positions[id].time);
             }
 
-            if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
-                ytPlayer.loadVideoById({videoId: id, startSeconds: startSeconds});
-            } else {
-                ytPlayer = new YT.Player('playerFrame', {
-                    videoId: id,
-                    playerVars: { 'autoplay': 1, 'enablejsapi': 1, 'rel': 0, 'start': startSeconds },
-                    events: { 'onStateChange': onPlayerStateChange }
-                });
+            // פתרון לנטפרי: השמדה וטעינה מחדש של הנגן לחלוטין
+            if (ytPlayer) {
+                try {
+                    if (typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+                    if (typeof ytPlayer.destroy === 'function') ytPlayer.destroy();
+                } catch(e) { console.warn(e); }
+                ytPlayer = null;
             }
+            
+            // יצירת ה-div מחדש כדי לאפס כל שריד של נגן חסום
+            const playerParent = document.querySelector('.aspect-video');
+            if (playerParent) {
+                playerParent.innerHTML = '<div id="playerFrame" class="w-full h-full absolute inset-0"></div>';
+            }
+
+            ytPlayer = new YT.Player('playerFrame', {
+                videoId: id,
+                playerVars: { 'autoplay': 1, 'enablejsapi': 1, 'rel': 0, 'start': startSeconds },
+                events: { 'onStateChange': onPlayerStateChange }
+            });
             
             appState.currentVideoId = id;
             appState.isVideoPaused = false;
@@ -2060,9 +2072,16 @@
 
         function closePlayer() {
             if (ytPlayer) {
-                if (typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
-                if (typeof ytPlayer.destroy === 'function') ytPlayer.destroy();
+                try {
+                    if (typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+                    if (typeof ytPlayer.destroy === 'function') ytPlayer.destroy();
+                } catch(e) { console.warn(e); }
                 ytPlayer = null;
+            }
+            
+            const playerParent = document.querySelector('.aspect-video');
+            if (playerParent) {
+                playerParent.innerHTML = '<div id="playerFrame" class="w-full h-full absolute inset-0"></div>';
             }
             
             document.getElementById('watchView').classList.remove('active');
