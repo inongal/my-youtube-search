@@ -116,8 +116,7 @@
         #watchView.floating-mode .player-info-section, #watchView.floating-mode .player-header { display: none !important; }
         #watchView.floating-mode .aspect-video { width: 100%; height: 100%; position: absolute; inset: 0; padding: 0; margin: 0; }
         .floating-controls { display: none; }
-        #watchView.floating-mode .floating-controls { display: flex; position: absolute; top: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); z-index: 20; opacity: 0; transition: opacity 0.3s ease; justify-content: flex-end; gap: 10px; cursor: move; }
-        #watchView.floating-mode .player-container:hover .floating-controls { opacity: 1; }
+        #watchView.floating-mode .player-container:hover .floating-controls { display: flex; position: absolute; top: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); z-index: 20; opacity: 1; justify-content: flex-end; gap: 10px; cursor: move; }
 
         #configModal { display: none; backdrop-filter: blur(12px); background-color: var(--modal-overlay); }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -1395,26 +1394,43 @@
                 return;
             }
             
-            document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים אחרונים...</div>`;
-            document.getElementById('sectionTitle').innerText = "עדכונים מערוצים שלי";
+            document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים מהחודש האחרון...</div>`;
+            document.getElementById('sectionTitle').innerText = "עדכונים מערוצים שלי (חודש אחרון)";
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
 
             let allVideos = [];
+            
+            // חישוב התאריך של לפני חודש בדיוק כדי למשוך סרטונים שהועלו רק מאז
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+            const publishedAfterStr = oneMonthAgo.toISOString();
+
             for (let sub of subs) {
                 try {
-                    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${sub.id}&maxResults=5&order=date&type=video&key=${appState.apiKey}`;
+                    // הוספת maxResults=50 והגבלת זמן (publishedAfter) דרך ה-API 
+                    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${sub.id}&maxResults=50&order=date&type=video&publishedAfter=${encodeURIComponent(publishedAfterStr)}&key=${appState.apiKey}`;
                     const res = await fetch(url);
                     const data = await res.json();
                     if(data.items) allVideos = allVideos.concat(data.items);
                 } catch(e) { console.error("שגיאה בטעינת ערוץ", sub.title) }
             }
 
+            // מיון כל הסרטונים לפי תאריך העלאה (החדש ביותר קודם)
             allVideos.sort((a, b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt));
             
-            const videoIds = allVideos.map(v => v.id.videoId).join(',');
-            if(videoIds) fetchAndRenderVideos(videoIds.split(','), true);
-            else document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים.</div>`;
+            const videoIdsArray = allVideos.map(v => v.id.videoId);
+            
+            if(videoIdsArray.length > 0) {
+                // המגבלה ב-API לקבלת מידע סרטונים היא 50 לבקשה. לכן נחלק לקבוצות (chunks) במידת הצורך
+                for (let i = 0; i < videoIdsArray.length; i += 50) {
+                    const chunk = videoIdsArray.slice(i, i + 50);
+                    // פרמטר clear (לנקות את המסך) יפעל רק בסבב הראשון כדי שלא יימחק מה שכבר נטען בסבבים הבאים
+                    await fetchAndRenderVideos(chunk, i === 0);
+                }
+            } else { 
+                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים בחודש האחרון מהערוצים שאחריהם אתה עוקב.</div>`;
+            }
         }
 
         function clearLocalHistory() {
@@ -1991,7 +2007,7 @@
 
         async function openPlayer(id, title, thumbnail = '', channel = '', duration = '') {
             if (appState.isSelectionMode) {
-                toggleVideoSelection(id);
+                toggleSelectionMode();
                 return; 
             }
 
@@ -2043,7 +2059,11 @@
         }
 
         function closePlayer() {
-            if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+            if (ytPlayer) {
+                if (typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+                if (typeof ytPlayer.destroy === 'function') ytPlayer.destroy();
+                ytPlayer = null;
+            }
             
             document.getElementById('watchView').classList.remove('active');
             document.getElementById('watchView').classList.add('hidden');
