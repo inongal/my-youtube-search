@@ -83,20 +83,23 @@
         #watchView.hidden { display: none !important; }
         #watchView.active { display: flex !important; }
         
-        #watchView.floating-mode { position: fixed; top: auto; left: 20px; bottom: 20px; right: auto; width: 400px; height: 225px; background: transparent; backdrop-filter: none; padding: 0; z-index: 9999; align-items: flex-end; justify-content: flex-start; pointer-events: none; }
-        #watchView.floating-mode .modal-overlay-bg { display: none; }
-        #watchView.floating-mode .player-container { width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; resize: none; overflow: hidden; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid #333; pointer-events: auto; display: block; position: relative; }
-        #watchView.floating-mode .player-info-section, #watchView.floating-mode .player-header { display: none !important; }
-        #watchView.floating-mode .aspect-video { width: 100%; height: 100%; position: absolute; inset: 0; padding: 0; margin: 0; }
-        .floating-controls { display: none; }
-        #watchView.floating-mode .floating-controls { display: flex; position: absolute; top: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); z-index: 20; opacity: 0; transition: opacity 0.3s ease; justify-content: flex-end; gap: 10px; cursor: move; }
-        #watchView.floating-mode .player-container:hover .floating-controls { opacity: 1; }
-
         #configModal { display: none; backdrop-filter: blur(12px); }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        
+        /* Sidebar items */
         .sidebar-item { display: flex; align-items: center; gap: 20px; padding: 12px; cursor: pointer; border-radius: 12px; transition: background 0.2s; }
         .sidebar-item:hover { background: var(--yt-surface); }
         .sidebar-item.active { background: var(--yt-surface); font-weight: 600; }
+
+        /* --- Collapsed Sidebar Styles --- */
+        #mainSidebar { transition: width 0.3s ease, padding 0.3s ease; }
+        #mainContent { transition: margin-right 0.3s ease; }
+        
+        .sidebar-collapsed { width: 80px !important; padding: 16px 8px !important; }
+        .sidebar-collapsed .sidebar-item { justify-content: center; padding: 16px 0; gap: 0; }
+        .sidebar-collapsed .sidebar-item span { display: none; }
+        .sidebar-collapsed .uppercase { display: none; }
+        body.sidebar-is-collapsed #mainContent { margin-right: 80px !important; }
 
         /* Toast Styling */
         .copy-toast { visibility: hidden; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 10px 20px; position: fixed; z-index: 1000; bottom: 30px; left: 50%; transform: translateX(-50%); font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
@@ -111,7 +114,7 @@
 
     <header class="fixed top-0 left-0 right-0 h-16 bg-[#0f0f0f]/95 border-b border-[#222] flex items-center justify-between px-6 z-[100]">
         <div class="flex items-center gap-5">
-            <button class="text-xl p-2 hover:bg-[#272727] rounded-full transition"><i class="fas fa-bars"></i></button>
+            <button onclick="toggleSidebar()" class="text-xl p-2 hover:bg-[#272727] rounded-full transition"><i class="fas fa-bars"></i></button>
             <div class="flex items-center gap-1 cursor-pointer" onclick="loadHomePage()">
                 <i class="fab fa-youtube text-[#ff0000] text-3xl"></i>
                 <span class="text-xl font-bold tracking-tight text-white hidden md:inline">YouTube</span>
@@ -195,16 +198,10 @@
     </header>
 
     <div class="flex pt-16 min-h-screen">
-        <aside class="w-64 fixed right-0 top-16 bottom-0 hidden lg:block bg-[#0f0f0f] border-l border-[#222] p-4 overflow-y-auto custom-scrollbar">
+        <aside id="mainSidebar" class="w-64 fixed right-0 top-16 bottom-0 hidden lg:flex flex-col bg-[#0f0f0f] border-l border-[#222] p-4 overflow-y-auto custom-scrollbar">
             <nav class="space-y-1">
                 <div onclick="loadHomePage()" class="sidebar-item active" id="navHome">
                     <i class="fas fa-house text-lg"></i><span>דף הבית</span>
-                </div>
-                <div class="sidebar-item">
-                    <i class="fas fa-bolt text-lg"></i><span>Shorts</span>
-                </div>
-                <div class="sidebar-item">
-                    <i class="fas fa-layer-group text-lg"></i><span>מנויים</span>
                 </div>
                 <hr class="my-3 border-[#222]">
                 <div onclick="loadWatchHistory()" class="sidebar-item" id="navHistory">
@@ -225,7 +222,7 @@
                 </div>
             </nav>
             
-            <div class="mt-8">
+            <div class="mt-8 uppercase-container">
                 <h4 class="px-3 text-xs font-bold text-gray-500 mb-4 uppercase tracking-wider text-right">ניתוח נתונים</h4>
                 <div class="chart-container">
                     <canvas id="statsChart"></canvas>
@@ -233,7 +230,7 @@
             </div>
         </aside>
 
-        <main class="flex-1 lg:mr-64 p-6 relative">
+        <main id="mainContent" class="flex-1 lg:mr-64 p-6 relative">
             
             <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
                 <h2 id="sectionTitle" class="text-2xl font-bold hidden">מומלצים</h2>
@@ -287,7 +284,6 @@
                 <option value="720">720p</option>
                 <option value="480">480p</option>
                 <option value="audio">שמע (MP3)</option>
-                <option value="subs">כתוביות (עברית)</option>
             </select>
             
             <button onclick="batchAddToPlaylist()" class="bg-[#222] hover:bg-[#333] border border-[#444] px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2">
@@ -308,23 +304,12 @@
         <div class="absolute inset-0 modal-overlay-bg" onclick="minimizePlayer()"></div>
         
         <div class="player-container relative bg-[#0f0f0f] w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border border-[#333] shadow-2xl z-10">
-            <div class="floating-controls">
-                 <button onclick="toggleFloatingMode()" class="w-8 h-8 bg-black/60 hover:bg-[#cc0000] text-white rounded-full flex items-center justify-center transition" title="חזור למסך רגיל">
-                    <i class="fas fa-expand-alt text-xs"></i>
-                </button>
-                <button onclick="closePlayer()" class="w-8 h-8 bg-black/60 hover:bg-[#cc0000] text-white rounded-full flex items-center justify-center transition" title="סגור">
-                    <i class="fas fa-times text-xs"></i>
-                </button>
-            </div>
 
             <div class="player-header p-4 flex justify-between items-center border-b border-[#222]">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2"></h3>
                 <div class="flex gap-2">
                     <button onclick="toggleExternalPip()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="פתח בחלון צף חיצוני (PiP)">
                         <i class="fas fa-external-link-alt text-gray-400"></i>
-                    </button>
-                    <button onclick="toggleFloatingMode()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="נגן צף באתר">
-                        <i class="fas fa-clone text-gray-400"></i>
                     </button>
                     <button onclick="minimizePlayer()" class="w-10 h-10 hover:bg-[#272727] rounded-full flex items-center justify-center transition" title="מזער והמשך לשמוע ברקע">
                         <i class="fas fa-compress text-gray-400"></i>
@@ -409,7 +394,6 @@
             currentVideoId: null,
             currentVideoDetails: null, 
             isVideoPaused: false,
-            isFloating: false,
             activeChannelId: null,
             currentRenderedItems: [],
             maxResults: 12,
@@ -417,6 +401,11 @@
             isSelectionMode: false,
             selectedVideos: new Set()
         };
+
+        function toggleSidebar() {
+            document.body.classList.toggle('sidebar-is-collapsed');
+            document.getElementById('mainSidebar').classList.toggle('sidebar-collapsed');
+        }
 
         document.getElementById('resultsGrid').addEventListener('click', (e) => {
             if (appState.isSelectionMode) {
@@ -734,7 +723,7 @@
                 appState.selectedVideos.has(item.id.videoId || item.id)
             );
             
-            let qualityText = quality === 'audio' ? 'שמע (MP3)' : (quality === 'subs' ? 'כתוביות (עברית)' : quality + 'p');
+            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
             
             const toast = document.getElementById('toast');
             toast.innerText = `מתחיל העברה של ${videos.length} סרטונים להורדה (${qualityText})...`;
@@ -742,8 +731,6 @@
             setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
 
             let delay = 0;
-            const DELAY_BETWEEN_REQUESTS = 2500; 
-
             videos.forEach((item) => {
                 const vidId = item.id.videoId || item.id;
                 setTimeout(() => {
@@ -756,10 +743,10 @@
                         if (document.body.contains(iframe)) {
                             document.body.removeChild(iframe);
                         }
-                    }, Math.max(2000, DELAY_BETWEEN_REQUESTS - 500)); 
+                    }, 2000);
                 }, delay);
                 
-                delay += DELAY_BETWEEN_REQUESTS; 
+                delay += 800; 
             });
 
             setTimeout(() => { 
@@ -1072,7 +1059,7 @@
             let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             history = history.filter(item => item.id !== id);
             history.unshift({ id: id, title: title, thumbnail: thumbnail, channel: channelName, timestamp: new Date().toISOString() });
-            if (history.length > 50) history.pop();
+            /* הוסרה הגבלת 50 הסרטונים לפי בקשתך - כעת שמירת היסטוריית הצפייה אינה מוגבלת */
             localStorage.setItem('yt_local_history', JSON.stringify(history));
         }
 
@@ -1176,23 +1163,17 @@
         });
 
         returnToVideoBtn.addEventListener('click', () => {
-            if (appState.isFloating) watchView.classList.remove('hidden');
-            else { watchView.classList.add('active'); watchView.classList.remove('hidden'); }
+            watchView.classList.add('active'); 
+            watchView.classList.remove('hidden');
             returnToVideoBtn.classList.add('hidden'); 
         });
 
-        function toggleFloatingMode() {
-            const view = document.getElementById('watchView');
-            appState.isFloating = !appState.isFloating;
-            if (appState.isFloating) { view.classList.add('floating-mode'); document.body.style.overflow = 'auto'; }
-            else { view.classList.remove('floating-mode'); document.body.style.overflow = 'hidden'; }
-        }
-
         function minimizePlayer() {
-            if (appState.isFloating) {
-                document.getElementById('watchView').classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
-            } else if (appState.currentVideoId) {
-                watchView.classList.remove('active', 'hidden'); watchView.classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
+            if (appState.currentVideoId) {
+                watchView.classList.remove('active', 'hidden'); 
+                watchView.classList.add('hidden'); 
+                returnToVideoBtn.classList.remove('hidden'); 
+                document.body.style.overflow = 'auto'; 
             } else { closePlayer(); }
         }
 
@@ -1553,6 +1534,10 @@
             
             appState.currentRenderedItems = [...appState.currentRenderedItems, ...items];
             
+            // יצירת Set של סרטונים נצפו לבדיקה מהירה
+            const localHistory = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
+            const watchedIds = new Set(localHistory.map(h => h.id));
+
             items.forEach(item => {
                 const snip = item.snippet; const kind = item.id.kind;
                 
@@ -1634,10 +1619,14 @@
                 const isLiked = LocalLikesManager.isLiked(videoId);
                 const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
                 
+                const isWatched = watchedIds.has(videoId);
+                const watchedBadge = isWatched ? `<div class="absolute top-2 right-10 bg-green-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow">נצפה <i class="fas fa-check ml-0.5"></i></div>` : '';
+
                 card.innerHTML = `
                     <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">
                         <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl bg-[#222]">
                         ${durationText}
+                        ${watchedBadge}
                         
                         <div class="selection-checkbox absolute top-2 right-2 z-10 w-6 h-6 bg-black/80 rounded border-2 border-gray-400 items-center justify-center transition">
                             <input type="checkbox" class="pointer-events-none opacity-0 absolute inset-0" ${appState.selectedVideos.has(videoId) ? 'checked' : ''}>
@@ -1680,7 +1669,6 @@
                                         <option value="720" class="bg-[#222]">720p</option>
                                         <option value="480" class="bg-[#222]">480p</option>
                                         <option value="audio" class="bg-[#222]">שמע (MP3)</option>
-                                        <option value="subs" class="bg-[#222]">כתוביות (עברית)</option>
                                     </select>
                                     <div class="w-px h-3 bg-[#555]"></div>
                                     <button onclick="downloadWithYtDlp('${videoId}')" class="text-green-400 hover:text-green-300 transition flex items-center gap-1" title="הורד עכשיו">
@@ -1728,7 +1716,6 @@
             saveToLocalHistory(id, title, thumbnail, channel);
 
             const view = document.getElementById('watchView');
-            if(appState.isFloating) toggleFloatingMode();
             
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('fullTitle').innerText = title;
@@ -1769,9 +1756,9 @@
 
         function closePlayer() {
             if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
-            document.getElementById('watchView').classList.remove('active', 'floating-mode');
+            document.getElementById('watchView').classList.remove('active');
             document.getElementById('watchView').classList.add('hidden');
-            appState.isFloating = false; document.body.style.overflow = 'auto'; 
+            document.body.style.overflow = 'auto'; 
             appState.currentVideoId = null; appState.isVideoPaused = false;
             document.getElementById('global-pause-btn').classList.add('hidden'); document.getElementById('return-to-video-btn').classList.add('hidden');
         }
@@ -1791,7 +1778,7 @@
             const quality = qualSelect ? qualSelect.value : '1080';
             
             const toast = document.getElementById('toast');
-            let qualityText = quality === 'audio' ? 'שמע (MP3)' : (quality === 'subs' ? 'כתוביות (עברית)' : quality + 'p');
+            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
             toast.innerText = `מעביר הורדה (${qualityText}) ל-yt-dlp...`; toast.className = "copy-toast show";
             setTimeout(() => { toast.className = "copy-toast"; toast.innerText = "הקישור הועתק ללוח!"; }, 3000);
 
