@@ -1519,7 +1519,7 @@
                 card.className = "video-card channel-card group flex flex-col items-center p-6 rounded-2xl cursor-pointer transition border";
                 card.style.backgroundColor = "var(--bg-card)";
                 card.style.borderColor = "var(--border-color)";
-                card.onclick = () => loadChannelVideos(sub.id, false, false, 'all');
+                card.onclick = () => loadChannelVideos(sub.id, false, false, 'recent');
                 
                 card.innerHTML = `
                     <div class="relative w-full flex justify-center mb-4 channel-img-wrap">
@@ -1531,7 +1531,7 @@
                         <h3 class="font-bold text-lg text-center mb-1 line-clamp-1" style="color: var(--text-primary);">${sub.title}</h3>
                         <p class="text-xs text-center mb-4" style="color: var(--text-secondary);">ערוץ במעקב</p>
                         <div class="flex gap-2">
-                            <button class="text-white text-xs font-bold px-4 py-2 rounded-full transition shadow" style="background-color: var(--text-primary); color: var(--bg-main);">צפה בערוץ</button>
+                            <button class="text-white text-xs font-bold px-4 py-2 rounded-full transition shadow" style="background-color: var(--text-primary); color: var(--bg-main);">צפה בעדכונים</button>
                             <a href="https://www.youtube.com/channel/${sub.id}" target="_blank" onclick="event.stopPropagation();" class="text-xs font-bold px-4 py-2 rounded-full transition border shadow-sm flex items-center gap-1 hover:opacity-80" style="color: var(--text-secondary); border-color: var(--border-color); background-color: var(--bg-surface);" title="פתח ישירות ב-YouTube">
                                 <i class="fab fa-youtube text-red-500"></i>
                             </a>
