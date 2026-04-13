@@ -107,10 +107,10 @@
         #watchView.floating-mode { position: fixed; top: auto; left: 20px; bottom: 20px; right: auto; background: transparent; backdrop-filter: none; padding: 0; z-index: 9999; align-items: flex-end; justify-content: flex-start; pointer-events: none; }
         #watchView.floating-mode .modal-overlay-bg { display: none; }
         #watchView.floating-mode .player-container { 
-            width: 400px; height: 225px; /* גודל התחלתי */
+            width: 400px; height: 225px; 
             min-width: 250px; min-height: 140px;
             max-width: 90vw; max-height: 90vh;
-            resize: both; /* מאפשר שליטה בגודל */
+            resize: both; 
             overflow: hidden; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid var(--border-color); pointer-events: auto; display: block; position: relative; background: var(--bg-main); 
         }
         #watchView.floating-mode .player-info-section, #watchView.floating-mode .player-header { display: none !important; }
@@ -371,9 +371,6 @@
             <div class="player-header p-4 flex justify-between items-center border-b" style="border-color: var(--border-color);">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2" style="color: var(--text-primary);"></h3>
                 <div class="flex gap-2">
-                    <button onclick="toggleSplitScreen()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="תצוגה מפוצלת">
-                        <i class="fas fa-columns"></i>
-                    </button>
                     <button onclick="toggleFloatingMode()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="נגן צף פנימי נשלט גודל">
                         <i class="fas fa-clone"></i>
                     </button>
@@ -388,10 +385,7 @@
 
             <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                 <div class="aspect-video w-full bg-black flex-shrink-0 relative">
-                    <div id="playerFramesContainer" class="w-full flex flex-col md:flex-row h-full absolute inset-0">
-                        <div id="playerFrame" class="flex-1 w-full h-full"></div>
-                        <div id="playerFrame2" class="flex-1 w-full h-full hidden border-r" style="border-color: var(--border-color);"></div>
-                    </div>
+                    <div id="playerFrame" class="w-full h-full absolute inset-0"></div>
                 </div>
                 <div class="p-8 player-info-section">
                     <div class="flex justify-between items-start mb-4">
@@ -503,8 +497,6 @@
         };
 
         let ytPlayer = null;
-        let ytPlayer2 = null;
-        let isSplitScreen = false;
 
         // הגירת נתוני לייקים לגרסה תומכת סוגים
         (function migrateOldLikes() {
@@ -557,6 +549,15 @@
 
         function onPlayerStateChange(event) {
             if (event.data === 0) { 
+                // מחיקה מהמשך צפייה כשהסרטון נגמר אוטומטית
+                if (appState.currentVideoId) {
+                    let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+                    if (positions[appState.currentVideoId]) {
+                        delete positions[appState.currentVideoId];
+                        localStorage.setItem('yt_resume_positions', JSON.stringify(positions));
+                    }
+                }
+
                 if (appState.tempQueue.length > 0) {
                     const nextVideo = appState.tempQueue.shift();
                     openPlayer(nextVideo.id, nextVideo.title, nextVideo.thumbnail, nextVideo.channel, nextVideo.duration);
@@ -669,6 +670,8 @@
                 loadPlaylistView(state.playlistName, true);
             } else if (state.type === 'liked') { 
                 loadLikedItems(state.likedType, true);
+            } else if (state.type === 'local_resume') {
+                loadResumeTab(true);
             }
         }
 
@@ -1342,12 +1345,13 @@
             grid.appendChild(clearBtn);
         }
 
-        function loadResumeTab() {
+        function loadResumeTab(isHistoryNav = false) {
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navResume');
             appState.searchContext = 'local_resume'; 
             document.getElementById('channelHeaderContainer').classList.add('hidden');
             document.getElementById('internalSearch').classList.remove('hidden');
+            if (!isHistoryNav) pushHistory({ type: 'local_resume' });
 
             document.getElementById('sectionTitle').innerText = "המשך צפייה (סרטונים שהותחלו)";
             document.getElementById('sectionTitle').classList.remove('hidden');
@@ -1430,6 +1434,20 @@
             }
         }
 
+        function removeFromResumeList(id, event) {
+            if (event) event.stopPropagation();
+            if(confirm("להסיר סרטון זה מרשימת 'המשך צפייה'?")) {
+                let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+                if (positions[id]) {
+                    delete positions[id];
+                    localStorage.setItem('yt_resume_positions', JSON.stringify(positions));
+                    if (appState.searchContext === 'local_resume') {
+                        loadResumeTab(true); 
+                    }
+                }
+            }
+        }
+
         const returnToVideoBtn = document.getElementById('return-to-video-btn');
         const globalPauseBtn = document.getElementById('global-pause-btn');
         const watchView = document.getElementById('watchView');
@@ -1463,27 +1481,6 @@
             } else if (appState.currentVideoId) {
                 watchView.classList.remove('active', 'hidden'); watchView.classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
             } else { closePlayer(); }
-        }
-
-        function toggleSplitScreen() {
-            isSplitScreen = !isSplitScreen;
-            const frame2 = document.getElementById('playerFrame2');
-            
-            if (isSplitScreen) {
-                frame2.classList.remove('hidden');
-                if (!ytPlayer2) {
-                    ytPlayer2 = new YT.Player('playerFrame2', {
-                        videoId: '', 
-                        playerVars: { 'autoplay': 0, 'enablejsapi': 1, 'rel': 0 }
-                    });
-                }
-                showToast('תצוגה מפוצלת. לחץ על סרטון נוסף כדי לנגן בו.');
-                document.querySelector('.player-container').style.maxWidth = '95vw';
-            } else {
-                frame2.classList.add('hidden');
-                if (ytPlayer2 && typeof ytPlayer2.stopVideo === 'function') ytPlayer2.stopVideo();
-                document.querySelector('.player-container').style.maxWidth = '1024px';
-            }
         }
 
         function toggleConfig() {
@@ -1965,6 +1962,12 @@
                                 </button>
                                 ` : ''}
 
+                                ${appState.searchContext === 'local_resume' ? `
+                                <button onclick="removeFromResumeList('${videoId}', event)" class="flex items-center justify-center text-[10px] px-3 py-1.5 rounded-full transition w-fit border" title="הסר מהמשך צפייה" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                ` : ''}
+
                                 ${appState.searchContext.startsWith('playlist_') ? `
                                 <button onclick="event.stopPropagation(); PlaylistManager.removeFromPlaylist('${appState.searchContext.replace('playlist_', '')}', '${videoId}')" 
                                     class="text-[10px] px-3 py-1.5 rounded-full border transition" title="הסר מרשימה" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;">
@@ -2008,14 +2011,6 @@
                 startSeconds = Math.floor(positions[id].time);
             }
 
-            if (isSplitScreen && ytPlayer) {
-                if (ytPlayer2 && typeof ytPlayer2.loadVideoById === 'function') {
-                    ytPlayer2.loadVideoById({videoId: id, startSeconds: startSeconds});
-                }
-                showToast(`נטען לנגן המפוצל: ${title}`);
-                return; 
-            }
-
             if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
                 ytPlayer.loadVideoById({videoId: id, startSeconds: startSeconds});
             } else {
@@ -2049,7 +2044,6 @@
 
         function closePlayer() {
             if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
-            if (ytPlayer2 && typeof ytPlayer2.stopVideo === 'function') ytPlayer2.stopVideo();
             
             document.getElementById('watchView').classList.remove('active');
             document.getElementById('watchView').classList.add('hidden');
