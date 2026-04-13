@@ -84,10 +84,24 @@
         #resultsGrid.list-view .video-card > .relative { width: 280px; margin-bottom: 0; flex-shrink: 0; }
         #resultsGrid.list-view .video-card .flex-1 { display: flex; flex-direction: column; padding-right: 20px; justify-content: center; }
         #resultsGrid.list-view .video-card .line-clamp-2 { -webkit-line-clamp: 1; font-size: 1.1rem; }
+        
+        /* Fix for Channel Cards in List View */
+        #resultsGrid.list-view .channel-card { flex-direction: row !important; align-items: center; padding: 20px; gap: 24px; }
+        #resultsGrid.list-view .channel-card .channel-img-wrap { width: auto !important; margin-bottom: 0 !important; flex-shrink: 0; }
+        #resultsGrid.list-view .channel-card .channel-img-wrap img { width: 100px; height: 100px; }
+        #resultsGrid.list-view .channel-card .channel-details-wrap { align-items: flex-start !important; text-align: right !important; }
+        #resultsGrid.list-view .channel-card .channel-details-wrap h3, 
+        #resultsGrid.list-view .channel-card .channel-details-wrap p { text-align: right !important; width: 100%; }
+        #resultsGrid.list-view .channel-card .channel-details-wrap button { margin-top: 8px; }
+
         @media (max-width: 640px) {
             #resultsGrid.list-view .video-card { flex-direction: column; }
             #resultsGrid.list-view .video-card > .relative { width: 100%; margin-bottom: 1rem; }
             #resultsGrid.list-view .video-card .flex-1 { padding-right: 0; }
+            #resultsGrid.list-view .channel-card { flex-direction: column !important; text-align: center !important; }
+            #resultsGrid.list-view .channel-card .channel-details-wrap { align-items: center !important; text-align: center !important; }
+            #resultsGrid.list-view .channel-card .channel-details-wrap h3, 
+            #resultsGrid.list-view .channel-card .channel-details-wrap p { text-align: center !important; }
         }
 
         /* --- Selection Mode Styles --- */
@@ -486,6 +500,7 @@
             isVideoPaused: false,
             isFloating: false,
             activeChannelId: null,
+            channelViewMode: 'all', // חדש: מצב תצוגת ערוץ (all/recent)
             currentRenderedItems: [],
             maxResults: 12,
             isListView: false,
@@ -511,7 +526,7 @@
             }
         })();
 
-        // שמירת מיקום הוידאו כל 5 שניות (עודכן למניעת באגים)
+        // שמירת מיקום הוידאו כל 5 שניות
         setInterval(() => {
             if (ytPlayer && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1 && appState.currentVideoId && appState.currentVideoDetails) {
                 let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
@@ -548,7 +563,6 @@
 
         function onPlayerStateChange(event) {
             if (event.data === 0) { 
-                // מחיקה מהמשך צפייה כשהסרטון נגמר אוטומטית - וידוא מחיקה סופית
                 if (appState.currentVideoId) {
                     let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
                     if (positions[appState.currentVideoId]) {
@@ -660,7 +674,7 @@
                 document.getElementById('searchDate').value = state.dateFilter || '';
                 performSearch(false, true); 
             } else if (state.type === 'channel') {
-                loadChannelVideos(state.channelId, false, true); 
+                loadChannelVideos(state.channelId, false, true, state.viewMode || 'all'); 
             } else if (state.type === 'history') {
                 loadWatchHistory(true);
             } else if (state.type === 'local_history') {
@@ -777,7 +791,7 @@
             }
         };
 
-        function renderChannelHeader(channel) {
+        function renderChannelHeader(channel, currentViewMode = 'all') {
             const container = document.getElementById('channelHeaderContainer');
             const snip = channel.snippet;
             const stats = channel.statistics;
@@ -790,9 +804,20 @@
             
             const isSubbedLocally = LocalSubsManager.isSubbed(channel.id);
 
+            const tabsHtml = `
+                <div class="w-full flex gap-3 mt-4 border-t pt-5 px-4 pb-2" style="border-color: var(--border-color);">
+                     <button onclick="loadChannelVideos('${channel.id}', false, false, 'recent')" class="px-5 py-2.5 rounded-full text-sm font-bold transition border shadow-sm flex items-center gap-2 ${currentViewMode === 'recent' ? 'bg-blue-600 text-white border-blue-600' : ''}" style="${currentViewMode !== 'recent' ? 'background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);' : ''}">
+                         <i class="fas fa-calendar-alt"></i> חודש אחרון
+                     </button>
+                     <button onclick="loadChannelVideos('${channel.id}', false, false, 'all')" class="px-5 py-2.5 rounded-full text-sm font-bold transition border shadow-sm flex items-center gap-2 ${currentViewMode === 'all' ? 'bg-blue-600 text-white border-blue-600' : ''}" style="${currentViewMode !== 'all' ? 'background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);' : ''}">
+                         <i class="fas fa-list"></i> כל הסרטונים
+                     </button>
+                </div>
+            `;
+
             container.innerHTML = `
                 ${bannerUrl ? `<img src="${bannerUrl}" class="w-full h-32 md:h-48 lg:h-56 object-cover rounded-3xl mb-2">` : ''}
-                <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4 px-4 pb-4">
+                <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4 px-4 pb-2">
                     <img src="${avatarUrl}" class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-[var(--bg-main)] bg-[var(--bg-surface)] ${bannerUrl ? '-mt-12 sm:-mt-16 relative z-10' : ''}">
                     <div class="flex flex-col items-center sm:items-start flex-1 text-center sm:text-right mt-2 sm:mt-0">
                         <h1 class="text-2xl sm:text-3xl font-bold" style="color: var(--text-primary);">${snip.title}</h1>
@@ -808,6 +833,7 @@
                          </button>
                     </div>
                 </div>
+                ${tabsHtml}
             `;
             container.classList.remove('hidden');
             container.classList.add('flex');
@@ -1360,7 +1386,6 @@
             if (appState.currentVideoId) minimizePlayer();
 
             const positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
-            // מוודאים שאין ערכים ריקים בטעות
             const items = Object.values(positions).filter(p => p && p.details && p.details.id).sort((a,b) => b.time - a.time);
 
             if (items.length === 0) {
@@ -1378,7 +1403,6 @@
 
             renderResults(formattedItems, true);
 
-            // תוספת: כפתור נקה הכל למניעת באגים של נתונים תקועים
             const grid = document.getElementById('resultsGrid');
             const clearBtn = document.createElement('div');
             clearBtn.className = "col-span-full flex justify-center mt-8";
@@ -1405,7 +1429,7 @@
                 return;
             }
 
-            // --- תצוגת ערוצים נפרדת בחלק העליון ---
+            // יצירת קרוסלת ערוצים
             let channelsHtml = `
                 <div class="w-full rounded-2xl p-5 mb-2 border shadow-sm" style="background-color: var(--bg-card); border-color: var(--border-color);">
                     <h3 class="font-bold text-lg mb-4" style="color: var(--text-primary);">הערוצים שלך</h3>
@@ -1415,10 +1439,11 @@
             subs.forEach(sub => {
                 channelsHtml += `
                     <div class="flex flex-col items-center gap-2 flex-shrink-0 w-24 group">
-                        <div class="relative cursor-pointer" onclick="loadChannelVideos('${sub.id}')" title="צפה בדף הערוץ המלא">
+                        <div class="relative cursor-pointer" onclick="loadChannelVideos('${sub.id}', false, false, 'recent')" title="צפה בחדשים בערוץ">
                             <img src="${sub.thumbnail}" class="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 transition-transform transform group-hover:scale-105" style="border-color: var(--border-color); background-color: var(--bg-surface);">
+                            <span id="badge-${sub.id}" class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border border-black z-10 shadow"></span>
                         </div>
-                        <span class="text-xs text-center font-semibold line-clamp-2 w-full cursor-pointer hover:underline transition-colors" style="color: var(--text-primary);" onclick="loadChannelVideos('${sub.id}')">${sub.title}</span>
+                        <span class="text-xs text-center font-semibold line-clamp-2 w-full cursor-pointer hover:underline transition-colors" style="color: var(--text-primary);" onclick="loadChannelVideos('${sub.id}', false, false, 'recent')">${sub.title}</span>
                         
                         <a href="https://www.youtube.com/channel/${sub.id}" target="_blank" class="mt-1 text-[10px] px-3 py-1 rounded-full border transition flex items-center gap-1 hover:opacity-80" style="color: var(--text-secondary); border-color: var(--border-color); background-color: var(--bg-surface);" title="פתח ישירות ב-YouTube">
                             <i class="fab fa-youtube text-red-500"></i> ביוטיוב
@@ -1431,7 +1456,6 @@
             headerContainer.innerHTML = channelsHtml;
             headerContainer.classList.remove('hidden');
             headerContainer.classList.add('flex', 'flex-col');
-            // --- סוף תצוגת הערוצים ---
 
             document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse">טוען סרטונים אחרונים מכל הערוצים...</div>`;
             document.getElementById('sectionTitle').innerText = "סרטונים אחרונים (הכל מעורב)";
@@ -1439,25 +1463,29 @@
             document.getElementById('pagination').classList.add('hidden');
 
             let allVideos = [];
-            
-            // חישוב התאריך של לפני חודש בדיוק כדי למשוך סרטונים שהועלו רק מאז
             const oneMonthAgo = new Date();
             oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
             const publishedAfterStr = oneMonthAgo.toISOString();
 
-            // חזרה לבקשה של מקסימום 5 סרטונים מכל ערוץ
+            // הבאת סרטונים חדשים לכל ערוץ לעדכון המונה ותצוגה כללית
             for (let sub of subs) {
                 try {
-                    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${sub.id}&maxResults=5&order=date&type=video&publishedAfter=${encodeURIComponent(publishedAfterStr)}&key=${appState.apiKey}`;
+                    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${sub.id}&maxResults=50&order=date&type=video&publishedAfter=${encodeURIComponent(publishedAfterStr)}&key=${appState.apiKey}`;
                     const res = await fetch(url);
                     const data = await res.json();
-                    if(data.items) allVideos = allVideos.concat(data.items);
+                    
+                    if(data.items && data.items.length > 0) {
+                        const badge = document.getElementById(`badge-${sub.id}`);
+                        if (badge) {
+                            badge.innerText = data.items.length === 50 ? '50+' : data.items.length;
+                            badge.classList.remove('hidden');
+                        }
+                        allVideos = allVideos.concat(data.items);
+                    }
                 } catch(e) { console.error("שגיאה בטעינת ערוץ", sub.title) }
             }
 
-            // מיון כל הסרטונים לפי תאריך העלאה (החדש ביותר קודם)
             allVideos.sort((a, b) => new Date(b.snippet.publishedAt) - new Date(a.snippet.publishedAt));
-            
             const videoIdsArray = allVideos.map(v => v.id.videoId);
             
             if(videoIdsArray.length > 0) {
@@ -1623,7 +1651,7 @@
 
         function handleLoadMore() {
             if (appState.searchContext === 'channel') {
-                loadChannelVideos(null, true);
+                loadChannelVideos(null, true, false, appState.channelViewMode);
             } else if (appState.searchContext === 'general') {
                 if (appState.query) {
                     performSearch(true);
@@ -1773,12 +1801,18 @@
             } catch (e) { console.error(e); }
         }
 
-        async function loadChannelVideos(channelId, loadMore = false, isHistoryNav = false) {
-            if (!channelId && !appState.query) return;
+        async function loadChannelVideos(channelId, loadMore = false, isHistoryNav = false, viewMode = 'all') {
+            if (!channelId && !appState.query && !appState.activeChannelId) return;
+            
             if (!loadMore) {
                 if (appState.isSelectionMode) toggleSelectionMode();
                 if (appState.currentVideoId) minimizePlayer();
-                if (!isHistoryNav && channelId) pushHistory({ type: 'channel', channelId: channelId });
+                
+                appState.channelViewMode = viewMode;
+
+                if (!isHistoryNav && channelId) {
+                    pushHistory({ type: 'channel', channelId: channelId, viewMode: viewMode });
+                }
 
                 try {
                     document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען ערוץ...</div>`;
@@ -1792,35 +1826,69 @@
                     if (!data.items || !data.items.length) return;
                     
                     const channel = data.items[0];
-                    renderChannelHeader(channel);
-                    const uploadsPlaylistId = channel.contentDetails.relatedPlaylists.uploads;
+                    renderChannelHeader(channel, viewMode);
                     
-                    appState.query = uploadsPlaylistId; 
+                    appState.query = channel.contentDetails.relatedPlaylists.uploads; 
                     appState.searchContext = 'channel';
                     appState.activeChannelId = channelId; 
                     appState.pageToken = "";
                     
-                    document.getElementById('sectionTitle').innerText = `סרטונים מאת: ${channel.snippet.title}`;
+                    document.getElementById('sectionTitle').innerText = viewMode === 'recent' ? `סרטונים מהחודש האחרון: ${channel.snippet.title}` : `כל הסרטונים: ${channel.snippet.title}`;
 
                 } catch(e) { console.error(e); return; }
             }
 
             try {
-                let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${appState.maxResults}&playlistId=${appState.query}&key=${appState.apiKey}`;
-                if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
+                if (appState.channelViewMode === 'recent') {
+                    // שליפת סרטונים מהחודש האחרון בלבד
+                    const oneMonthAgo = new Date();
+                    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+                    const publishedAfterStr = oneMonthAgo.toISOString();
 
-                const res = await fetch(url);
-                const data = await res.json();
+                    let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${appState.activeChannelId}&maxResults=${appState.maxResults}&order=date&type=video&publishedAfter=${encodeURIComponent(publishedAfterStr)}&key=${appState.apiKey}`;
+                    if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
-                appState.pageToken = data.nextPageToken || "";
-                document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    
+                    appState.pageToken = data.nextPageToken || "";
+                    document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
 
-                const videoIds = data.items.map(item => item.snippet.resourceId.videoId).join(',');
-                if(videoIds) {
-                    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${appState.apiKey}`);
-                    const statsData = await statsRes.json();
-                     const formatted = statsData.items.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: item.snippet, statistics: item.statistics, contentDetails: item.contentDetails }));
-                    renderResults(formatted, !loadMore);
+                    const videoIds = data.items.map(item => item.id.videoId).join(',');
+                    if (videoIds) {
+                        const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${appState.apiKey}`);
+                        const statsData = await statsRes.json();
+                        const formatted = statsData.items.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: item.snippet, statistics: item.statistics, contentDetails: item.contentDetails }));
+                        
+                        if (!loadMore && formatted.length === 0) {
+                            document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים מהחודש האחרון בערוץ זה.</div>`;
+                            appState.currentRenderedItems = [];
+                        } else {
+                            renderResults(formatted, !loadMore);
+                        }
+                    } else if (!loadMore) {
+                         document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים מהחודש האחרון בערוץ זה.</div>`;
+                         appState.currentRenderedItems = [];
+                    }
+
+                } else {
+                    // שליפת כל הסרטונים מהפלייליסט
+                    let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${appState.maxResults}&playlistId=${appState.query}&key=${appState.apiKey}`;
+                    if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
+
+                    const res = await fetch(url);
+                    const data = await res.json();
+
+                    appState.pageToken = data.nextPageToken || "";
+                    document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
+
+                    const videoIds = data.items.map(item => item.snippet.resourceId.videoId).join(',');
+                    if(videoIds) {
+                        const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${appState.apiKey}`);
+                        const statsData = await statsRes.json();
+                        const formatted = statsData.items.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: item.snippet, statistics: item.statistics, contentDetails: item.contentDetails }));
+                        renderResults(formatted, !loadMore);
+                    }
                 }
             } catch(e) { console.error(e); }
         }
@@ -1833,6 +1901,7 @@
             appState.pageToken = ""; 
             appState.activeChannelId = null; 
             appState.currentRenderedItems = []; 
+            appState.channelViewMode = 'all';
             
             document.getElementById('channelHeaderContainer').classList.add('hidden');
             document.getElementById('internalSearch').classList.add('hidden');
@@ -1840,7 +1909,7 @@
             document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען סרטונים...</div>`;
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
             
-            loadChannelVideos(null, true); 
+            loadChannelVideos(null, true, false, 'all'); 
         }
 
         function renderResults(items, clear) {
@@ -1861,18 +1930,20 @@
                     const likeIconCh = isLikedCh ? 'fas fa-heart text-red-500' : 'far fa-heart';
                     
                     const card = document.createElement('div');
-                    card.className = "video-card group flex flex-col items-center p-4 rounded-2xl cursor-pointer transition border";
+                    card.className = "video-card channel-card group flex flex-col items-center p-4 rounded-2xl cursor-pointer transition border";
                     card.style.backgroundColor = "var(--bg-card)";
                     card.style.borderColor = "var(--border-color)";
-                    card.onclick = () => loadChannelVideos(channelId);
+                    card.onclick = () => loadChannelVideos(channelId, false, false, 'all');
                     card.innerHTML = `
-                        <div class="relative w-full flex justify-center mb-4">
+                        <div class="relative w-full flex justify-center mb-4 channel-img-wrap">
                             <img src="${snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url}" class="w-32 h-32 rounded-full object-cover border-2" style="border-color: var(--border-color);">
                             <button onclick="event.stopPropagation(); toggleLikeItem(this, {id: '${channelId}', title: '${snip.title.replace(/'/g, "\\'")}', thumbnail: '${snip.thumbnails?.high?.url || snip.thumbnails?.default?.url}'}, 'channels', event)" class="absolute top-0 right-0 p-2 rounded-full transition" style="color: var(--text-primary);"><i class="${likeIconCh} text-lg"></i></button>
                         </div>
-                        <h3 class="font-bold text-lg text-center mb-1" style="color: var(--text-primary);">${snip.title}</h3>
-                        <p class="text-xs text-center mb-3" style="color: var(--text-secondary);">ערוץ</p>
-                        <button class="text-white text-xs font-bold px-4 py-2 rounded-full transition" style="background-color: var(--text-primary); color: var(--bg-main);">צפה בערוץ</button>
+                        <div class="flex-1 flex flex-col items-center channel-details-wrap w-full">
+                            <h3 class="font-bold text-lg text-center mb-1" style="color: var(--text-primary);">${snip.title}</h3>
+                            <p class="text-xs text-center mb-3" style="color: var(--text-secondary);">ערוץ</p>
+                            <button class="text-white text-xs font-bold px-4 py-2 rounded-full transition" style="background-color: var(--text-primary); color: var(--bg-main);">צפה בערוץ</button>
+                        </div>
                     `;
                     grid.appendChild(card);
                     return;
@@ -1904,7 +1975,7 @@
                         </div>
                         <div class="flex-1 px-1">
                             <h3 class="font-semibold text-base leading-snug line-clamp-2 mb-1" title="${snip.title}" style="color: var(--text-primary);">${snip.title}</h3>
-                            <p class="text-sm transition-colors hover:underline" style="color: var(--text-secondary);" onclick="event.stopPropagation(); loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
+                            <p class="text-sm transition-colors hover:underline" style="color: var(--text-secondary);" onclick="event.stopPropagation(); loadChannelVideos('${snip.channelId}', false, false, 'all')">${channelTitle}</p>
                             <button onclick="event.stopPropagation(); openExternalPlaylist('${playlistId}', '${title}')" class="mt-2 text-xs px-3 py-1.5 rounded-full font-bold transition flex items-center gap-2 w-fit shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
                                 <i class="fas fa-play"></i> נגן הכל
                             </button>
@@ -1974,7 +2045,7 @@
                         <div class="flex-1 flex flex-col">
                             <h3 class="font-semibold text-base leading-snug line-clamp-2" title="${snip.title}" style="color: var(--text-primary);" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">${snip.title}</h3>
                             <div class="text-sm mt-1" style="color: var(--text-secondary);">
-                                <p class="transition-colors hover:underline" onclick="loadChannelVideos('${snip.channelId}')">${channelTitle}</p>
+                                <p class="transition-colors hover:underline" onclick="loadChannelVideos('${snip.channelId}', false, false, 'all')">${channelTitle}</p>
                                 <p>${viewsText}${likesText}${timeText}</p> 
                             </div>
                             <div class="flex items-center gap-2 mt-auto pt-3 flex-wrap">
@@ -2064,7 +2135,6 @@
                 startSeconds = Math.floor(positions[id].time);
             }
 
-            // פתרון לנטפרי: השמדה מוחלטת לפני יצירה מחדש
             if (ytPlayer) {
                 try {
                     if (typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
@@ -2073,7 +2143,6 @@
                 ytPlayer = null;
             }
             
-            // יצירת ה-div מחדש כדי לאפס כל שריד של נגן חסום
             let playerParent = document.getElementById('playerContainerWrapper');
             if (!playerParent) {
                 playerParent = document.querySelector('.aspect-video');
@@ -2083,7 +2152,6 @@
                 playerParent.innerHTML = '<div id="playerFrame" class="w-full h-full absolute inset-0"></div>';
             }
 
-            // תיקון הבאג: הוספת width ו-height מפורשים
             ytPlayer = new YT.Player('playerFrame', {
                 height: '100%',
                 width: '100%',
