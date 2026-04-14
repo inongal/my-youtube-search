@@ -955,6 +955,10 @@
             updateBatchActionBar();
         }
 
+        // ==========================================
+        // התיקון החדש עבור פונקציית הורדה מרובה 
+        // שעוקף את החסימה של הדפדפן להפעלת פרוטוקולים
+        // ==========================================
         function batchDownloadWithYtDlp() {
             if (appState.selectedVideos.size === 0) return;
             
@@ -968,30 +972,31 @@
             
             let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
             
-            showToast(`מתחיל העברה של ${videos.length} סרטונים להורדה (${qualityText})...`);
+            showToast(`מתחיל העברה של ${videos.length} סרטונים להורדה (${qualityText})... נא לא לסגור את העמוד.`);
 
-            let delay = 0;
-            videos.forEach((item) => {
-                const vidId = item.id.videoId || item.id;
-                setTimeout(() => {
-                    const iframe = document.createElement('iframe');
-                    iframe.style.display = 'none';
-                    iframe.src = `ytdlp://${vidId}/${quality}`;
-                    document.body.appendChild(iframe);
-                    
-                    setTimeout(() => {
-                        if (document.body.contains(iframe)) {
-                            document.body.removeChild(iframe);
-                        }
-                    }, 2000);
-                }, delay);
+            let index = 0;
+
+            function processNext() {
+                if (index >= videos.length) {
+                    toggleSelectionMode();
+                    setTimeout(() => showToast("סיום העברת כל הסרטונים להורדה!"), 500);
+                    return;
+                }
+
+                const vidId = videos[index].id.videoId || videos[index].id;
                 
-                delay += 800; 
-            });
+                const a = document.createElement('a');
+                a.href = `ytdlp://${vidId}/${quality}`;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
 
-            setTimeout(() => { 
-                toggleSelectionMode(); 
-            }, delay + 500);
+                index++;
+                setTimeout(processNext, 2500); // 2.5 seconds delay between triggers
+            }
+
+            processNext();
         }
 
         function downloadWithYtDlp(videoId) {
