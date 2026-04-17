@@ -955,10 +955,6 @@
             updateBatchActionBar();
         }
 
-        // ==========================================
-        // התיקון החדש עבור פונקציית הורדה מרובה 
-        // שעוקף את החסימה של הדפדפן להפעלת פרוטוקולים
-        // ==========================================
         function batchDownloadWithYtDlp() {
             if (appState.selectedVideos.size === 0) return;
             
@@ -972,51 +968,30 @@
             
             let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
             
-            showToast(`מתחיל העברה של ${videos.length} סרטונים להורדה (${qualityText})... נא לא לסגור את העמוד.`);
+            showToast(`מתחיל העברה של ${videos.length} סרטונים להורדה (${qualityText})...`);
 
-            let index = 0;
-
-            function processNext() {
-                if (index >= videos.length) {
-                    toggleSelectionMode();
-                    setTimeout(() => showToast("סיום העברת כל הסרטונים להורדה!"), 500);
-                    return;
-                }
-
-                const vidId = videos[index].id.videoId || videos[index].id;
+            let delay = 0;
+            videos.forEach((item) => {
+                const vidId = item.id.videoId || item.id;
+                setTimeout(() => {
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    iframe.src = `ytdlp://${vidId}/${quality}`;
+                    document.body.appendChild(iframe);
+                    
+                    setTimeout(() => {
+                        if (document.body.contains(iframe)) {
+                            document.body.removeChild(iframe);
+                        }
+                    }, 2000);
+                }, delay);
                 
-                const a = document.createElement('a');
-                a.href = `ytdlp://${vidId}/${quality}`;
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                delay += 800; 
+            });
 
-                index++;
-                setTimeout(processNext, 6000); // 6 seconds delay between triggers
-            }
-
-            processNext();
-        }
-
-        function downloadWithYtDlp(videoId) {
-            const qualitySelect = document.getElementById(`dl-qual-${videoId}`);
-            const quality = qualitySelect ? qualitySelect.value : '1080';
-            
-            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
-            
-            showToast(`מתחיל העברה להורדה (${qualityText})...`);
-
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = `ytdlp://${videoId}/${quality}`;
-            document.body.appendChild(iframe);
-            
-            setTimeout(() => {
-                if (document.body.contains(iframe)) {
-                    document.body.removeChild(iframe);
-                }
-            }, 2000);
+            setTimeout(() => { 
+                toggleSelectionMode(); 
+            }, delay + 500);
         }
 
         function batchAddToPlaylist() {
@@ -2257,8 +2232,24 @@
                 height: '100%',
                 width: '100%',
                 videoId: id,
-                playerVars: { 'autoplay': 1, 'enablejsapi': 1, 'rel': 0, 'start': startSeconds },
-                events: { 'onStateChange': onPlayerStateChange }
+                playerVars: { 
+                    'autoplay': 1, 
+                    'enablejsapi': 1, 
+                    'rel': 0, 
+                    'start': startSeconds,
+                    'fs': 1,           
+                    'disablekb': 0     
+                },
+                events: { 
+                    'onStateChange': onPlayerStateChange,
+                    'onReady': function(event) {
+                        const iframe = event.target.getIframe();
+                        if (iframe) {
+                            iframe.setAttribute('allowfullscreen', 'true');
+                            iframe.focus(); 
+                        }
+                    }
+                }
             });
             
             appState.currentVideoId = id;
