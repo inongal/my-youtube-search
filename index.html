@@ -1568,13 +1568,19 @@
             }
         }
 
-        function removeFromLocalHistory(id, event) {
+        function removeFromLocalHistory(id, event, customMsg) {
             if (event) event.stopPropagation();
-            if(confirm("להסיר סרטון זה מההיסטוריה?")) {
+            const msg = customMsg || "להסיר סרטון זה מההיסטוריה?";
+            if(confirm(msg)) {
                 let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
                 history = history.filter(item => item.id !== id);
                 localStorage.setItem('yt_local_history', JSON.stringify(history));
-                loadLocalHistory(true); 
+                
+                if (appState.searchContext === 'local_history') {
+                    loadLocalHistory(true); 
+                } else {
+                    document.querySelectorAll(`[id="watched-badge-${id}"]`).forEach(badge => badge.remove());
+                }
             }
         }
 
@@ -2110,7 +2116,7 @@
                 const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
                 
                 const isWatched = watchedIds.has(videoId);
-                const watchedBadge = isWatched ? `<div class="absolute top-2 right-10 bg-green-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow">נצפה <i class="fas fa-check ml-0.5"></i></div>` : '';
+                const watchedBadge = isWatched ? `<button id="watched-badge-${videoId}" onclick="event.stopPropagation(); removeFromLocalHistory('${videoId}', event, 'האם לסמן כלא נצפה?')" class="absolute top-2 right-10 bg-green-600/90 hover:bg-red-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow transition" title="סמן כלא נצפה">נצפה <i class="fas fa-check ml-0.5"></i></button>` : '';
 
                 const isWatchLater = PlaylistManager.getPlaylists()['Watch Later']?.some(v => v.id === videoId);
                 const watchLaterIconClass = isWatchLater ? 'fas fa-clock text-blue-500' : 'fas fa-clock';
