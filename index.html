@@ -908,7 +908,7 @@
             const bar = document.getElementById('batchActionBar');
             const countLabel = document.getElementById('batchCountLabel');
             
-            if (appState.isSelectionMode && appState.selectedVideos.size > 0) {
+            if (appState.isSelectionMode) {
                 bar.classList.remove('translate-y-full');
                 countLabel.innerText = `${appState.selectedVideos.size} סרטונים נבחרו`;
             } else {
@@ -953,6 +953,25 @@
                 });
             }
             updateBatchActionBar();
+        }
+
+        function downloadWithYtDlp(videoId) {
+            const qualitySelect = document.getElementById(`dl-qual-${videoId}`);
+            const quality = qualitySelect ? qualitySelect.value : '1080';
+            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
+            
+            showToast(`מתחיל העברה להורדה (${qualityText})...`);
+
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = `ytdlp://${videoId}/${quality}`;
+            document.body.appendChild(iframe);
+
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 2000);
         }
 
         function batchDownloadWithYtDlp() {
