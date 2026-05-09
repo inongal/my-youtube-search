@@ -277,6 +277,9 @@
                 <div onclick="loadLocalHistory()" class="sidebar-item" id="navLocalHistory">
                     <i class="fas fa-history text-lg"></i><span>היסטוריה מקומית (PC)</span>
                 </div>
+                <div onclick="loadRecentSearches()" class="sidebar-item" id="navRecentSearches">
+                    <i class="fas fa-search text-lg"></i><span>חיפושים אחרונים</span>
+                </div>
                 <div onclick="loadResumeTab()" class="sidebar-item" id="navResume">
                     <i class="fas fa-play-circle text-lg text-blue-500"></i><span>המשך צפייה</span>
                 </div>
@@ -722,6 +725,8 @@
                 loadLikedItems(state.likedType, true);
             } else if (state.type === 'local_resume') {
                 loadResumeTab(true);
+            } else if (state.type === 'recent_searches') {
+                loadRecentSearches(true);
             }
         }
 
@@ -1430,6 +1435,78 @@
             grid.appendChild(clearBtn);
         }
 
+        // --- חיפושים אחרונים ---
+        function saveRecentSearch(query) {
+            if (!query) return;
+            let searches = JSON.parse(localStorage.getItem('yt_recent_searches') || '[]');
+            searches = searches.filter(s => s !== query);
+            searches.unshift(query);
+            if (searches.length > 30) searches.pop(); // שמירת 30 החיפושים האחרונים
+            localStorage.setItem('yt_recent_searches', JSON.stringify(searches));
+        }
+
+        function loadRecentSearches(isHistoryNav = false) {
+            if (appState.isSelectionMode) toggleSelectionMode();
+            setActiveNavItem('navRecentSearches');
+            appState.searchContext = 'recent_searches';
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.add('hidden');
+            
+            if (!isHistoryNav) pushHistory({ type: 'recent_searches' });
+            
+            document.getElementById('sectionTitle').innerText = "חיפושים אחרונים";
+            document.getElementById('sectionTitle').classList.remove('hidden');
+            document.getElementById('pagination').classList.add('hidden');
+            document.getElementById('exportUrlsBtn').classList.add('hidden');
+            
+            if (appState.currentVideoId) minimizePlayer();
+            
+            const searches = JSON.parse(localStorage.getItem('yt_recent_searches') || '[]');
+            const grid = document.getElementById('resultsGrid');
+            
+            if (searches.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאה היסטוריית חיפושים.</div>`;
+                appState.currentRenderedItems = [];
+                return;
+            }
+            
+            let html = '<div class="col-span-full flex flex-col gap-3 max-w-3xl mx-auto w-full">';
+            searches.forEach(search => {
+                const safeSearch = search.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                html += `
+                <div class="flex items-center justify-between p-4 rounded-xl border transition cursor-pointer hover:opacity-80" style="background-color: var(--bg-card); border-color: var(--border-color);" onclick="document.getElementById('searchInput').value='${safeSearch}'; performSearch(false)">
+                    <div class="flex items-center gap-4">
+                        <i class="fas fa-history" style="color: var(--text-muted);"></i>
+                        <span class="font-bold text-lg" style="color: var(--text-primary);">${search}</span>
+                    </div>
+                    <button onclick="event.stopPropagation(); removeRecentSearch('${safeSearch}')" class="p-2 rounded-full hover:bg-red-500/10 text-red-500 transition" title="הסר חיפוש">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>`;
+            });
+            html += `
+                <button onclick="clearRecentSearches()" class="mt-6 px-6 py-2 rounded-full text-sm border transition flex items-center self-center" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;">
+                    <i class="fas fa-trash-alt ml-2"></i> מחק הכל
+                </button>
+            </div>`;
+            
+            grid.innerHTML = html;
+        }
+
+        function removeRecentSearch(query) {
+            let searches = JSON.parse(localStorage.getItem('yt_recent_searches') || '[]');
+            searches = searches.filter(s => s !== query);
+            localStorage.setItem('yt_recent_searches', JSON.stringify(searches));
+            if (appState.searchContext === 'recent_searches') loadRecentSearches(true);
+        }
+
+        function clearRecentSearches() {
+            if(confirm("האם אתה בטוח שברצונך למחוק את כל היסטוריית החיפושים?")) {
+                localStorage.removeItem('yt_recent_searches');
+                loadRecentSearches(true);
+            }
+        }
+
         function loadResumeTab(isHistoryNav = false) {
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navResume');
@@ -1831,6 +1908,7 @@
                 if (appState.isSelectionMode) toggleSelectionMode();
                 appState.query = query; 
                 appState.pageToken = "";
+                saveRecentSearch(query);
                 if (!isHistoryNav) { pushHistory({ type: 'search', query: query, filterType: type, order: order, duration: duration, dateFilter: dateFilter }); }
                 if (appState.currentVideoId) { minimizePlayer(); document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">מחפש...</div>`; } 
                 else { document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">מחפש...</div>`; }
@@ -2103,6 +2181,26 @@
             } else {
                 renderResultsCore([...otherItems, ...passedVideos], false);
             }
+        }
+
+        // --- פונקציית הורדה בודדת מותאמת ---
+        function downloadWithYtDlp(videoId) {
+            const select = document.getElementById('dl-qual-' + videoId);
+            const quality = select ? select.value : '1080';
+            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
+            
+            showToast('מעביר להורדת סרטון (' + qualityText + ')...');
+            
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = 'ytdlp://' + videoId + '/' + quality;
+            document.body.appendChild(iframe);
+            
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 2000);
         }
 
         // ============================
