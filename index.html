@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Search Hub - Pro Edition</title>
+    <title>YouTube Search Hub - Pro Edition (NetFree Ready)</title>
     
     <link rel="icon" type="image/x-icon" href="https://www.youtube.com/s/desktop/28b67e7f/img/favicon_32x32.png">
     
@@ -85,7 +85,6 @@
         #resultsGrid.list-view .video-card .flex-1 { display: flex; flex-direction: column; padding-right: 20px; justify-content: center; }
         #resultsGrid.list-view .video-card .line-clamp-2 { -webkit-line-clamp: 1; font-size: 1.1rem; }
         
-        /* Fix for Channel Cards in List View */
         #resultsGrid.list-view .channel-card { flex-direction: row !important; align-items: center; padding: 20px; gap: 24px; }
         #resultsGrid.list-view .channel-card .channel-img-wrap { width: auto !important; margin-bottom: 0 !important; flex-shrink: 0; }
         #resultsGrid.list-view .channel-card .channel-img-wrap img { width: 100px; height: 100px; }
@@ -100,11 +99,8 @@
             #resultsGrid.list-view .video-card .flex-1 { padding-right: 0; }
             #resultsGrid.list-view .channel-card { flex-direction: column !important; text-align: center !important; }
             #resultsGrid.list-view .channel-card .channel-details-wrap { align-items: center !important; text-align: center !important; }
-            #resultsGrid.list-view .channel-card .channel-details-wrap h3, 
-            #resultsGrid.list-view .channel-card .channel-details-wrap p { text-align: center !important; }
         }
 
-        /* --- Selection Mode Styles --- */
         .selection-checkbox { display: none; }
         body.selection-mode-active .selection-checkbox { display: flex; }
         body.selection-mode-active .video-card { cursor: copy; }
@@ -113,7 +109,6 @@
         .selected-card .selection-checkbox { border-color: #3b82f6; background-color: white; }
         .selected-card .selection-checkbox i { opacity: 1; }
 
-        /* Watch View */
         #watchView { display: none; backdrop-filter: blur(12px); background-color: var(--modal-overlay); }
         #watchView.hidden { display: none !important; }
         #watchView.active { display: flex !important; }
@@ -135,12 +130,10 @@
         #configModal { display: none; backdrop-filter: blur(12px); background-color: var(--modal-overlay); }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         
-        /* Sidebar items */
         .sidebar-item { display: flex; align-items: center; gap: 20px; padding: 12px; cursor: pointer; border-radius: 12px; transition: background 0.2s; color: var(--text-primary); }
         .sidebar-item:hover { background: var(--bg-surface); }
         .sidebar-item.active { background: var(--bg-surface); font-weight: 600; }
 
-        /* --- Collapsed Sidebar Styles --- */
         #mainSidebar { transition: width 0.3s ease, padding 0.3s ease; background-color: var(--bg-main); border-color: var(--border-color); }
         #mainContent { transition: margin-right 0.3s ease; }
         
@@ -150,13 +143,11 @@
         .sidebar-collapsed .uppercase { display: none; }
         body.sidebar-is-collapsed #mainContent { margin-right: 80px !important; }
 
-        /* Toast Styling */
         .copy-toast { visibility: hidden; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 10px 20px; position: fixed; z-index: 1000; bottom: 30px; left: 50%; transform: translateX(-50%); font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         .copy-toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
         
-        /* Fixed native select arrow appearing */
         select { 
             -webkit-appearance: none;
             -moz-appearance: none;
@@ -166,6 +157,12 @@
             background-repeat: no-repeat; 
             background-size: 1.5em 1.5em; 
             padding-left: 2.5rem; 
+        }
+
+        /* סגנון עבור סרגל הנטפרי */
+        #netfreeProgressContainer {
+            backdrop-filter: blur(10px);
+            background-color: rgba(59, 130, 246, 0.9);
         }
     </style>
 </head>
@@ -236,6 +233,10 @@
                 <i class="fa-solid fa-pause"></i>
             </button>
 
+            <button onclick="toggleNetfreeMode()" id="netfreeToggleBtn" class="px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2" style="background-color: var(--bg-surface); border-color: var(--border-light); color: var(--text-primary);" title="הפעל/כבה בדיקת סרטונים (מצב נטפרי)">
+                <i class="fas fa-shield-alt text-gray-500" id="netfreeIcon"></i> <span class="hidden md:inline" id="netfreeText">נטפרי: כבוי</span>
+            </button>
+
             <button onclick="toggleConfig()" class="p-2 rounded-full transition" style="color: var(--text-secondary);" title="הגדרות המערכת">
                 <i class="fas fa-cog text-xl"></i>
             </button>
@@ -255,6 +256,13 @@
             </div>
         </div>
     </header>
+
+    <div id="netfreeProgressContainer" class="hidden fixed top-16 left-0 right-0 z-[90] text-white p-3 flex flex-col items-center justify-center border-b border-blue-400">
+        <span id="netfreeProgressText" class="text-sm font-bold mb-2">בודק סרטונים מול נטפרי... 0/10</span>
+        <div class="w-full max-w-md bg-black/40 h-2 rounded-full overflow-hidden border border-blue-300/30">
+            <div id="netfreeProgressBar" class="bg-white h-full transition-all duration-300" style="width: 0%;"></div>
+        </div>
+    </div>
 
     <div class="flex pt-16 min-h-screen">
         <aside id="mainSidebar" class="w-64 fixed right-0 top-16 bottom-0 hidden lg:flex flex-col overflow-y-auto custom-scrollbar border-l">
@@ -465,8 +473,10 @@
 
     <div id="toast" class="copy-toast">הודעה</div>
 
+    <div id="netfreeTesterContainer" style="position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; overflow: hidden; opacity: 0;"></div>
+
     <script>
-        // ניהול ערכות נושא (Theme) בתחילת הטעינה
+        // ניהול ערכות נושא (Theme)
         function applyTheme(theme) {
             if (theme === 'system') {
                 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
@@ -507,12 +517,39 @@
             isSelectionMode: false,
             selectedVideos: new Set(),
             currentLikedTab: 'videos',
-            tempQueue: [] // תור השמעה זמני
+            tempQueue: [],
+            isNetfreeMode: localStorage.getItem('yt_netfree_mode') === 'true'
         };
 
         let ytPlayer = null;
 
-        // הגירת נתוני לייקים לגרסה תומכת סוגים
+        function toggleNetfreeMode() {
+            appState.isNetfreeMode = !appState.isNetfreeMode;
+            localStorage.setItem('yt_netfree_mode', appState.isNetfreeMode);
+            updateNetfreeBtn();
+            if(appState.isNetfreeMode) {
+                showToast("מצב נטפרי הופעל - התוצאות יסוננו במסך החיפוש");
+            } else {
+                showToast("מצב נטפרי כובה");
+            }
+        }
+
+        function updateNetfreeBtn() {
+            const btnText = document.getElementById('netfreeText');
+            const btnIcon = document.getElementById('netfreeIcon');
+            const btn = document.getElementById('netfreeToggleBtn');
+            
+            if(appState.isNetfreeMode) {
+                btnText.innerText = "נטפרי: פעיל";
+                btnIcon.className = "fas fa-shield-alt text-green-500";
+                btn.classList.add('border-green-500');
+            } else {
+                btnText.innerText = "נטפרי: כבוי";
+                btnIcon.className = "fas fa-shield-alt text-gray-500";
+                btn.classList.remove('border-green-500');
+            }
+        }
+
         (function migrateOldLikes() {
             let oldLikes = localStorage.getItem('yt_local_likes');
             if (oldLikes) {
@@ -526,7 +563,6 @@
             }
         })();
 
-        // שמירת מיקום הוידאו כל 5 שניות
         setInterval(() => {
             if (ytPlayer && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1 && appState.currentVideoId && appState.currentVideoDetails) {
                 let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
@@ -667,6 +703,7 @@
                 document.getElementById('searchInput').value = "";
                 loadHomePage(true);
             } else if (state.type === 'search') {
+                appState.searchContext = 'search'; 
                 document.getElementById('searchInput').value = state.query;
                 document.getElementById('searchType').value = state.filterType || '';
                 document.getElementById('searchOrder').value = state.order || 'relevance';
@@ -908,7 +945,7 @@
             const bar = document.getElementById('batchActionBar');
             const countLabel = document.getElementById('batchCountLabel');
             
-            if (appState.isSelectionMode) {
+            if (appState.isSelectionMode && appState.selectedVideos.size > 0) {
                 bar.classList.remove('translate-y-full');
                 countLabel.innerText = `${appState.selectedVideos.size} סרטונים נבחרו`;
             } else {
@@ -953,25 +990,6 @@
                 });
             }
             updateBatchActionBar();
-        }
-
-        function downloadWithYtDlp(videoId) {
-            const qualitySelect = document.getElementById(`dl-qual-${videoId}`);
-            const quality = qualitySelect ? qualitySelect.value : '1080';
-            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
-            
-            showToast(`מתחיל העברה להורדה (${qualityText})...`);
-
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = `ytdlp://${videoId}/${quality}`;
-            document.body.appendChild(iframe);
-
-            setTimeout(() => {
-                if (document.body.contains(iframe)) {
-                    document.body.removeChild(iframe);
-                }
-            }, 2000);
         }
 
         function batchDownloadWithYtDlp() {
@@ -1481,7 +1499,6 @@
             
             grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse">בודק עדכונים בערוצים (חסכוני ב-API)...</div>`;
 
-            // Ensure we have uploadsId for all subs
             const missingUploads = subs.filter(s => !s.uploadsId).map(s => s.id);
             if (missingUploads.length > 0) {
                 for (let i = 0; i < missingUploads.length; i += 50) {
@@ -1503,7 +1520,6 @@
             let channelUpdates = [];
             const lastVisited = JSON.parse(localStorage.getItem('yt_channel_visits') || '{}');
 
-            // Fetch the latest video date for each channel (1 point per channel)
             const fetchPromises = subs.map(async (sub) => {
                 let latestDate = new Date(0); 
                 let hasNew = false;
@@ -1568,19 +1584,13 @@
             }
         }
 
-        function removeFromLocalHistory(id, event, customMsg) {
+        function removeFromLocalHistory(id, event) {
             if (event) event.stopPropagation();
-            const msg = customMsg || "להסיר סרטון זה מההיסטוריה?";
-            if(confirm(msg)) {
+            if(confirm("להסיר סרטון זה מההיסטוריה?")) {
                 let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
                 history = history.filter(item => item.id !== id);
                 localStorage.setItem('yt_local_history', JSON.stringify(history));
-                
-                if (appState.searchContext === 'local_history') {
-                    loadLocalHistory(true); 
-                } else {
-                    document.querySelectorAll(`[id="watched-badge-${id}"]`).forEach(badge => badge.remove());
-                }
+                loadLocalHistory(true); 
             }
         }
 
@@ -1685,6 +1695,7 @@
             if(storedTheme) document.getElementById('themeSelect').value = storedTheme;
             
             loadPlaylistsToSidebar();
+            updateNetfreeBtn();
 
             if(savedKey) { appState.apiKey = savedKey; appState.clientId = savedClient; } 
             else { toggleConfig(); }
@@ -1721,7 +1732,7 @@
         function handleLoadMore() {
             if (appState.searchContext === 'channel') {
                 loadChannelVideos(null, true, false, appState.channelViewMode);
-            } else if (appState.searchContext === 'general') {
+            } else if (appState.searchContext === 'general' || appState.searchContext === 'search') {
                 if (appState.query) {
                     performSearch(true);
                 }
@@ -1808,7 +1819,7 @@
 
             if (duration) { type = 'video'; document.getElementById('searchType').value = 'video'; }
 
-            appState.searchContext = 'general';
+            appState.searchContext = 'search'; 
             document.getElementById('channelHeaderContainer').classList.add('hidden');
             document.getElementById('internalSearch').classList.add('hidden');
             setActiveNavItem('');
@@ -1883,7 +1894,6 @@
                     pushHistory({ type: 'channel', channelId: channelId, viewMode: viewMode });
                 }
 
-                // עדכון שעת הביקור בערוץ להסרת תג ה"חדש"
                 if (channelId) {
                     let lastVisited = JSON.parse(localStorage.getItem('yt_channel_visits') || '{}');
                     lastVisited[channelId] = new Date().toISOString();
@@ -1916,7 +1926,6 @@
 
             try {
                 if (appState.channelViewMode === 'recent') {
-                    // שליפת סרטונים מהחודש האחרון בלבד
                     const oneMonthAgo = new Date();
                     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
                     const publishedAfterStr = oneMonthAgo.toISOString();
@@ -1948,7 +1957,6 @@
                     }
 
                 } else {
-                    // שליפת כל הסרטונים מהפלייליסט
                     let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${appState.maxResults}&playlistId=${appState.query}&key=${appState.apiKey}`;
                     if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
@@ -1988,7 +1996,123 @@
             loadChannelVideos(null, true, false, 'all'); 
         }
 
-        function renderResults(items, clear) {
+        // ====== לוגיקת נטפרי ======
+        
+        function showNetfreeProgress(current, total) {
+            const container = document.getElementById('netfreeProgressContainer');
+            const text = document.getElementById('netfreeProgressText');
+            const bar = document.getElementById('netfreeProgressBar');
+            container.classList.remove('hidden');
+            text.innerText = `בודק סרטונים מול נטפרי... ${current}/${total}`;
+            bar.style.width = `${(current / total) * 100}%`;
+        }
+
+        function hideNetfreeProgress() {
+            document.getElementById('netfreeProgressContainer').classList.add('hidden');
+        }
+
+        function testVideoNetfree(videoId) {
+            return new Promise((resolve) => {
+                let isResolved = false;
+                let timeout;
+                
+                // בדיקת שגיאה 418 בבקשת Fetch ישירה ל-Embed
+                fetch('https://www.youtube.com/embed/' + videoId, { method: 'HEAD', mode: 'no-cors' })
+                    .then(res => {
+                        if (res.status === 418) {
+                            if (!isResolved) { isResolved = true; clearTimeout(timeout); resolve(false); }
+                        }
+                    }).catch(e => { /* מתעלמים, נשתמש במנגנון ה-Iframe */ });
+
+                const testerDiv = document.createElement('div');
+                testerDiv.id = 'tester-' + videoId;
+                document.getElementById('netfreeTesterContainer').appendChild(testerDiv);
+
+                let player = new YT.Player('tester-' + videoId, {
+                    height: '10', width: '10', videoId: videoId,
+                    playerVars: { 'autoplay': 1, 'controls': 0, 'mute': 1 },
+                    events: {
+                        'onReady': (event) => {
+                            event.target.playVideo();
+                        },
+                        'onError': (event) => {
+                            if (!isResolved) {
+                                isResolved = true;
+                                clearTimeout(timeout);
+                                try{ player.destroy(); }catch(e){}
+                                if(testerDiv.parentNode) testerDiv.remove();
+                                resolve(false); // חסום / שגיאה
+                            }
+                        },
+                        'onStateChange': (event) => {
+                            if (event.data === 1 && !isResolved) {
+                                isResolved = true;
+                                clearTimeout(timeout);
+                                try{ player.destroy(); }catch(e){}
+                                if(testerDiv.parentNode) testerDiv.remove();
+                                resolve(true); // מצליח לנגן
+                            }
+                        }
+                    }
+                });
+
+                timeout = setTimeout(() => {
+                    if (!isResolved) {
+                        isResolved = true;
+                        if (player && typeof player.destroy === 'function') {
+                            try { player.destroy(); } catch(e){}
+                        }
+                        if (testerDiv.parentNode) testerDiv.remove();
+                        resolve(true); // אם לא חזרה שגיאה תוך שתי שניות, נאפשר
+                    }
+                }, 2000); // 2 שניות בדיוק לפי הבקשה
+            });
+        }
+
+        async function renderResults(items, clear) {
+            // התנאי שונה: הבדיקה מופעלת *רק* כשהמשתמש נמצא במצב חיפוש (`searchContext === 'search'`)
+            if (!appState.isNetfreeMode || appState.searchContext !== 'search') {
+                return renderResultsCore(items, clear);
+            }
+
+            const grid = document.getElementById('resultsGrid');
+            if (clear) { grid.innerHTML = ''; appState.currentRenderedItems = []; }
+
+            // הפרדה בין סרטונים לפריטים אחרים, ניקח עד 10 סרטונים
+            let videosToTest = items.filter(item => (item.id && (item.id.kind === 'youtube#video' || item.id.videoId || typeof item.id === 'string'))).slice(0, 10);
+            let otherItems = items.filter(item => !(item.id && (item.id.kind === 'youtube#video' || item.id.videoId || typeof item.id === 'string')));
+
+            if (videosToTest.length === 0) {
+                return renderResultsCore(otherItems, false);
+            }
+
+            showNetfreeProgress(0, videosToTest.length);
+
+            let passedVideos = [];
+            for (let i = 0; i < videosToTest.length; i++) {
+                const video = videosToTest[i];
+                const vidId = video.id.videoId || (typeof video.id === 'string' ? video.id : null);
+                
+                if (vidId) {
+                    const passed = await testVideoNetfree(vidId);
+                    // הפיכת התנאי - כעת יציג רק את הסרטונים שעברו את הבדיקה
+                    if (!passed) passedVideos.push(video);
+                }
+                showNetfreeProgress(i + 1, videosToTest.length);
+            }
+
+            hideNetfreeProgress();
+            
+            if (passedVideos.length === 0 && otherItems.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים פתוחים במקבץ זה. <button onclick="handleLoadMore()" class="text-blue-500 underline">נסה לטעון עוד</button></div>`;
+            } else {
+                renderResultsCore([...otherItems, ...passedVideos], false);
+            }
+        }
+
+        // ============================
+
+        function renderResultsCore(items, clear) {
             const grid = document.getElementById('resultsGrid');
             if (clear) { grid.innerHTML = ''; appState.currentRenderedItems = []; }
             
@@ -2116,7 +2240,7 @@
                 const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
                 
                 const isWatched = watchedIds.has(videoId);
-                const watchedBadge = isWatched ? `<button id="watched-badge-${videoId}" onclick="event.stopPropagation(); removeFromLocalHistory('${videoId}', event, 'האם לסמן כלא נצפה?')" class="absolute top-2 right-10 bg-green-600/90 hover:bg-red-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow transition" title="סמן כלא נצפה">נצפה <i class="fas fa-check ml-0.5"></i></button>` : '';
+                const watchedBadge = isWatched ? `<div class="absolute top-2 right-10 bg-green-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow">נצפה <i class="fas fa-check ml-0.5"></i></div>` : '';
 
                 const isWatchLater = PlaylistManager.getPlaylists()['Watch Later']?.some(v => v.id === videoId);
                 const watchLaterIconClass = isWatchLater ? 'fas fa-clock text-blue-500' : 'fas fa-clock';
