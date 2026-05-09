@@ -2014,23 +2014,32 @@
         function testVideoNetfree(videoId) {
             return new Promise((resolve) => {
                 let isResolved = false;
-                let timeout;
                 
-                // בדיקת שגיאה 418 בבקשת Fetch ישירה ל-Embed
-                fetch('https://www.youtube.com/embed/' + videoId, { method: 'HEAD', mode: 'no-cors' })
-                    .then(res => {
-                        if (res.status === 418) {
-                            if (!isResolved) { isResolved = true; clearTimeout(timeout); resolve(false); }
-                        }
-                    }).catch(e => { /* מתעלמים, נשתמש במנגנון ה-Iframe */ });
-
                 const testerDiv = document.createElement('div');
                 testerDiv.id = 'tester-' + videoId;
                 document.getElementById('netfreeTesterContainer').appendChild(testerDiv);
 
-                let player = new YT.Player('tester-' + videoId, {
+                let player;
+                
+                let timeout = setTimeout(() => {
+                    if (!isResolved) {
+                        isResolved = true;
+                        if (player && typeof player.destroy === 'function') {
+                            try { player.destroy(); } catch(e){}
+                        }
+                        if (testerDiv.parentNode) testerDiv.remove();
+                        resolve(false); 
+                    }
+                }, 2000);
+
+                player = new YT.Player('tester-' + videoId, {
                     height: '10', width: '10', videoId: videoId,
-                    playerVars: { 'autoplay': 1, 'controls': 0, 'mute': 1 },
+                    playerVars: { 
+                        'autoplay': 1, 
+                        'controls': 0, 
+                        'mute': 1,
+                        'origin': window.location.origin
+                    },
                     events: {
                         'onReady': (event) => {
                             event.target.playVideo();
@@ -2039,38 +2048,26 @@
                             if (!isResolved) {
                                 isResolved = true;
                                 clearTimeout(timeout);
-                                try{ player.destroy(); }catch(e){}
+                                if (player && typeof player.destroy === 'function') { try{ player.destroy(); }catch(e){} }
                                 if(testerDiv.parentNode) testerDiv.remove();
-                                resolve(false); // חסום / שגיאה
+                                resolve(false);
                             }
                         },
                         'onStateChange': (event) => {
-                            if (event.data === 1 && !isResolved) {
+                            if ((event.data === 1 || event.data === 3) && !isResolved) {
                                 isResolved = true;
                                 clearTimeout(timeout);
-                                try{ player.destroy(); }catch(e){}
+                                if (player && typeof player.destroy === 'function') { try{ player.destroy(); }catch(e){} }
                                 if(testerDiv.parentNode) testerDiv.remove();
-                                resolve(true); // מצליח לנגן
+                                resolve(true);
                             }
                         }
                     }
                 });
-
-                timeout = setTimeout(() => {
-                    if (!isResolved) {
-                        isResolved = true;
-                        if (player && typeof player.destroy === 'function') {
-                            try { player.destroy(); } catch(e){}
-                        }
-                        if (testerDiv.parentNode) testerDiv.remove();
-                        resolve(true); // אם לא חזרה שגיאה תוך שתי שניות, נאפשר
-                    }
-                }, 2000); // 2 שניות בדיוק לפי הבקשה
             });
         }
 
         async function renderResults(items, clear) {
-            // התנאי שונה: הבדיקה מופעלת *רק* כשהמשתמש נמצא במצב חיפוש (`searchContext === 'search'`)
             if (!appState.isNetfreeMode || appState.searchContext !== 'search') {
                 return renderResultsCore(items, clear);
             }
@@ -2078,7 +2075,6 @@
             const grid = document.getElementById('resultsGrid');
             if (clear) { grid.innerHTML = ''; appState.currentRenderedItems = []; }
 
-            // הפרדה בין סרטונים לפריטים אחרים, ניקח עד 10 סרטונים
             let videosToTest = items.filter(item => (item.id && (item.id.kind === 'youtube#video' || item.id.videoId || typeof item.id === 'string'))).slice(0, 10);
             let otherItems = items.filter(item => !(item.id && (item.id.kind === 'youtube#video' || item.id.videoId || typeof item.id === 'string')));
 
@@ -2095,8 +2091,7 @@
                 
                 if (vidId) {
                     const passed = await testVideoNetfree(vidId);
-                    // הפיכת התנאי - כעת יציג רק את הסרטונים שעברו את הבדיקה
-                    if (!passed) passedVideos.push(video);
+                    if (passed) passedVideos.push(video);
                 }
                 showNetfreeProgress(i + 1, videosToTest.length);
             }
