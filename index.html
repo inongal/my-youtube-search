@@ -581,7 +581,7 @@
                     }
                     script.remove();
                 };
-                script.src = `https://suggestqueries.google.com/complete/search?client=youtube&q=${encodeURIComponent(query)}&jsonp=handleAutocomplete`;
+                script.src = `https://suggestqueries.youtube.com/complete/search?client=youtube&q=${encodeURIComponent(query)}&jsonp=handleAutocomplete`;
                 document.body.appendChild(script);
             }, 300);
         });
