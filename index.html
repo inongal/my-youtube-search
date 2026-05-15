@@ -581,8 +581,7 @@
                     }
                     script.remove();
                 };
-                script.src = `https://suggestqueries.youtube.com/complete/search?client=youtube&q=${encodeURIComponent(query)}&jsonp=handleAutocomplete`;
-                document.body.appendChild(script);
+script.src = `https://he.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&format=json&callback=handleAutocomplete`;                document.body.appendChild(script);
             }, 300);
         });
         
