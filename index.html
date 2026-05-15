@@ -367,9 +367,13 @@
             <button onclick="batchAddToPlaylist()" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                 <i class="fas fa-list-ul"></i> <span class="hidden md:inline">הוסף לרשימה</span>
             </button>
+
+            <button onclick="batchCopyUrls()" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 border" title="העתק את כתובות הסרטונים שנבחרו" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
+                <i class="fas fa-copy"></i> <span class="hidden md:inline">העתק קישורים</span>
+            </button>
             
             <button onclick="batchDownloadUrls()" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 border" title="ייצא קישורים כקובץ טקסט" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
-                <i class="fas fa-link"></i> <span class="hidden md:inline">גיבוי קישורים</span>
+                <i class="fas fa-file-alt"></i> <span class="hidden md:inline">גיבוי קישורים</span>
             </button>
 
             <button onclick="batchDownloadWithYtDlp()" class="bg-blue-600 hover:bg-blue-700 border border-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg text-white">
@@ -540,14 +544,20 @@
 
         let ytPlayer = null;
 
-        // Autocomplete Logic
+        // Autocomplete & Recent Searches Logic
         let autocompleteTimeout;
-        document.getElementById('searchInput').addEventListener('input', (e) => {
+        const searchInputEl = document.getElementById('searchInput');
+
+        searchInputEl.addEventListener('input', (e) => {
             clearTimeout(autocompleteTimeout);
             const query = e.target.value.trim();
             const resultsDiv = document.getElementById('autocomplete-results');
             
-            if (!query || query.match(/^https?:\/\//)) { 
+            if (!query) {
+                showRecentSearches();
+                return;
+            }
+            if (query.match(/^https?:\/\//)) { 
                 resultsDiv.classList.add('hidden');
                 return;
             }
@@ -556,8 +566,9 @@
                 const script = document.createElement('script');
                 window.handleAutocomplete = function(data) {
                     let suggestions = [];
+                    // ויקיפדיה מחזירה במערך השני את ההצעות
                     if (data && data[1]) {
-                        suggestions = data[1].map(item => Array.isArray(item) ? item[0] : item);
+                        suggestions = data[1];
                     }
                     
                     resultsDiv.innerHTML = '';
@@ -569,7 +580,7 @@
                             div.style.borderColor = 'var(--border-color)';
                             div.innerHTML = `<i class="fas fa-search ml-2 text-gray-500"></i> ${sug}`;
                             div.onclick = () => {
-                                document.getElementById('searchInput').value = sug;
+                                searchInputEl.value = sug;
                                 resultsDiv.classList.add('hidden');
                                 performSearch(false);
                             };
@@ -581,15 +592,52 @@
                     }
                     script.remove();
                 };
-script.src = `https://he.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&format=json&callback=handleAutocomplete`;                document.body.appendChild(script);
+                script.src = `https://he.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&format=json&callback=handleAutocomplete`;
+                document.body.appendChild(script);
             }, 300);
         });
-        
+
+        // הצגת חיפושים אחרונים בעת לחיצה על שורת החיפוש
+        searchInputEl.addEventListener('focus', () => {
+            if (!searchInputEl.value.trim()) showRecentSearches();
+        });
+
         document.addEventListener('click', (e) => {
             if (!e.target.closest('#searchInput') && !e.target.closest('#autocomplete-results')) {
                 document.getElementById('autocomplete-results').classList.add('hidden');
             }
         });
+
+        function showRecentSearches() {
+            const recents = JSON.parse(localStorage.getItem('yt_recent_searches') || '[]');
+            const resultsDiv = document.getElementById('autocomplete-results');
+            resultsDiv.innerHTML = '';
+            
+            if (recents.length > 0) {
+                const header = document.createElement('div');
+                header.className = 'px-4 py-2 text-xs font-bold text-gray-500 border-b flex justify-between items-center';
+                header.style.borderColor = 'var(--border-color)';
+                header.innerHTML = `<span>חיפושים אחרונים</span><button onclick="localStorage.removeItem('yt_recent_searches'); document.getElementById('autocomplete-results').classList.add('hidden'); event.stopPropagation();" class="hover:text-red-500 transition">נקה הכל</button>`;
+                resultsDiv.appendChild(header);
+
+                recents.forEach(sug => {
+                    const div = document.createElement('div');
+                    div.className = 'px-4 py-3 cursor-pointer transition text-right text-sm border-b hover:opacity-80 flex items-center gap-3';
+                    div.style.color = 'var(--text-primary)';
+                    div.style.borderColor = 'var(--border-color)';
+                    div.innerHTML = `<i class="fas fa-history text-gray-500"></i> <span class="flex-1">${sug}</span>`;
+                    div.onclick = () => {
+                        searchInputEl.value = sug;
+                        resultsDiv.classList.add('hidden');
+                        performSearch(false);
+                    };
+                    resultsDiv.appendChild(div);
+                });
+                resultsDiv.classList.remove('hidden');
+            } else {
+                resultsDiv.classList.add('hidden');
+            }
+        }
 
         function toggleNetfreeMode() {
             appState.isNetfreeMode = !appState.isNetfreeMode;
@@ -820,7 +868,6 @@ script.src = `https://he.wikipedia.org/w/api.php?action=opensearch&search=${enco
             let safeText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             safeText = safeText.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-500 hover:underline">$1</a>');
             
-            // המרת חותמות זמן לכפתורים לחיצים
             safeText = safeText.replace(/(?:([0-5]?\d):)?([0-5]?\d):([0-5]\d)/g, (match) => {
                 const parts = match.split(':').reverse();
                 let seconds = parseInt(parts[0], 10) + parseInt(parts[1], 10) * 60;
@@ -1022,12 +1069,26 @@ script.src = `https://he.wikipedia.org/w/api.php?action=opensearch&search=${enco
             const bar = document.getElementById('batchActionBar');
             const countLabel = document.getElementById('batchCountLabel');
             
-            if (appState.isSelectionMode && appState.selectedVideos.size > 0) {
+            if (appState.isSelectionMode) {
                 bar.classList.remove('translate-y-full');
                 countLabel.innerText = `${appState.selectedVideos.size} סרטונים נבחרו`;
             } else {
                 bar.classList.add('translate-y-full');
             }
+        }
+
+        function batchCopyUrls() {
+            if (appState.selectedVideos.size === 0) return;
+            const videos = appState.currentRenderedItems.filter(item => 
+                item.id && (item.id.videoId || typeof item.id === 'string') &&
+                appState.selectedVideos.has(item.id.videoId || item.id)
+            );
+            const urlList = videos.map(item => `https://www.youtube.com/watch?v=${item.id.videoId || item.id}`).join('\n');
+            const dummy = document.createElement("textarea"); 
+            document.body.appendChild(dummy);
+            dummy.value = urlList; dummy.select(); document.execCommand('copy'); document.body.removeChild(dummy);
+            showToast("הקישורים הועתקו ללוח!");
+            toggleSelectionMode(); 
         }
 
         function batchDownloadUrls() {
@@ -1067,6 +1128,25 @@ script.src = `https://he.wikipedia.org/w/api.php?action=opensearch&search=${enco
                 });
             }
             updateBatchActionBar();
+        }
+
+        function downloadWithYtDlp(videoId) {
+            const qualitySelect = document.getElementById(`dl-qual-${videoId}`);
+            const quality = qualitySelect ? qualitySelect.value : '1080';
+            
+            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
+            showToast(`מתחיל העברה להורדה (${qualityText})...`);
+            
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = `ytdlp://${videoId}/${quality}`;
+            document.body.appendChild(iframe);
+            
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 2000);
         }
 
         function batchDownloadWithYtDlp() {
@@ -1894,7 +1974,6 @@ script.src = `https://he.wikipedia.org/w/api.php?action=opensearch&search=${enco
 
             if (!query) return loadHomePage();
 
-            // זיהוי קישורים לחיפוש ישיר
             const listMatch = query.match(/[?&]list=([^&]+)/);
             const videoMatch = query.match(/(?:v=|youtu\.be\/|shorts\/)([^&?]+)/);
             const channelMatch = query.match(/youtube\.com\/(?:channel\/|c\/|@)([^&?\/]+)/);
@@ -1920,6 +1999,15 @@ script.src = `https://he.wikipedia.org/w/api.php?action=opensearch&search=${enco
                         document.getElementById('searchType').value = 'channel';
                     }
                 }
+            }
+
+            // שמירת החיפוש בהיסטוריית החיפושים המקומית
+            if (!loadMore && query && !(listMatch || videoMatch || channelMatch)) {
+                let recents = JSON.parse(localStorage.getItem('yt_recent_searches') || '[]');
+                recents = recents.filter(q => q !== query);
+                recents.unshift(query);
+                if (recents.length > 15) recents.pop();
+                localStorage.setItem('yt_recent_searches', JSON.stringify(recents));
             }
 
             if (duration) { type = 'video'; document.getElementById('searchType').value = 'video'; }
@@ -2513,86 +2601,11 @@ script.src = `https://he.wikipedia.org/w/api.php?action=opensearch&search=${enco
                 const data = await res.json();
                 const item = data.items[0];
                 if (item) {
-                    const descText = item.snippet.description || '';
-                    document.getElementById('modalDesc').innerHTML = safeLinkifyWithTimestamps(descText);
+                    document.getElementById('modalDesc').innerHTML = linkify(item.snippet.description);
                     document.getElementById('modalStats').innerText = `${parseInt(item.statistics.viewCount).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`;
-                    
-                    // חילוץ פרקים מתוך התיאור
-                    const lines = descText.split('\n');
-                    const chapters = [];
-                    lines.forEach(line => {
-                        const match = line.match(/(?:(?:[0-5]?\d):)?(?:[0-5]?\d):(?:[0-5]\d)/);
-                        if (match) {
-                            const timeStr = match[0];
-                            const chapterTitle = line.replace(timeStr, '').replace(/^[^\wא-ת]+|[^\wא-ת]+$/g, '').trim(); 
-                            const parts = timeStr.split(':').reverse();
-                            let seconds = parseInt(parts[0], 10) + parseInt(parts[1], 10) * 60;
-                            if (parts[2]) seconds += parseInt(parts[2], 10) * 3600;
-                            chapters.push({ time: timeStr, seconds, title: chapterTitle || 'פרק סרטון' });
-                        }
-                    });
-
-                    const toggleChaptersBtn = document.getElementById('toggleChaptersBtn');
-                    const chaptersContainer = document.getElementById('chaptersContainer');
-                    const chaptersList = document.getElementById('chaptersList');
-
-                    if (chapters.length > 0) {
-                        toggleChaptersBtn.classList.remove('hidden');
-                        toggleChaptersBtn.classList.add('flex');
-                        toggleChaptersBtn.onclick = () => {
-                            chaptersContainer.classList.toggle('hidden');
-                            const icon = toggleChaptersBtn.querySelector('i');
-                            icon.className = chaptersContainer.classList.contains('hidden') ? 'fas fa-angle-double-down text-xl' : 'fas fa-angle-double-up text-xl';
-                        };
-                        chaptersList.innerHTML = chapters.map(ch => 
-                            `<button onclick="if(ytPlayer) ytPlayer.seekTo(${ch.seconds}, true)" class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-500/10 transition text-right border border-transparent hover:border-gray-500/30">
-                                <span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-bold w-16 text-center shadow-sm">${ch.time}</span>
-                                <span class="flex-1 text-sm line-clamp-1" style="color: var(--text-primary);">${ch.title}</span>
-                            </button>`
-                        ).join('');
-                    } else {
-                        toggleChaptersBtn.classList.add('hidden');
-                        toggleChaptersBtn.classList.remove('flex');
-                        chaptersContainer.classList.add('hidden');
-                    }
                 }
             } catch(e) {}
             
-            // טעינת 10 תגובות מובילות
-            const commentsList = document.getElementById('commentsList');
-            commentsList.innerHTML = '<div class="text-center opacity-50 text-sm">טוען תגובות...</div>';
-            try {
-                const commentsRes = await fetch(`https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${id}&maxResults=10&order=relevance&key=${appState.apiKey}`);
-                if(commentsRes.ok) {
-                    const commentsData = await commentsRes.json();
-                    if(commentsData.items && commentsData.items.length > 0) {
-                        commentsList.innerHTML = commentsData.items.map(item => {
-                            const c = item.snippet.topLevelComment.snippet;
-                            return `
-                            <div class="flex gap-4 p-3 rounded-lg hover:bg-gray-500/5 transition">
-                                <img src="${c.authorProfileImageUrl}" class="w-10 h-10 rounded-full" onerror="this.src='https://www.gravatar.com/avatar/0?d=mp'">
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="font-bold text-sm" style="color: var(--text-primary);">${c.authorDisplayName}</span>
-                                        <span class="text-xs" style="color: var(--text-muted);">${timeSince(c.publishedAt)}</span>
-                                    </div>
-                                    <div class="text-sm leading-relaxed whitespace-pre-wrap" style="color: var(--text-secondary);">${safeLinkifyWithTimestamps(c.textDisplay)}</div>
-                                    <div class="flex items-center gap-2 mt-2 text-xs" style="color: var(--text-muted);">
-                                        <i class="fas fa-thumbs-up"></i> ${c.likeCount > 0 ? formatCount(c.likeCount) : ''}
-                                    </div>
-                                </div>
-                            </div>`;
-                        }).join('');
-                    } else {
-                        commentsList.innerHTML = '<div class="text-center opacity-50 text-sm">אין תגובות מופעלות בסרטון זה.</div>';
-                    }
-                } else {
-                     commentsList.innerHTML = '<div class="text-center opacity-50 text-sm">התגובות מושבתות או שאין הרשאה לקרוא אותן.</div>';
-                }
-            } catch(e) {
-                commentsList.innerHTML = '<div class="text-center opacity-50 text-sm">שגיאה בטעינת התגובות.</div>';
-            }
-
             view.classList.add('active'); view.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
@@ -2620,12 +2633,6 @@ script.src = `https://he.wikipedia.org/w/api.php?action=opensearch&search=${enco
             document.body.style.overflow = 'auto'; 
             appState.currentVideoId = null; appState.isVideoPaused = false;
             document.getElementById('global-pause-btn').classList.add('hidden'); document.getElementById('return-to-video-btn').classList.add('hidden');
-            
-            // איפוס מראה פאנל פרקים ותגובות
-            document.getElementById('chaptersContainer').classList.add('hidden');
-            document.getElementById('toggleChaptersBtn').classList.add('hidden');
-            document.getElementById('toggleChaptersBtn').classList.remove('flex');
-            document.getElementById('commentsList').innerHTML = '';
         }
 
         function copyLink(id) {
