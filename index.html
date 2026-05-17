@@ -122,7 +122,7 @@
             resize: both; 
             overflow: hidden; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid var(--border-color); pointer-events: auto; display: block; position: relative; background: var(--bg-main); 
         }
-        #watchView.floating-mode .player-info-section, #watchView.floating-mode .player-header { display: none !important; }
+        #watchView.floating-mode .player-info-section, #watchView.floating-mode .player-header, #upNextSidebar { display: none !important; }
         #watchView.floating-mode .aspect-video { width: 100%; height: 100%; position: absolute; inset: 0; padding: 0; margin: 0; }
         .floating-controls { display: none; }
         #watchView.floating-mode .player-container:hover .floating-controls { display: flex; position: absolute; top: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); z-index: 20; opacity: 1; justify-content: flex-end; gap: 10px; cursor: move; }
@@ -303,6 +303,9 @@
                 <div onclick="loadResumeTab()" class="sidebar-item" id="navResume">
                     <i class="fas fa-play-circle text-lg text-blue-500"></i><span>המשך צפייה</span>
                 </div>
+                <div onclick="loadQueueTab()" class="sidebar-item" id="navQueue">
+                    <i class="fas fa-list-ol text-lg text-green-500"></i><span>תור השמעה</span>
+                </div>
                 <div onclick="loadLocalSubscriptionsFeed()" class="sidebar-item" id="navLocalSubs">
                     <i class="fas fa-users text-lg text-purple-500"></i><span>עדכונים מערוצים</span>
                 </div>
@@ -406,7 +409,7 @@
     <div id="watchView" class="fixed inset-0 z-[200] items-center justify-center p-4">
         <div class="absolute inset-0 modal-overlay-bg" onclick="minimizePlayer()"></div>
         
-        <div class="player-container relative w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border shadow-2xl z-10" style="background-color: var(--bg-main); border-color: var(--border-color);">
+        <div class="player-container relative w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border shadow-2xl z-10 transition-all duration-300" style="background-color: var(--bg-main); border-color: var(--border-color);">
             <div class="floating-controls">
                  <button onclick="toggleFloatingMode()" class="w-8 h-8 bg-black/60 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition" title="חזור למסך רגיל">
                     <i class="fas fa-expand-alt text-xs"></i>
@@ -419,6 +422,9 @@
             <div class="player-header p-4 flex justify-between items-center border-b" style="border-color: var(--border-color);">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2" style="color: var(--text-primary);"></h3>
                 <div class="flex gap-2">
+                    <button onclick="toggleYouTubeMode()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="מצב יוטיוב (תצוגה רחבה עם תור)">
+                        <i class="fas fa-columns"></i>
+                    </button>
                     <button onclick="toggleFloatingMode()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="נגן צף פנימי נשלט גודל">
                         <i class="fas fa-clone"></i>
                     </button>
@@ -431,36 +437,64 @@
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
-                <div class="aspect-video w-full bg-black flex-shrink-0 relative" id="playerContainerWrapper">
-                    <div id="playerFrame" class="w-full h-full absolute inset-0"></div>
-                </div>
-                <div class="p-8 player-info-section">
-                    <div class="flex justify-between items-start mb-4">
-                        <h2 id="fullTitle" class="text-2xl font-bold flex-1" style="color: var(--text-primary);"></h2>
-                        <div class="flex items-center gap-2">
-                            <button id="toggleChaptersBtn" class="w-12 h-12 rounded-full hidden flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="הצג/הסתר פרקי הסרטון">
-                                <i class="fas fa-list-ol text-xl"></i>
-                            </button>
-                            <button id="playerLikeBtn" onclick="toggleLocalLike()" class="w-12 h-12 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="אהבתי">
-                                <i class="far fa-heart text-xl"></i>
-                            </button>
-                        </div>
+            <div class="flex-1 flex flex-col md:flex-row h-full overflow-hidden" id="watchMainContent">
+                <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col" id="watchVideoArea">
+                    <div class="aspect-video w-full bg-black flex-shrink-0 relative" id="playerContainerWrapper">
+                        <div id="playerFrame" class="w-full h-full absolute inset-0"></div>
                     </div>
-                    <div class="p-5 rounded-2xl" style="background-color: var(--bg-surface);">
-                        <p id="modalStats" class="text-sm font-bold mb-3" style="color: var(--text-primary);"></p>
-                        <div id="modalDesc" class="text-sm whitespace-pre-wrap leading-relaxed" style="color: var(--text-secondary);"></div>
-                        
-                        <div id="chaptersContainer" class="hidden mt-6 p-4 rounded-xl border" style="background-color: var(--bg-input); border-color: var(--border-color);">
-                            <h4 class="font-bold mb-3 flex items-center gap-2" style="color: var(--text-primary);"><i class="fas fa-list-ol text-blue-500"></i> פרקי הסרטון</h4>
-                            <div id="chaptersList" class="flex flex-col gap-1.5 max-h-60 overflow-y-auto custom-scrollbar pr-2"></div>
-                        </div>
-                    </div>
+                    <div class="p-8 player-info-section">
+                        <div class="flex justify-between items-start mb-4">
+                            <h2 id="fullTitle" class="text-2xl font-bold flex-1" style="color: var(--text-primary);"></h2>
+                            <div class="flex items-center gap-2 flex-wrap justify-end">
+                                
+                                <button id="prevChapterBtn" onclick="skipChapter(-1)" class="hidden w-10 h-10 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="פרק קודם">
+                                    <i class="fas fa-step-backward"></i>
+                                </button>
+                                <button id="nextChapterBtn" onclick="skipChapter(1)" class="hidden w-10 h-10 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="פרק הבא">
+                                    <i class="fas fa-step-forward"></i>
+                                </button>
 
-                    <div id="commentsSection" class="mt-8 border-t pt-6" style="border-color: var(--border-color);">
-                        <h3 class="text-lg font-bold mb-4 flex items-center gap-2" style="color: var(--text-primary);"><i class="fas fa-comments text-gray-500"></i> תגובות מובילות</h3>
-                        <div id="commentsList" class="flex flex-col gap-6"></div>
+                                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full transition border" style="background-color: var(--bg-surface); border-color: var(--border-color);">
+                                    <select id="watchDlQuality" class="bg-transparent text-sm outline-none cursor-pointer" style="color: var(--text-secondary);">
+                                        <option value="1080" style="background-color: var(--bg-surface);">1080p</option>
+                                        <option value="720" style="background-color: var(--bg-surface);">720p</option>
+                                        <option value="480" style="background-color: var(--bg-surface);">480p</option>
+                                        <option value="audio" style="background-color: var(--bg-surface);">שמע (MP3)</option>
+                                    </select>
+                                    <div class="w-px h-4" style="background-color: var(--border-light);"></div>
+                                    <button onclick="downloadWatchVideo()" class="transition flex items-center gap-1" style="color: #3b82f6;" title="הורד עכשיו">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
+
+                                <button id="toggleChaptersBtn" class="w-10 h-10 rounded-full hidden flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="הצג/הסתר פרקי הסרטון">
+                                    <i class="fas fa-list-ol text-xl"></i>
+                                </button>
+                                <button id="playerLikeBtn" onclick="toggleLocalLike()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="אהבתי">
+                                    <i class="far fa-heart text-xl"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-5 rounded-2xl" style="background-color: var(--bg-surface);">
+                            <p id="modalStats" class="text-sm font-bold mb-3" style="color: var(--text-primary);"></p>
+                            <div id="modalDesc" class="text-sm whitespace-pre-wrap leading-relaxed" style="color: var(--text-secondary);"></div>
+                            
+                            <div id="chaptersContainer" class="hidden mt-6 p-4 rounded-xl border" style="background-color: var(--bg-input); border-color: var(--border-color);">
+                                <h4 class="font-bold mb-3 flex items-center gap-2" style="color: var(--text-primary);"><i class="fas fa-list-ol text-blue-500"></i> פרקי הסרטון</h4>
+                                <div id="chaptersList" class="flex flex-col gap-1.5 max-h-60 overflow-y-auto custom-scrollbar pr-2"></div>
+                            </div>
+                        </div>
+
+                        <div id="commentsSection" class="mt-8 border-t pt-6" style="border-color: var(--border-color);">
+                            <h3 class="text-lg font-bold mb-4 flex items-center gap-2" style="color: var(--text-primary);"><i class="fas fa-comments text-gray-500"></i> תגובות מובילות</h3>
+                            <div id="commentsList" class="flex flex-col gap-6"></div>
+                        </div>
                     </div>
+                </div>
+                
+                <div id="upNextSidebar" class="hidden w-80 lg:w-96 flex-col border-r overflow-y-auto custom-scrollbar p-4" style="background-color: var(--bg-card); border-color: var(--border-color);">
+                    <h3 class="font-bold mb-4" style="color: var(--text-primary);">הבאים בתור (תור השמעה / רשימה)</h3>
+                    <div id="upNextList" class="flex flex-col gap-3"></div>
                 </div>
             </div>
         </div>
@@ -556,6 +590,8 @@
             currentVideoDetails: null, 
             isVideoPaused: false,
             isFloating: false,
+            isYouTubeMode: false,
+            currentChapters: [],
             activeChannelId: null,
             channelViewMode: 'all',
             currentRenderedItems: [],
@@ -624,7 +660,6 @@
             }, 300);
         });
 
-        // הצגת חיפושים אחרונים בעת לחיצה על שורת החיפוש
         searchInputEl.addEventListener('focus', () => {
             if (!searchInputEl.value.trim()) showRecentSearches();
         });
@@ -787,6 +822,7 @@
                     const nextVideo = appState.tempQueue.shift();
                     openPlayer(nextVideo.id, nextVideo.title, nextVideo.thumbnail, nextVideo.channel, nextVideo.duration);
                     showToast(`מנגן מהתור. נותרו: ${appState.tempQueue.length}`);
+                    if (appState.searchContext === 'queue') loadQueueTab(true);
                 } else {
                     playNextVideo(); 
                 }
@@ -833,6 +869,8 @@
             if(event) event.stopPropagation();
             appState.tempQueue.push(videoObj);
             showToast(`נוסף לתור ההשמעה (${appState.tempQueue.length} בתור)`);
+            if (appState.searchContext === 'queue') loadQueueTab(true);
+            if (appState.isYouTubeMode) populateUpNext();
         }
 
         let navHistory = [];
@@ -898,6 +936,8 @@
                 loadLikedItems(state.likedType, true);
             } else if (state.type === 'local_resume') {
                 loadResumeTab(true);
+            } else if (state.type === 'queue') {
+                loadQueueTab(true);
             }
         }
 
@@ -1210,6 +1250,24 @@
             }, 2000);
         }
 
+        function downloadWatchVideo() {
+            if (!appState.currentVideoId) return;
+            const quality = document.getElementById('watchDlQuality').value;
+            let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
+            showToast(`מתחיל העברה להורדה (${qualityText})...`);
+            
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = `ytdlp://${appState.currentVideoId}/${quality}`;
+            document.body.appendChild(iframe);
+            
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 2000);
+        }
+
         function batchDownloadWithYtDlp() {
             if (appState.selectedVideos.size === 0) return;
             
@@ -1241,7 +1299,7 @@
                     }, 2000);
                 }, delay);
                 
-                delay += 800; 
+                delay += 6000; 
             });
 
             setTimeout(() => { 
@@ -1457,7 +1515,7 @@
             titleEl.classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
             
-            if (appState.currentVideoId) minimizePlayer();
+            if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
 
             renderLikedTab(type);
         }
@@ -1545,7 +1603,7 @@
             document.getElementById('pagination').classList.add('hidden');
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
             
-            if (appState.currentVideoId) minimizePlayer();
+            if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
 
             const playlists = PlaylistManager.getPlaylists();
             const videos = playlists[name] || [];
@@ -1631,7 +1689,7 @@
             document.getElementById('pagination').classList.add('hidden');
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
             
-            if (appState.currentVideoId) minimizePlayer();
+            if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
 
             const history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             if (history.length === 0) {
@@ -1668,7 +1726,7 @@
             document.getElementById('pagination').classList.add('hidden');
             document.getElementById('exportUrlsBtn').classList.add('hidden'); 
             
-            if (appState.currentVideoId) minimizePlayer();
+            if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
 
             const positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
             const items = Object.values(positions).filter(p => p && p.details && p.details.id).sort((a,b) => b.time - a.time);
@@ -1693,6 +1751,43 @@
             const clearBtn = document.createElement('div');
             clearBtn.className = "col-span-full flex justify-center mt-8";
             clearBtn.innerHTML = `<button onclick="if(confirm('לנקות את כל רשימת המשך צפייה?')) { localStorage.setItem('yt_resume_positions', '{}'); loadResumeTab(true); }" class="px-6 py-2 rounded-full text-sm border transition flex items-center" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;"><i class="fas fa-trash-alt ml-2"></i> נקה את כל הרשימה</button>`;
+            grid.appendChild(clearBtn);
+        }
+
+        function loadQueueTab(isHistoryNav = false) {
+            if (appState.isSelectionMode) toggleSelectionMode();
+            setActiveNavItem('navQueue');
+            appState.searchContext = 'queue'; 
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.remove('hidden');
+            if (!isHistoryNav) pushHistory({ type: 'queue' });
+
+            document.getElementById('sectionTitle').innerText = "תור השמעה";
+            document.getElementById('sectionTitle').classList.remove('hidden');
+            document.getElementById('pagination').classList.add('hidden');
+            document.getElementById('exportUrlsBtn').classList.add('hidden'); 
+            
+            if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
+
+            if (appState.tempQueue.length === 0) {
+                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">תור ההשמעה ריק.</div>`;
+                appState.currentRenderedItems = [];
+                return;
+            }
+
+            const formattedItems = appState.tempQueue.map(item => ({
+                id: { kind: 'youtube#video', videoId: item.id },
+                snippet: { title: item.title, channelTitle: item.channel, thumbnails: { high: { url: item.thumbnail }, medium: { url: item.thumbnail } }, publishedAt: new Date().toISOString() },
+                contentDetails: { duration: item.duration },
+                statistics: { viewCount: 0, likeCount: 0 }
+            }));
+
+            renderResults(formattedItems, true);
+
+            const grid = document.getElementById('resultsGrid');
+            const clearBtn = document.createElement('div');
+            clearBtn.className = "col-span-full flex justify-center mt-8";
+            clearBtn.innerHTML = `<button onclick="appState.tempQueue = []; loadQueueTab(true);" class="px-6 py-2 rounded-full text-sm border transition flex items-center" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;"><i class="fas fa-trash-alt ml-2"></i> נקה תור השמעה</button>`;
             grid.appendChild(clearBtn);
         }
 
@@ -1860,6 +1955,88 @@
             else { view.classList.remove('floating-mode'); document.body.style.overflow = 'hidden'; }
         }
 
+        function toggleYouTubeMode() {
+            appState.isYouTubeMode = !appState.isYouTubeMode;
+            const container = document.querySelector('#watchView .player-container');
+            const upNextSidebar = document.getElementById('upNextSidebar');
+
+            if (appState.isYouTubeMode) {
+                container.classList.remove('max-w-5xl');
+                container.style.maxWidth = '80vw';
+                container.style.width = '80vw';
+                upNextSidebar.classList.remove('hidden');
+                upNextSidebar.classList.add('flex');
+                populateUpNext();
+            } else {
+                container.style.maxWidth = '';
+                container.style.width = '';
+                container.classList.add('max-w-5xl');
+                upNextSidebar.classList.add('hidden');
+                upNextSidebar.classList.remove('flex');
+            }
+        }
+
+        function populateUpNext() {
+            if (!appState.isYouTubeMode) return;
+            const list = document.getElementById('upNextList');
+            list.innerHTML = '';
+            
+            let upcoming = [...appState.tempQueue];
+            
+            if (appState.currentRenderedItems) {
+                let foundCurrent = false;
+                for (let item of appState.currentRenderedItems) {
+                    const vidId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
+                    if (foundCurrent && vidId) {
+                        upcoming.push({
+                            id: vidId,
+                            title: item.snippet.title,
+                            thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '',
+                            channel: item.snippet.channelTitle || '',
+                            duration: item.contentDetails?.duration || ''
+                        });
+                    }
+                    if (vidId === appState.currentVideoId) foundCurrent = true;
+                }
+            }
+
+            if (upcoming.length === 0) {
+                list.innerHTML = '<p class="text-sm text-center mt-10" style="color: var(--text-secondary);">אין סרטונים בתור או ברשימה</p>';
+                return;
+            }
+
+            let seen = new Set();
+            upcoming = upcoming.filter(u => {
+                if (seen.has(u.id)) return false;
+                seen.add(u.id);
+                return true;
+            });
+
+            upcoming.slice(0, 20).forEach((item, index) => {
+                const isFromQueue = index < appState.tempQueue.length;
+                const badge = isFromQueue ? `<span class="text-[9px] bg-green-600 text-white px-1.5 py-0.5 rounded ml-1">בתור</span>` : '';
+                
+                const div = document.createElement('div');
+                div.className = "flex gap-3 cursor-pointer p-2 rounded-xl transition border border-transparent";
+                div.style.backgroundColor = isFromQueue ? "rgba(34, 197, 94, 0.05)" : "transparent";
+                div.onmouseover = () => { div.style.backgroundColor = "var(--bg-surface)"; div.style.borderColor = "var(--border-color)"; };
+                div.onmouseout = () => { div.style.backgroundColor = isFromQueue ? "rgba(34, 197, 94, 0.05)" : "transparent"; div.style.borderColor = "transparent"; };
+                
+                div.onclick = () => openPlayer(item.id, item.title, item.thumbnail, item.channel, item.duration);
+                div.innerHTML = `
+                    <div class="relative w-32 flex-shrink-0">
+                        <img src="${item.thumbnail}" class="w-full aspect-video object-cover rounded-lg" style="background-color: var(--bg-surface);">
+                        <div class="absolute bottom-1 left-1 bg-black/80 text-white text-[9px] px-1 rounded font-bold">${parseDuration(item.duration) || ''}</div>
+                    </div>
+                    <div class="flex-1 flex flex-col justify-center">
+                        <h4 class="text-xs font-bold line-clamp-2 leading-tight" style="color: var(--text-primary);">${badge}${item.title}</h4>
+                        <p class="text-[10px] mt-1" style="color: var(--text-secondary);">${item.channel}</p>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
         function minimizePlayer() {
             if (appState.isFloating) {
                 document.getElementById('watchView').classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
@@ -1985,8 +2162,8 @@
 
             if (!isHistoryNav) pushHistory({ type: 'home' });
             
-            if (appState.currentVideoId) minimizePlayer();
-            else document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען...</div>`;
+            if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
+            else if (!appState.currentVideoId) document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען...</div>`;
 
             document.getElementById('pagination').classList.add('hidden');
             const titleEl = document.getElementById('sectionTitle');
@@ -2023,8 +2200,8 @@
             
             if (!isHistoryNav) pushHistory({ type: 'history' });
 
-            if (appState.currentVideoId) minimizePlayer();
-            else document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">טוען פעילות...</div>`;
+            if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
+            else if (!appState.currentVideoId) document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">טוען פעילות...</div>`;
             
             document.getElementById('pagination').classList.add('hidden');
             const titleEl = document.getElementById('sectionTitle');
@@ -2103,8 +2280,8 @@
                 appState.query = query; 
                 appState.pageToken = "";
                 if (!isHistoryNav) { pushHistory({ type: 'search', query: query, filterType: type, order: order, duration: duration, dateFilter: dateFilter }); }
-                if (appState.currentVideoId) { minimizePlayer(); document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">מחפש...</div>`; } 
-                else { document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">מחפש...</div>`; }
+                if (appState.currentVideoId && !appState.isYouTubeMode) { minimizePlayer(); document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">מחפש...</div>`; } 
+                else if (!appState.currentVideoId) { document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">מחפש...</div>`; }
             }
 
             try {
@@ -2157,7 +2334,7 @@
             
             if (!loadMore) {
                 if (appState.isSelectionMode) toggleSelectionMode();
-                if (appState.currentVideoId) minimizePlayer();
+                if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
                 
                 appState.channelViewMode = viewMode;
 
@@ -2172,7 +2349,7 @@
                 }
 
                 try {
-                    document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען ערוץ...</div>`;
+                    if (!appState.currentVideoId) document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען ערוץ...</div>`;
                     document.getElementById('sectionTitle').innerText = "טוען...";
                     document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
                     document.getElementById('internalSearch').classList.add('hidden');
@@ -2261,7 +2438,7 @@
             document.getElementById('channelHeaderContainer').classList.add('hidden');
             document.getElementById('internalSearch').classList.add('hidden');
             document.getElementById('sectionTitle').innerText = `פלייליסט: ${title}`;
-            document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען סרטונים...</div>`;
+            if (!appState.currentVideoId) document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען סרטונים...</div>`;
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
             
             loadChannelVideos(null, true, false, 'all'); 
@@ -2384,6 +2561,8 @@
             
             appState.currentRenderedItems = [...appState.currentRenderedItems, ...items];
             
+            if (appState.isYouTubeMode) populateUpNext();
+
             const localHistory = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             const watchedIds = new Set(localHistory.map(h => h.id));
 
@@ -2583,6 +2762,12 @@
                                 </button>
                                 ` : ''}
 
+                                ${appState.searchContext === 'queue' ? `
+                                <button onclick="event.stopPropagation(); appState.tempQueue = appState.tempQueue.filter(v => v.id !== '${videoId}'); loadQueueTab(true);" class="flex items-center justify-center text-[10px] px-3 py-1.5 rounded-full transition w-fit border" title="הסר מהתור" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                ` : ''}
+
                                 ${appState.searchContext.startsWith('playlist_') ? `
                                 <button onclick="event.stopPropagation(); PlaylistManager.removeFromPlaylist('${appState.searchContext.replace('playlist_', '')}', '${videoId}')" 
                                     class="text-[10px] px-3 py-1.5 rounded-full border transition" title="הסר מרשימה" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;">
@@ -2641,10 +2826,16 @@
             const chaptersList = document.getElementById('chaptersList');
             const chaptersContainer = document.getElementById('chaptersContainer');
             const toggleBtn = document.getElementById('toggleChaptersBtn');
+            const prevBtn = document.getElementById('prevChapterBtn');
+            const nextBtn = document.getElementById('nextChapterBtn');
             
+            appState.currentChapters = [];
+
             if (!description) {
                 chaptersContainer.classList.add('hidden');
                 toggleBtn.classList.add('hidden');
+                prevBtn.classList.add('hidden');
+                nextBtn.classList.add('hidden');
                 return;
             }
 
@@ -2659,6 +2850,8 @@
                 let seconds = parseInt(parts[0], 10) + parseInt(parts[1], 10) * 60;
                 if (parts[2]) seconds += parseInt(parts[2], 10) * 3600;
                 
+                appState.currentChapters.push({ time: seconds, title: title });
+
                 chaptersHTML += `
                     <button onclick="if(ytPlayer) ytPlayer.seekTo(${seconds}, true)" class="flex items-center gap-3 p-2 transition rounded text-right border border-transparent hover:border-[var(--border-color)]" style="background-color: var(--bg-surface);">
                         <span class="text-blue-500 font-bold dir-ltr w-12 text-left">${timeStr}</span>
@@ -2667,15 +2860,36 @@
                 `;
             }
             
-            if (chaptersHTML) {
+            if (appState.currentChapters.length > 0) {
                 chaptersList.innerHTML = chaptersHTML;
                 chaptersContainer.classList.remove('hidden');
                 toggleBtn.classList.remove('hidden');
+                prevBtn.classList.remove('hidden');
+                nextBtn.classList.remove('hidden');
                 toggleBtn.onclick = () => chaptersContainer.classList.toggle('hidden');
             } else {
                 chaptersContainer.classList.add('hidden');
                 toggleBtn.classList.add('hidden');
+                prevBtn.classList.add('hidden');
+                nextBtn.classList.add('hidden');
             }
+        }
+
+        function skipChapter(direction) {
+            if (!ytPlayer || !appState.currentChapters.length) return;
+            const currentTime = ytPlayer.getCurrentTime();
+            let targetTime = 0;
+            
+            if (direction === 1) { 
+                const nextChap = appState.currentChapters.find(c => c.time > currentTime + 2); 
+                if (nextChap) targetTime = nextChap.time;
+                else return; 
+            } else { 
+                const prevChaps = appState.currentChapters.filter(c => c.time < currentTime - 2);
+                if (prevChaps.length > 0) targetTime = prevChaps[prevChaps.length - 1].time;
+                else targetTime = 0; 
+            }
+            ytPlayer.seekTo(targetTime, true);
         }
 
         async function openPlayer(id, title, thumbnail = '', channel = '', duration = '') {
@@ -2763,6 +2977,8 @@
                 fetchComments(id);
                 
             } catch(e) { console.error(e); }
+            
+            if (appState.isYouTubeMode) populateUpNext();
             
             view.classList.add('active'); view.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
