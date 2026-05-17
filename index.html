@@ -447,11 +447,11 @@
                             <h2 id="fullTitle" class="text-2xl font-bold flex-1" style="color: var(--text-primary);"></h2>
                             <div class="flex items-center gap-2 flex-wrap justify-end">
                                 
-                                <button id="prevChapterBtn" onclick="skipChapter(-1)" class="hidden w-10 h-10 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="פרק קודם">
-                                    <i class="fas fa-step-backward"></i>
-                                </button>
                                 <button id="nextChapterBtn" onclick="skipChapter(1)" class="hidden w-10 h-10 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="פרק הבא">
                                     <i class="fas fa-step-forward"></i>
+                                </button>
+                                <button id="prevChapterBtn" onclick="skipChapter(-1)" class="hidden w-10 h-10 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="פרק קודם">
+                                    <i class="fas fa-step-backward"></i>
                                 </button>
 
                                 <div class="flex items-center gap-2 px-3 py-1.5 rounded-full transition border" style="background-color: var(--bg-surface); border-color: var(--border-color);">
@@ -1983,20 +1983,41 @@
             
             let upcoming = [...appState.tempQueue];
             
-            if (appState.currentRenderedItems) {
+            if (appState.currentRenderedItems && appState.currentRenderedItems.length > 0) {
                 let foundCurrent = false;
                 for (let item of appState.currentRenderedItems) {
                     const vidId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
+                    
+                    if (vidId === appState.currentVideoId) {
+                        foundCurrent = true;
+                        continue; // מדלג על הסרטון הנוכחי שמתנגן
+                    }
+                    
                     if (foundCurrent && vidId) {
                         upcoming.push({
                             id: vidId,
-                            title: item.snippet.title,
-                            thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '',
-                            channel: item.snippet.channelTitle || '',
+                            title: item.snippet?.title || '',
+                            thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '',
+                            channel: item.snippet?.channelTitle || '',
                             duration: item.contentDetails?.duration || ''
                         });
                     }
-                    if (vidId === appState.currentVideoId) foundCurrent = true;
+                }
+                
+                // במקרה שהסרטון הנוכחי לא היה ברשימה (למשל נפתח מקישור ישיר), נדחף את כל הרשימה
+                if (!foundCurrent) {
+                    for (let item of appState.currentRenderedItems) {
+                        const vidId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
+                        if (vidId && vidId !== appState.currentVideoId) {
+                            upcoming.push({
+                                id: vidId,
+                                title: item.snippet?.title || '',
+                                thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '',
+                                channel: item.snippet?.channelTitle || '',
+                                duration: item.contentDetails?.duration || ''
+                            });
+                        }
+                    }
                 }
             }
 
@@ -2012,7 +2033,7 @@
                 return true;
             });
 
-            upcoming.slice(0, 20).forEach((item, index) => {
+            upcoming.slice(0, 40).forEach((item, index) => {
                 const isFromQueue = index < appState.tempQueue.length;
                 const badge = isFromQueue ? `<span class="text-[9px] bg-green-600 text-white px-1.5 py-0.5 rounded ml-1">בתור</span>` : '';
                 
