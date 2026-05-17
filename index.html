@@ -187,7 +187,7 @@
 
         <div class="flex-1 max-w-5xl flex items-center gap-2 px-4 relative z-50">
             <div class="flex w-full group relative">
-                <input type="text" id="searchInput" placeholder="חיפוש או הדבקת קישור (סרטון/ערוץ/פלייליסט)" 
+                <input type="text" id="searchInput" autocomplete="off" placeholder="חיפוש או הדבקת קישור (סרטון/ערוץ/פלייליסט)" 
                     class="w-full rounded-r-full py-2.5 px-5 outline-none transition text-right" style="background-color: var(--bg-input); border: 1px solid var(--border-color); border-left: none; color: var(--text-primary);">
                 
                 <div id="autocomplete-results" class="custom-scrollbar shadow-lg absolute top-full mt-1 left-0 right-0 hidden rounded-2xl border overflow-y-auto max-h-64 z-50" style="background-color: var(--bg-card); border-color: var(--border-color);"></div>
@@ -197,7 +197,16 @@
                 </button>
 
                 <button onclick="performGeminiSearch()" class="px-4 transition z-10 flex items-center justify-center" style="background-color: var(--bg-input); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);" title="חיפוש חכם בעזרת AI (Gemini)">
-                    <i class="fas fa-sparkles text-purple-500 hover:opacity-80 transition-opacity"></i>
+                    <svg class="w-5 h-5 hover:opacity-80 transition-opacity" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 24C12 17.3726 6.62742 12 0 12C6.62742 12 12 6.62742 12 0C12 6.62742 17.3726 12 24 12C17.3726 12 12 17.3726 12 24Z" fill="url(#gemini-gradient)"/>
+                        <defs>
+                            <linearGradient id="gemini-gradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#4285F4"/>
+                                <stop offset="0.5" stop-color="#9B72CB"/>
+                                <stop offset="1" stop-color="#D96570"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
                 </button>
 
                 <button onclick="performSearch(false)" 
@@ -2803,19 +2812,38 @@
             }
             const recognition = new SpeechRecognition();
             recognition.lang = 'he-IL';
-            recognition.interimResults = false;
+            recognition.interimResults = true; 
             recognition.maxAlternatives = 1;
 
             const voiceBtnIcon = document.querySelector('#voiceSearchBtn i');
+            const searchInput = document.getElementById('searchInput');
+            const originalPlaceholder = searchInput.placeholder;
+
             voiceBtnIcon.classList.remove('fa-microphone', 'text-gray-500', 'hover:text-blue-500');
             voiceBtnIcon.classList.add('fa-microphone-lines', 'text-red-500', 'animate-pulse');
+            
+            searchInput.placeholder = "מאזין...";
+            searchInput.value = ""; 
 
             recognition.start();
 
             recognition.onresult = (event) => {
-                const speechResult = event.results[0][0].transcript;
-                document.getElementById('searchInput').value = speechResult;
-                performSearch(false);
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                
+                searchInput.value = finalTranscript + interimTranscript;
+
+                if (finalTranscript) {
+                    performSearch(false);
+                }
             };
 
             recognition.onspeechend = () => {
@@ -2825,13 +2853,17 @@
             recognition.onend = () => {
                 voiceBtnIcon.classList.remove('fa-microphone-lines', 'text-red-500', 'animate-pulse');
                 voiceBtnIcon.classList.add('fa-microphone', 'text-gray-500', 'hover:text-blue-500');
+                searchInput.placeholder = originalPlaceholder;
             };
 
             recognition.onerror = (event) => {
                 console.error("Speech recognition error", event.error);
-                alert("שגיאה בזיהוי הקול: " + event.error);
+                if (event.error !== 'no-speech') {
+                    alert("שגיאה בזיהוי הקול: " + event.error);
+                }
                 voiceBtnIcon.classList.remove('fa-microphone-lines', 'text-red-500', 'animate-pulse');
                 voiceBtnIcon.classList.add('fa-microphone', 'text-gray-500', 'hover:text-blue-500');
+                searchInput.placeholder = originalPlaceholder;
             };
         }
 
