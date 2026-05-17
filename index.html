@@ -235,6 +235,10 @@
                 <i class="fa-solid fa-pause"></i>
             </button>
 
+            <button onclick="toggleIncognitoMode()" id="incognitoToggleBtn" class="px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2" style="background-color: var(--bg-surface); border-color: var(--border-light); color: var(--text-primary);" title="הפעל/כבה מצב אנונימי (לא שומר היסטוריה)">
+                <i class="fas fa-user-secret text-gray-500" id="incognitoIcon"></i> <span class="hidden md:inline" id="incognitoText">אנונימי: כבוי</span>
+            </button>
+
             <button onclick="toggleNetfreeMode()" id="netfreeToggleBtn" class="px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2" style="background-color: var(--bg-surface); border-color: var(--border-light); color: var(--text-primary);" title="הפעל/כבה בדיקת סרטונים (מצב נטפרי)">
                 <i class="fas fa-shield-alt text-gray-500" id="netfreeIcon"></i> <span class="hidden md:inline" id="netfreeText">נטפרי: כבוי</span>
             </button>
@@ -418,8 +422,8 @@
                     <div class="flex justify-between items-start mb-4">
                         <h2 id="fullTitle" class="text-2xl font-bold flex-1" style="color: var(--text-primary);"></h2>
                         <div class="flex items-center gap-2">
-                            <button id="toggleChaptersBtn" class="w-12 h-12 rounded-full hidden items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="פרקי הסרטון">
-                                <i class="fas fa-angle-double-down text-xl"></i>
+                            <button id="toggleChaptersBtn" class="w-12 h-12 rounded-full hidden flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="הצג/הסתר פרקי הסרטון">
+                                <i class="fas fa-list-ol text-xl"></i>
                             </button>
                             <button id="playerLikeBtn" onclick="toggleLocalLike()" class="w-12 h-12 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="אהבתי">
                                 <i class="far fa-heart text-xl"></i>
@@ -539,7 +543,8 @@
             selectedVideos: new Set(),
             currentLikedTab: 'videos',
             tempQueue: [],
-            isNetfreeMode: localStorage.getItem('yt_netfree_mode') === 'true'
+            isNetfreeMode: localStorage.getItem('yt_netfree_mode') === 'true',
+            isIncognitoMode: localStorage.getItem('yt_incognito_mode') === 'true'
         };
 
         let ytPlayer = null;
@@ -622,15 +627,16 @@
 
                 recents.forEach(sug => {
                     const div = document.createElement('div');
-                    div.className = 'px-4 py-3 cursor-pointer transition text-right text-sm border-b hover:opacity-80 flex items-center gap-3';
+                    div.className = 'px-4 py-3 cursor-pointer transition text-right text-sm border-b hover:opacity-80 flex items-center justify-between gap-3';
                     div.style.color = 'var(--text-primary)';
                     div.style.borderColor = 'var(--border-color)';
-                    div.innerHTML = `<i class="fas fa-history text-gray-500"></i> <span class="flex-1">${sug}</span>`;
-                    div.onclick = () => {
-                        searchInputEl.value = sug;
-                        resultsDiv.classList.add('hidden');
-                        performSearch(false);
-                    };
+                    const safeSug = sug.replace(/'/g, "\\'");
+                    div.innerHTML = `
+                        <div class="flex-1 flex items-center gap-3" onclick="document.getElementById('searchInput').value = '${safeSug}'; document.getElementById('autocomplete-results').classList.add('hidden'); performSearch(false);">
+                            <i class="fas fa-history text-gray-500"></i> <span>${sug}</span>
+                        </div>
+                        <button onclick="event.stopPropagation(); window.removeSingleSearch('${safeSug}')" class="text-red-500 hover:text-red-700 p-1 transition" title="מחק חיפוש"><i class="fas fa-times"></i></button>
+                    `;
                     resultsDiv.appendChild(div);
                 });
                 resultsDiv.classList.remove('hidden');
@@ -638,6 +644,13 @@
                 resultsDiv.classList.add('hidden');
             }
         }
+
+        window.removeSingleSearch = function(sug) {
+            let recents = JSON.parse(localStorage.getItem('yt_recent_searches') || '[]');
+            recents = recents.filter(q => q !== sug);
+            localStorage.setItem('yt_recent_searches', JSON.stringify(recents));
+            showRecentSearches();
+        };
 
         function toggleNetfreeMode() {
             appState.isNetfreeMode = !appState.isNetfreeMode;
@@ -666,6 +679,30 @@
             }
         }
 
+        function toggleIncognitoMode() {
+            appState.isIncognitoMode = !appState.isIncognitoMode;
+            localStorage.setItem('yt_incognito_mode', appState.isIncognitoMode);
+            updateIncognitoBtn();
+            showToast(appState.isIncognitoMode ? "מצב אנונימי הופעל - היסטוריה לא תישמר" : "מצב אנונימי כובה - ההיסטוריה תישמר כרגיל");
+        }
+
+        function updateIncognitoBtn() {
+            const btnText = document.getElementById('incognitoText');
+            const btnIcon = document.getElementById('incognitoIcon');
+            const btn = document.getElementById('incognitoToggleBtn');
+            if (!btn) return;
+            
+            if(appState.isIncognitoMode) {
+                btnText.innerText = "אנונימי: פעיל";
+                btnIcon.className = "fas fa-user-secret text-purple-500";
+                btn.classList.add('border-purple-500');
+            } else {
+                btnText.innerText = "אנונימי: כבוי";
+                btnIcon.className = "fas fa-user-secret text-gray-500";
+                btn.classList.remove('border-purple-500');
+            }
+        }
+
         (function migrateOldLikes() {
             let oldLikes = localStorage.getItem('yt_local_likes');
             if (oldLikes) {
@@ -680,6 +717,7 @@
         })();
 
         setInterval(() => {
+            if (appState.isIncognitoMode) return; 
             if (ytPlayer && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1 && appState.currentVideoId && appState.currentVideoDetails) {
                 let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
                 positions[appState.currentVideoId] = {
@@ -715,7 +753,7 @@
 
         function onPlayerStateChange(event) {
             if (event.data === 0) { 
-                if (appState.currentVideoId) {
+                if (appState.currentVideoId && !appState.isIncognitoMode) {
                     let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
                     if (positions[appState.currentVideoId]) {
                         delete positions[appState.currentVideoId];
@@ -865,6 +903,7 @@
         }
 
         function safeLinkifyWithTimestamps(text) {
+            if (!text) return '';
             let safeText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             safeText = safeText.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-500 hover:underline">$1</a>');
             
@@ -1543,7 +1582,7 @@
         }
 
         function saveToLocalHistory(id, title, thumbnail, channelName) {
-            if (!id) return;
+            if (!id || appState.isIncognitoMode) return;
             let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             history = history.filter(item => item.id !== id);
             history.unshift({ id: id, title: title, thumbnail: thumbnail, channel: channelName, timestamp: new Date().toISOString() });
@@ -1853,6 +1892,7 @@
             
             loadPlaylistsToSidebar();
             updateNetfreeBtn();
+            updateIncognitoBtn();
 
             if(savedKey) { appState.apiKey = savedKey; appState.clientId = savedClient; } 
             else { toggleConfig(); }
@@ -2001,8 +2041,8 @@
                 }
             }
 
-            // שמירת החיפוש בהיסטוריית החיפושים המקומית
-            if (!loadMore && query && !(listMatch || videoMatch || channelMatch)) {
+            // שמירת החיפוש בהיסטוריית החיפושים המקומית (רק אם מצב אנונימי כבוי)
+            if (!loadMore && query && !(listMatch || videoMatch || channelMatch) && !appState.isIncognitoMode) {
                 let recents = JSON.parse(localStorage.getItem('yt_recent_searches') || '[]');
                 recents = recents.filter(q => q !== query);
                 recents.unshift(query);
@@ -2087,7 +2127,7 @@
                     pushHistory({ type: 'channel', channelId: channelId, viewMode: viewMode });
                 }
 
-                if (channelId) {
+                if (channelId && !appState.isIncognitoMode) {
                     let lastVisited = JSON.parse(localStorage.getItem('yt_channel_visits') || '{}');
                     lastVisited[channelId] = new Date().toISOString();
                     localStorage.setItem('yt_channel_visits', JSON.stringify(lastVisited));
@@ -2526,6 +2566,80 @@
             }
         }
 
+        async function fetchComments(videoId) {
+            try {
+                const res = await fetch(`https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&maxResults=20&key=${appState.apiKey}`);
+                const data = await res.json();
+                const commentsList = document.getElementById('commentsList');
+                commentsList.innerHTML = '';
+                
+                if (!data.items || data.items.length === 0) {
+                    commentsList.innerHTML = '<p style="color: var(--text-secondary);">אין תגובות זמינות לסרטון זה.</p>';
+                    return;
+                }
+                
+                data.items.forEach(item => {
+                    const comment = item.snippet.topLevelComment.snippet;
+                    commentsList.innerHTML += `
+                        <div class="flex gap-3">
+                            <img src="${comment.authorProfileImageUrl}" class="w-10 h-10 rounded-full border" style="border-color: var(--border-color);">
+                            <div>
+                                <h4 class="font-bold text-sm" style="color: var(--text-primary);">${comment.authorDisplayName}</h4>
+                                <p class="text-sm mt-1" style="color: var(--text-secondary);">${safeLinkifyWithTimestamps(comment.textDisplay)}</p>
+                                <div class="text-xs mt-2 flex gap-3" style="color: var(--text-muted);">
+                                    <span><i class="fas fa-thumbs-up"></i> ${comment.likeCount}</span>
+                                    <span>${new Date(comment.publishedAt).toLocaleDateString('he-IL')}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch(e) {
+                document.getElementById('commentsList').innerHTML = '<p style="color: var(--text-secondary);">שגיאה בטעינת התגובות או שהן מושבתות עבור סרטון זה.</p>';
+            }
+        }
+
+        function renderChapters(description) {
+            const chaptersList = document.getElementById('chaptersList');
+            const chaptersContainer = document.getElementById('chaptersContainer');
+            const toggleBtn = document.getElementById('toggleChaptersBtn');
+            
+            if (!description) {
+                chaptersContainer.classList.add('hidden');
+                toggleBtn.classList.add('hidden');
+                return;
+            }
+
+            const regex = /(?:^|\n)((?:[0-5]?\d:)?[0-5]?\d:[0-5]\d)\s+(.+)/g;
+            let matches;
+            let chaptersHTML = '';
+            
+            while ((matches = regex.exec(description)) !== null) {
+                const timeStr = matches[1];
+                const title = matches[2].replace(/"/g, "&quot;");
+                const parts = timeStr.split(':').reverse();
+                let seconds = parseInt(parts[0], 10) + parseInt(parts[1], 10) * 60;
+                if (parts[2]) seconds += parseInt(parts[2], 10) * 3600;
+                
+                chaptersHTML += `
+                    <button onclick="if(ytPlayer) ytPlayer.seekTo(${seconds}, true)" class="flex items-center gap-3 p-2 transition rounded text-right border border-transparent hover:border-[var(--border-color)]" style="background-color: var(--bg-surface);">
+                        <span class="text-blue-500 font-bold dir-ltr w-12 text-left">${timeStr}</span>
+                        <span style="color: var(--text-primary);" class="text-sm line-clamp-1 flex-1">${title}</span>
+                    </button>
+                `;
+            }
+            
+            if (chaptersHTML) {
+                chaptersList.innerHTML = chaptersHTML;
+                chaptersContainer.classList.remove('hidden');
+                toggleBtn.classList.remove('hidden');
+                toggleBtn.onclick = () => chaptersContainer.classList.toggle('hidden');
+            } else {
+                chaptersContainer.classList.add('hidden');
+                toggleBtn.classList.add('hidden');
+            }
+        }
+
         async function openPlayer(id, title, thumbnail = '', channel = '', duration = '') {
             if (appState.isSelectionMode) {
                 toggleSelectionMode();
@@ -2601,10 +2715,16 @@
                 const data = await res.json();
                 const item = data.items[0];
                 if (item) {
-                    document.getElementById('modalDesc').innerHTML = linkify(item.snippet.description);
-                    document.getElementById('modalStats').innerText = `${parseInt(item.statistics.viewCount).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`;
+                    const descText = item.snippet.description || '';
+                    document.getElementById('modalDesc').innerHTML = safeLinkifyWithTimestamps(descText);
+                    document.getElementById('modalStats').innerText = `${parseInt(item.statistics.viewCount || 0).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`;
+                    renderChapters(descText);
                 }
-            } catch(e) {}
+                
+                document.getElementById('commentsList').innerHTML = '<p style="color: var(--text-secondary);">טוען תגובות...</p>';
+                fetchComments(id);
+                
+            } catch(e) { console.error(e); }
             
             view.classList.add('active'); view.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
