@@ -2228,7 +2228,7 @@
 
                 const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
                 const res = await fetch(url, { headers });
-                const data = await res.json();
+                const data = await json();
                 
                 let videoIds = [];
                 if (appState.token && data.items) {
@@ -3153,7 +3153,7 @@
             const systemPrompt = `אתה עוזר חכם לחיפוש ביוטיוב. המשתמש יכתוב לך מה הוא מחפש בשפה טבעית, ואתה צריך להחזיר אך ורק את מילות החיפוש המדויקות והטובות ביותר לחיפוש ב-YouTube, ללא שום טקסט נוסף, הקדמות או הסברים.\n\nבקשת המשתמש: "${query}"`;
 
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }] })
@@ -3213,20 +3213,34 @@
             
             const loadingId = appendIgMessage('חושב...', 'bot', true);
 
-            const systemPrompt = `אתה בוט חכם ואינטליגנטי בשם I.G. שעוזר למשתמשים למצוא מידע על סרטונים, מוזיקה ויוצרים ביוטיוב.
-עליך לענות בהתאם לכללים הבאים:
-1. אמינות מעל הכל: אסור לך להמציא שמות שירים, יוצרים או קשרים ביניהם (בלי הזיות). התבסס רק על ידע ודאי ומדויק. אם אינך יודע, ציין זאת.
-2. הבנת הקשר וסגנון: כשהמשתמש מחפש יוצר מז'אנר מסוים, הבא רק תוצאות אמיתיות ששייכות לאותו ז'אנר. אל תזרוק שמות אקראיים.
-3. בשאלה "של מי השיר X", חפש את היוצר האמיתי. ענה: "מצאתי כמה תוצאות שיכולות להתאים:" ואחריו הצג כל תוצאה מדויקת בשורה נפרדת שמתחילה בכוכבית (*).
-4. בשאלה "מי זה [אדם]" הצג ביוגרפיה קצרה, ממוקדת ומדויקת עובדתית.
-5. בשאלה "מה שיר הנושא של [משהו]" ענה בצורה פרקטית עם השם המדויק בשפת המקור והוסף בשורה עם כוכבית (*).
-חשוב מאוד: כל פריט לחיפוש חייב להופיע בשורה שמתחילה בכוכבית (*), כדי שהמערכת תיצור כפתור חיפוש. ענה תמיד בקצרה ובענייניות.`;
+            const systemPrompt = `אתה מומחה תוכן וידע לפלטפורמת יוטיוב. תפקידך הבלעדי הוא לענות על שאלות הקשורות ליוטיוב: יוצרי תוכן, שירים, זמרים, היסטוריה של סרטונים, תאריכי יציאה ומידע על ערוצים. עליך להיות מדויק, עובדתי, וברור.
+חוקי ברזל שעליך למלא:
+1. אם נשאלת שאלה שאינה קשורה ליוטיוב, למוזיקה או ליוצרי תוכן, סרב בנימוס והסבר שאתה ממוקד רק בתוכן של יוטיוב.
+2. לעולם אל תמציא שמות של שירים, יוצרים, או סרטונים שלא קיימים (Hallucinations).
+3. אל תמציא נתונים מדויקים כמו כמות צפיות עכשווית או כמות רשומים לערוץ אם אינך יודע אותם בוודאות. אם חסר לך מידע, ציין שאינך מעודכן לזמן אמת.
+
+הנחיות לממשק (חשוב מאוד):
+* בשאלה "של מי השיר X", חפש את היוצר האמיתי. ענה: "מצאתי כמה תוצאות שיכולות להתאים:" ואחריו הצג כל תוצאה מדויקת בשורה נפרדת שמתחילה בכוכבית (*).
+* כל שם של שיר, יוצר או סרטון שאתה מציע לחיפוש חייב להופיע בשורה שמתחילה בכוכבית (*), כדי שהמערכת תיצור ממנו כפתור לחיצה מהיר למשתמש.
+* ענה תמיד בקצרה ובענייניות.`;
 
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt + "\n\nשאלה: " + text }] }] })
+                    body: JSON.stringify({ 
+                        system_instruction: { 
+                            parts: [{ text: systemPrompt }] 
+                        },
+                        contents: [{ 
+                            parts: [{ text: text }] 
+                        }],
+                        generationConfig: {
+                            temperature: 0.2,
+                            topP: 0.8,
+                            topK: 40
+                        }
+                    })
                 });
 
                 const data = await response.json();
