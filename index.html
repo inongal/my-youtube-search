@@ -549,7 +549,7 @@
                     <input type="text" id="clientIdInput" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
                 <div>
-                    <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">מספר תוצאות לחיפוש (1-50)</label>
+                    <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">הודעות מקסימליות (1-50)</label>
                     <input type="number" id="maxResultsInput" min="1" max="50" value="12" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
                 
@@ -888,7 +888,7 @@
             }
         }
 
-        function addToQueue(videoObj, event) {
+        function borderVideo(videoObj, event) {
             if(event) event.stopPropagation();
             appState.tempQueue.push(videoObj);
             showToast(`נוסף לתור ההשמעה (${appState.tempQueue.length} בתור)`);
@@ -1391,7 +1391,7 @@
             renamePlaylist: (oldName, newName) => {
                 if (!newName || oldName === newName) return;
                 const playlists = PlaylistManager.getPlaylists();
-                if (playlists[newName]) return alert('שם זה כבר קיים לרשימה אחרת');
+                if (playlists[newName]) return alert('שם זה כבר קים לרשימה אחרת');
                 playlists[newName] = playlists[oldName];
                 delete playlists[oldName];
                 PlaylistManager.savePlaylists(playlists);
@@ -1977,11 +1977,61 @@
             returnToVideoBtn.classList.add('hidden'); 
         });
 
-        function toggleFloatingMode() {
+        async function toggleFloatingMode() {
+            if ('documentPictureInPicture' in window) {
+                try {
+                    if (window.documentPictureInPicture.window) {
+                        window.documentPictureInPicture.window.close();
+                        return;
+                    }
+                    
+                    const pipWindow = await window.documentPictureInPicture.requestWindow({
+                        width: 400,
+                        height: 225
+                    });
+                    
+                    const playerWrapper = document.getElementById('playerContainerWrapper');
+                    const originalParent = playerWrapper.parentNode;
+                    
+                    pipWindow.document.body.innerHTML = `
+                        <style>
+                            html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+                            #playerContainerWrapper { width: 100% !important; height: 100% !important; position: absolute !important; inset: 0 !important; }
+                            #playerFrame { width: 100% !important; height: 100% !important; }
+                            .floating-controls { display: none !important; }
+                        </style>
+                    `;
+                    
+                    pipWindow.document.body.appendChild(playerWrapper);
+                    
+                    pipWindow.addEventListener('pagehide', () => {
+                        originalParent.insertBefore(playerWrapper, originalParent.firstChild);
+                        if(appState.currentVideoId) {
+                            document.getElementById('watchView').classList.remove('hidden');
+                        }
+                    });
+                    
+                    minimizePlayer();
+                    
+                } catch (error) {
+                    console.error("שגיאה ביצירת חלון צף:", error);
+                    fallbackFloatingMode();
+                }
+            } else {
+                fallbackFloatingMode();
+            }
+        }
+
+        function fallbackFloatingMode() {
             const view = document.getElementById('watchView');
             appState.isFloating = !appState.isFloating;
-            if (appState.isFloating) { view.classList.add('floating-mode'); document.body.style.overflow = 'auto'; }
-            else { view.classList.remove('floating-mode'); document.body.style.overflow = 'hidden'; }
+            if (appState.isFloating) { 
+                view.classList.add('floating-mode'); 
+                document.body.style.overflow = 'auto'; 
+            } else { 
+                view.classList.remove('floating-mode'); 
+                document.body.style.overflow = 'hidden'; 
+            }
         }
 
         function toggleYouTubeMode() {
@@ -2019,7 +2069,7 @@
                     
                     if (vidId === appState.currentVideoId) {
                         foundCurrent = true;
-                        continue; // מדלג על הסרטון הנוכחי שמתנגן
+                        continue; 
                     }
                     
                     if (foundCurrent && vidId) {
@@ -2033,7 +2083,6 @@
                     }
                 }
                 
-                // במקרה שהסרטון הנוכחי לא היה ברשימה (למשל נפתח מקישור ישיר), נדחף את כל הרשימה
                 if (!foundCurrent) {
                     for (let item of appState.currentRenderedItems) {
                         const vidId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
@@ -2307,7 +2356,6 @@
                 }
             }
 
-            // שמירת החיפוש בהיסטוריית החיפושים המקומית (רק אם מצב אנונימי כבוי)
             if (!loadMore && query && !(listMatch || videoMatch || channelMatch) && !appState.isIncognitoMode) {
                 let recents = JSON.parse(localStorage.getItem('yt_recent_searches') || '[]');
                 recents = recents.filter(q => q !== query);
@@ -2494,8 +2542,6 @@
             
             loadChannelVideos(null, true, false, 'all'); 
         }
-
-        // ====== לוגיקת נטפרי ======
         
         function showNetfreeProgress(current, total) {
             const container = document.getElementById('netfreeProgressContainer');
@@ -2603,8 +2649,6 @@
                 renderResultsCore([...otherItems, ...passedVideos], false);
             }
         }
-
-        // ============================
 
         function renderResultsCore(items, clear) {
             const grid = document.getElementById('resultsGrid');
@@ -2784,7 +2828,7 @@
                                     <i class="fas fa-list-ul"></i> שמירה
                                 </button>
                                 
-                                <button onclick="event.stopPropagation(); addToQueue({id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'}, event)" 
+                                <button onclick="event.stopPropagation(); borderVideo({id: '${videoId}', title: '${title}', thumbnail: '${thumbUrl}', channel: '${safeChannel}', duration: '${durationForSave}'}, event)" 
                                     class="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-full transition w-fit border" title="הוסף לתור ההשמעה (זמני)" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">
                                     <i class="fas fa-step-forward"></i> לתור
                                 </button>
@@ -3069,8 +3113,6 @@
 
         document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') performSearch(false); });
 
-        // --- NEW FEATURES: Gemini AI Search & Voice Search ---
-
         function startVoiceSearch() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
@@ -3181,8 +3223,6 @@
                 loadHomePage();
             }
         }
-
-        // --- I.G. BOT LOGIC ---
         
         function toggleIgBot() {
             const win = document.getElementById('igBotWindow');
@@ -3190,14 +3230,13 @@
             if (win.classList.contains('hidden')) {
                 win.classList.remove('hidden');
                 win.classList.add('flex');
-                btn.style.display = 'none'; // הסתרת סמל הבוט כשפתוח
+                btn.style.display = 'none'; 
                 document.getElementById('igBotInput').focus();
             } else {
                 win.classList.add('hidden');
                 win.classList.remove('flex');
-                btn.style.display = ''; // החזרת סמל הבוט כשנסגר
+                btn.style.display = ''; 
                 
-                // איפוס היסטוריית השיחה בסגירה
                 document.getElementById('igBotChat').innerHTML = `
                     <div class="p-3 rounded-xl text-sm text-white rounded-tr-none self-start max-w-[85%] bg-blue-600 shadow-sm">
                         היי, אני I.G! 🤖<br>תשאלו אותי על שירים, יוצרים או סרטונים, ואביא תוצאות מדויקות עם קיצור לחיפוש מהיר.
@@ -3250,7 +3289,6 @@
             }];
 
             try {
-                // שלב 1: שליחת הבקשה הראשונית לג'מיני
                 let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -3273,7 +3311,6 @@
                 let data = await response.json();
                 let candidate = data.candidates && data.candidates[0];
 
-                // מציאת קריאת הפונקציה בתוך תשובת המודל
                 let functionCall = null;
                 if (candidate && candidate.content && candidate.content.parts) {
                     for (let part of candidate.content.parts) {
@@ -3284,7 +3321,6 @@
                     }
                 }
 
-                // שלב 2: אם המודל קרא לחיפוש ביוטיוב, נבצע אותו ונעביר לו את התשובה חזרה
                 if (functionCall && functionCall.name === "search_youtube" && ytKey) {
                     const ytQuery = functionCall.args.query;
                     
@@ -3297,7 +3333,6 @@
                         publishedAt: item.snippet.publishedAt
                     })) : [];
 
-                    // שלב 3: מחזירים לג'מיני את התוצאות מיוטיוב במבנה הקפדני שלו
                     response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -3305,13 +3340,13 @@
                             system_instruction: { parts: [{ text: systemPrompt }] },
                             contents: [
                                 { role: "user", parts: [{ text: text }] },
-                                candidate.content, // חובה לשלוח בדיוק את התשובה שהמודל החזיר קודם לכן
+                                candidate.content, 
                                 { 
-                                    role: "user", // חובה להשתמש ב-user כדי לשמור על סדר שיחה עוקב
+                                    role: "user", 
                                     parts: [{ 
                                         functionResponse: { 
                                             name: functionCall.name, 
-                                            response: { results: searchResults } // אובייקט תוצאות תקני
+                                            response: { results: searchResults } 
                                         } 
                                     }] 
                                 }
@@ -3333,7 +3368,6 @@
                     candidate = data.candidates && data.candidates[0];
                 }
 
-                // הצגת התשובה הסופית למשתמש
                 document.getElementById(loadingId).remove();
                 
                 if (candidate && candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
