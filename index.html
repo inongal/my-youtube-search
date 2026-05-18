@@ -3288,7 +3288,7 @@
                             publishedAt: item.snippet.publishedAt
                         })) : [];
 
-                        // שלב 3: מחזירים לג'מיני את התוצאות מיוטיוב כדי שינסח את התשובה למשתמש
+                        // שלב 3: מחזירים לג'מיני את התוצאות מיוטיוב בצורה נקייה ומובנית
                         response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -3302,7 +3302,7 @@
                                         parts: [{ 
                                             functionResponse: { 
                                                 name: "search_youtube", 
-                                                response: { name: "search_youtube", content: searchResults } 
+                                                response: { items: searchResults } 
                                             } 
                                         }] 
                                     }
@@ -3316,7 +3316,7 @@
                         if (!response.ok) {
                             console.error("קוד שגיאה HTTP מ-I.G. Bot (שלב 3):", response.status);
                             document.getElementById(loadingId).remove();
-                            appendIgMessage(`שגיאה בניסוח התשובה על ידי ה-AI (קוד סטטוס: ${response.status}). ייתכן שמודל 1.5 חסום בחשבון זה.`, 'bot');
+                            appendIgMessage(`שגיאה בניסוח התשובה על ידי ה-AI (קוד סטטוס: ${response.status}). ייתכן שהמודל חסום בחשבון זה או שהבקשה שגויה.`, 'bot');
                             return;
                         }
 
