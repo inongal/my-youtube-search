@@ -224,9 +224,9 @@
             
             <select id="searchDuration" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="משך" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
                 <option value="">כל אורך</option>
-                <option value="short">קצר (<4 דק')</option>
+                <option value="short">קצר (&lt;4 דק')</option>
                 <option value="medium">בינוני (4-20 דק')</option>
-                <option value="long">ארוך (>20 דק')</option>
+                <option value="long">ארוך (&gt;20 דק')</option>
             </select>
 
             <select id="searchDate" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="זמן העלאה" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
@@ -735,7 +735,7 @@
         function toggleNetfreeMode() {
             appState.isNetfreeMode = !appState.isNetfreeMode;
             localStorage.setItem('yt_netfree_mode', appState.isNetfreeMode);
-            updateNetfreeBtn();
+            toggleConfig && updateNetfreeBtn();
             if(appState.isNetfreeMode) {
                 showToast("מצב נטפרי הופעל - התוצאות יסוננו במסך החיפוש");
             } else {
@@ -1697,7 +1697,7 @@
             reader.readAsText(file);
         }
 
-        function saveToLocalHistory(id, title, thumbnail, channelName) {
+        function safeToLocalHistory(id, title, thumbnail, channelName) {
             if (!id || appState.isIncognitoMode) return;
             let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             history = history.filter(item => item.id !== id);
@@ -2132,6 +2132,7 @@
             if (appState.token) google.accounts.oauth2.revoke(appState.token, () => { console.log('Token revoked.'); });
             appState.token = null;
             document.getElementById('authContainer').classList.remove('hidden');
+            document.getElementById('userDisplay').classList.remove('hidden');
             document.getElementById('userDisplay').classList.add('hidden');
             document.getElementById('userName').innerText = ''; document.getElementById('userImg').src = '';
             document.getElementById('navHistory').style.display = 'none';
@@ -2228,7 +2229,7 @@
 
                 const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
                 const res = await fetch(url, { headers });
-                const data = await json();
+                const data = await res.json();
                 
                 let videoIds = [];
                 if (appState.token && data.items) {
@@ -2948,7 +2949,7 @@
                 return; 
             }
 
-            saveToLocalHistory(id, title, thumbnail, channel);
+            safeToLocalHistory(id, title, thumbnail, channel);
 
             const view = document.getElementById('watchView');
             
@@ -3153,10 +3154,17 @@
             const systemPrompt = `אתה עוזר חכם לחיפוש ביוטיוב. המשתמש יכתוב לך מה הוא מחפש בשפה טבעית, ואתה צריך להחזיר אך ורק את מילות החיפוש המדויקות והטובות ביותר לחיפוש ב-YouTube, ללא שום טקסט נוסף, הקדמות או הסברים.\n\nבקשת המשתמש: "${query}"`;
 
             try {
-const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {                    method: 'POST',
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }] })
                 });
+
+                // בדיקת סטטוס שגיאה מול שרתי גוגל
+                if (!response.ok) {
+                    console.error("קוד שגיאה HTTP מ-Gemini Search:", response.status);
+                    alert(`החיפוש החכם נכשל (קוד שגיאה: ${response.status}).\n\n429: חריגה ממכסת בקשות חינמית.\n404: דגם מודל לא נמצא או הוסר.\n403: מפתח API שגוי או פג תוקף.\n400: בעיה במבנה הבקשה.`);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
                 const data = await response.json();
                 
@@ -3240,8 +3248,8 @@ const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/m
             }];
 
             try {
-                // שלב 1: שליחת הבקשה הראשונית לג'מיני יחד עם הגדרת הכלים - עודכן למודל 1.5-flash
-const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {                    method: 'POST',
+                // שלב 1: שליחת הבקשה הראשונית לג'מיני יחד עם הגדרת הכלים
+                let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`, {                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         system_instruction: { parts: [{ text: systemPrompt }] },
@@ -3250,6 +3258,14 @@ const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/m
                         generationConfig: { temperature: 0.2, topP: 0.8, topK: 40 }
                     })
                 });
+
+                // בדיקת שגיאה שלב 1
+                if (!response.ok) {
+                    console.error("קוד שגיאה HTTP מ-I.G. Bot (שלב 1):", response.status);
+                    document.getElementById(loadingId).remove();
+                    appendIgMessage(`שגיאה בחיבור ל-AI (קוד סטטוס: ${response.status}). ייתכן שהמודל שצוין אינו מאושר בחשבונך או שחרגת מהמכסה היומית.`, 'bot');
+                    return;
+                }
 
                 let data = await response.json();
                 let candidate = data.candidates && data.candidates[0];
@@ -3272,7 +3288,7 @@ const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/m
                             publishedAt: item.snippet.publishedAt
                         })) : [];
 
-                        // שלב 3: מחזירים לג'מיני את התוצאות מיוטיוב כדי שינסח את התשובה למשתמש - עודכן למודל 1.5-flash
+                        // שלב 3: מחזירים לג'מיני את התוצאות מיוטיוב כדי שינסח את התשובה למשתמש
                         response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -3296,6 +3312,14 @@ const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/m
                             })
                         });
 
+                        // בדיקת שגיאה שלב 3
+                        if (!response.ok) {
+                            console.error("קוד שגיאה HTTP מ-I.G. Bot (שלב 3):", response.status);
+                            document.getElementById(loadingId).remove();
+                            appendIgMessage(`שגיאה בניסוח התשובה על ידי ה-AI (קוד סטטוס: ${response.status}). ייתכן שמודל 1.5 חסום בחשבון זה.`, 'bot');
+                            return;
+                        }
+
                         data = await response.json();
                         candidate = data.candidates && data.candidates[0];
                     }
@@ -3311,8 +3335,8 @@ const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/m
                     appendIgMessage('מצטער, לא הבנתי את התשובה.', 'bot');
                 }
             } catch(e) {
-                document.getElementById(loadingId).remove();
-                appendIgMessage('אירעה שגיאה בחיבור ל-AI או לשרתי יוטיוב.', 'bot');
+                if (document.getElementById(loadingId)) document.getElementById(loadingId).remove();
+                appendIgMessage('אירעה שגיאה טכנית בחיבור ל-AI או לשרתי יוטיוב.', 'bot');
                 console.error(e);
             }
         }
