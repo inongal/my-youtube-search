@@ -163,141 +163,20 @@
             backdrop-filter: blur(10px);
             background-color: rgba(59, 130, 246, 0.9);
         }
-
-        /* --- Mobile Mode Specific Styles --- */
-        body.force-mobile {
-            max-width: 480px !important;
-            margin: 0 auto !important;
-            box-shadow: 0 0 30px rgba(0,0,0,0.8);
-            position: relative;
-            overflow-x: hidden;
-            border-left: 1px solid var(--border-color);
-            border-right: 1px solid var(--border-color);
-        }
-        
-        body.force-mobile header,
-        body.force-mobile #netfreeProgressContainer,
-        body.force-mobile #batchActionBar,
-        body.force-mobile #watchView {
-            max-width: 480px !important;
-            margin: 0 auto !important;
-            left: 0 !important;
-            right: 0 !important;
-        }
-
-        body.force-mobile header {
-            height: auto !important;
-            display: flex !important;
-            flex-wrap: wrap !important;
-            padding: 12px 16px !important;
-            align-items: center;
-            gap: 0 !important;
-        }
-        
-        body.force-mobile .header-logo { 
-            flex: 1 !important; 
-            order: 1 !important; 
-        }
-        
-        body.force-mobile .header-actions {
-            flex: none !important;
-            order: 2 !important;
-            width: auto !important;
-        }
-
-        body.force-mobile .header-nav-arrows { display: none !important; }
-        
-        body.force-mobile .search-wrapper {
-            flex: 0 0 100% !important;
-            width: 100% !important;
-            order: 3 !important;
-            display: flex !important;
-            flex-direction: column !important;
-            margin-top: 16px !important;
-            padding: 0 !important;
-            gap: 12px !important;
-        }
-
-        body.force-mobile .search-wrapper > div.group {
-            display: flex !important;
-            flex-direction: row !important;
-            width: 100% !important;
-        }
-
-        body.force-mobile #searchInput {
-            flex: 1 1 auto !important;
-            width: 100% !important;
-        }
-        
-        body.force-mobile .filters-container {
-            display: grid !important;
-            grid-template-columns: 1fr 1fr !important;
-            gap: 8px !important;
-            width: 100% !important;
-        }
-        
-        body.force-mobile .filters-container select {
-            width: 100% !important;
-            font-size: 13px !important;
-            padding: 8px 10px !important;
-            margin: 0 !important;
-        }
-
-        body.force-mobile .pt-16 { padding-top: 160px !important; }
-        
-        /* Hide Sidebars & Downloads in Mobile */
-        body.force-mobile #mainSidebar { display: none !important; }
-        body.force-mobile #mainContent { margin-right: 0 !important; padding: 12px !important; }
-        body.force-mobile #upNextSidebar { display: none !important; }
-        body.force-mobile .hide-on-mobile { display: none !important; }
-        body.force-mobile .md\:inline { display: none !important; }
-
-        /* Video Display Adaptation */
-        body.force-mobile #resultsGrid {
-            grid-template-columns: 1fr !important;
-            gap: 16px !important;
-        }
-        body.force-mobile .video-card {
-            flex-direction: column !important;
-        }
-        body.force-mobile .video-card > .relative {
-            width: 100% !important;
-        }
-        
-        /* Ig Bot & Watch View */
-        body.force-mobile #igBotWindow {
-            width: 90% !important;
-            left: 5% !important;
-        }
-        
-        body.force-mobile #watchView .player-container {
-            max-width: 100% !important;
-            width: 100% !important;
-            height: 100% !important;
-            max-height: 100% !important;
-            border-radius: 0 !important;
-            border: none !important;
-        }
-        body.force-mobile #watchMainContent {
-            flex-direction: column !important;
-        }
-        body.force-mobile .player-info-section {
-            padding: 16px !important;
-        }
     </style>
 </head>
 <body class="custom-scrollbar">
 
-    <header class="fixed top-0 left-0 right-0 min-h-[4rem] border-b flex items-center justify-between px-6 z-[100]" style="background-color: var(--bg-main); border-color: var(--border-color);">
-        <div class="flex items-center gap-5 header-logo">
-            <button onclick="toggleSidebar()" class="text-xl p-2 rounded-full transition hide-on-mobile" style="color: var(--text-primary);"><i class="fas fa-bars"></i></button>
+    <header class="fixed top-0 left-0 right-0 h-16 border-b flex items-center justify-between px-6 z-[100]" style="background-color: var(--bg-main); border-color: var(--border-color);">
+        <div class="flex items-center gap-5">
+            <button onclick="toggleSidebar()" class="text-xl p-2 rounded-full transition" style="color: var(--text-primary);"><i class="fas fa-bars"></i></button>
             <div class="flex items-center gap-1 cursor-pointer" onclick="loadHomePage()">
                 <i class="fab fa-youtube text-[#ff0000] text-3xl"></i>
                 <span class="text-xl font-bold tracking-tight hidden md:inline" style="color: var(--text-primary);">YouTube</span>
             </div>
         </div>
 
-        <div class="flex items-center gap-2 mx-4 header-nav-arrows" dir="ltr">
+        <div class="flex items-center gap-2 mx-4" dir="ltr">
             <button id="navBackBtn" class="nav-btn" onclick="handleHistoryNav(-1)" title="אחורה" disabled>
                 <i class="fas fa-arrow-left"></i>
             </button>
@@ -306,9 +185,9 @@
             </button>
         </div>
 
-        <div class="flex-1 max-w-5xl flex items-center gap-2 px-4 relative z-50 search-wrapper">
+        <div class="flex-1 max-w-5xl flex items-center gap-2 px-4 relative z-50">
             <div class="flex w-full group relative">
-                <input type="text" id="searchInput" autocomplete="off" placeholder="חיפוש סרטון/ערוץ/פלייליסט..." 
+                <input type="text" id="searchInput" autocomplete="off" placeholder="חיפוש או הדבקת קישור (סרטון/ערוץ/פלייליסט)" 
                     class="w-full rounded-r-full py-2.5 px-5 outline-none transition text-right" style="background-color: var(--bg-input); border: 1px solid var(--border-color); border-left: none; color: var(--text-primary);">
                 
                 <div id="autocomplete-results" class="custom-scrollbar shadow-lg absolute top-full mt-1 left-0 right-0 hidden rounded-2xl border overflow-y-auto max-h-64 z-50" style="background-color: var(--bg-card); border-color: var(--border-color);"></div>
@@ -336,38 +215,36 @@
                 </button>
             </div>
             
-            <div id="filtersRow" class="filters-container hidden md:flex items-center gap-2 w-full md:w-auto">
-                <select id="searchType" class="text-sm rounded-lg p-2.5 outline-none" title="סוג תוצאה" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
-                    <option value="">הכל</option>
-                    <option value="video">סרטונים</option>
-                    <option value="channel">ערוצים</option>
-                    <option value="playlist">פלייליסטים</option> 
-                </select>
-                
-                <select id="searchDuration" class="text-sm rounded-lg p-2.5 outline-none" title="משך" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
-                    <option value="">כל אורך</option>
-                    <option value="short">קצר (&lt;4 דק')</option>
-                    <option value="medium">בינוני (4-20 דק')</option>
-                    <option value="long">ארוך (&gt;20 דק')</option>
-                </select>
+            <select id="searchType" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סוג תוצאה" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
+                <option value="">הכל</option>
+                <option value="video">סרטונים</option>
+                <option value="channel">ערוצים</option>
+                <option value="playlist">פלייליסטים</option> 
+            </select>
+            
+            <select id="searchDuration" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="משך" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
+                <option value="">כל אורך</option>
+                <option value="short">קצר (&lt;4 דק')</option>
+                <option value="medium">בינוני (4-20 דק')</option>
+                <option value="long">ארוך (&gt;20 דק')</option>
+            </select>
 
-                <select id="searchDate" class="text-sm rounded-lg p-2.5 outline-none" title="זמן העלאה" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
-                    <option value="">כל הזמן</option>
-                    <option value="today">24 שעות אחרונות</option>
-                    <option value="week">בשבוע האחרון</option>
-                    <option value="month">בחודש האחרון</option>
-                    <option value="year">בשנה האחרונה</option>
-                </select>
+            <select id="searchDate" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="זמן העלאה" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
+                <option value="">כל הזמן</option>
+                <option value="today">ב-24 השעות האחרונות</option>
+                <option value="week">בשבוע האחרון</option>
+                <option value="month">בחודש האחרון</option>
+                <option value="year">בשנה האחרונה</option>
+            </select>
 
-                <select id="searchOrder" class="text-sm rounded-lg p-2.5 outline-none" title="סינון לפי" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
-                    <option value="relevance">רלוונטיות</option>
-                    <option value="date">תאריך העלאה</option>
-                    <option value="viewCount">מספר צפיות</option>
-                </select>
-            </div>
+            <select id="searchOrder" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סינון לפי" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
+                <option value="relevance">רלוונטיות</option>
+                <option value="date">תאריך העלאה</option>
+                <option value="viewCount">מספר צפיות</option>
+            </select>
         </div>
 
-        <div class="flex items-center gap-4 header-actions">
+        <div class="flex items-center gap-4">
             <button id="return-to-video-btn" class="p-2 px-3 rounded-full hidden transition-colors border" style="color: var(--text-primary); background-color: var(--bg-surface); border-color: var(--border-color);" title="חזור לסרטון">
                 <i class="fa-solid fa-tv"></i>
             </button>
@@ -375,11 +252,11 @@
                 <i class="fa-solid fa-pause"></i>
             </button>
 
-            <button onclick="toggleIncognitoMode()" id="incognitoToggleBtn" class="px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2 hide-on-mobile" style="background-color: var(--bg-surface); border-color: var(--border-light); color: var(--text-primary);" title="הפעל/כבה מצב אנונימי (לא שומר היסטוריה)">
+            <button onclick="toggleIncognitoMode()" id="incognitoToggleBtn" class="px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2" style="background-color: var(--bg-surface); border-color: var(--border-light); color: var(--text-primary);" title="הפעל/כבה מצב אנונימי (לא שומר היסטוריה)">
                 <i class="fas fa-user-secret text-gray-500" id="incognitoIcon"></i> <span class="hidden md:inline" id="incognitoText">אנונימי: כבוי</span>
             </button>
 
-            <button onclick="toggleNetfreeMode()" id="netfreeToggleBtn" class="px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2 hide-on-mobile" style="background-color: var(--bg-surface); border-color: var(--border-light); color: var(--text-primary);" title="הפעל/כבה בדיקת סרטונים (מצב נטפרי)">
+            <button onclick="toggleNetfreeMode()" id="netfreeToggleBtn" class="px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2" style="background-color: var(--bg-surface); border-color: var(--border-light); color: var(--text-primary);" title="הפעל/כבה בדיקת סרטונים (מצב נטפרי)">
                 <i class="fas fa-shield-alt text-gray-500" id="netfreeIcon"></i> <span class="hidden md:inline" id="netfreeText">נטפרי: כבוי</span>
             </button>
 
@@ -388,15 +265,15 @@
             </button>
             
             <div id="authContainer">
-                <button onclick="requestToken()" class="px-4 py-2 rounded-full text-sm font-bold border transition hide-on-mobile" style="background-color: var(--bg-surface); border-color: var(--border-light); color: var(--text-primary);">
+                <button onclick="requestToken()" class="px-4 py-2 rounded-full text-sm font-bold border transition" style="background-color: var(--bg-surface); border-color: var(--border-light); color: var(--text-primary);">
                     התחברות
                 </button>
             </div>
             
             <div id="userDisplay" class="hidden flex items-center gap-3">
                 <span id="userName" class="text-xs font-bold hidden md:inline" style="color: var(--text-secondary);"></span>
-                <img id="userImg" class="w-8 h-8 rounded-full border hide-on-mobile" style="border-color: var(--border-color);">
-                <button onclick="handleLogout()" class="p-2 rounded-full transition text-red-500 hide-on-mobile" title="התנתק">
+                <img id="userImg" class="w-8 h-8 rounded-full border" style="border-color: var(--border-color);">
+                <button onclick="handleLogout()" class="p-2 rounded-full transition text-red-500" title="התנתק">
                     <i class="fas fa-sign-out-alt text-lg"></i>
                 </button>
             </div>
@@ -468,7 +345,7 @@
                     <button onclick="toggleSelectionMode()" class="px-4 py-2 rounded-lg text-sm font-bold border transition flex items-center gap-2" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                         <i class="fas fa-check-square"></i> <span class="hidden sm:inline">בחר סרטונים</span>
                     </button>
-                    <button id="exportUrlsBtn" onclick="downloadUrls()" class="hidden px-4 py-2 rounded-lg text-sm font-bold border transition flex items-center gap-2 hide-on-mobile" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
+                    <button id="exportUrlsBtn" onclick="downloadUrls()" class="hidden px-4 py-2 rounded-lg text-sm font-bold border transition flex items-center gap-2" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                         <i class="fas fa-file-download"></i> <span class="hidden sm:inline">הורד הכל</span>
                     </button>
                 </div>
@@ -527,7 +404,7 @@
             </button>
         </div>
         <div class="flex items-center gap-3">
-            <select id="batchQualitySelect" class="text-sm rounded-lg px-3 py-2 outline-none hidden sm:block border hide-on-mobile" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
+            <select id="batchQualitySelect" class="text-sm rounded-lg px-3 py-2 outline-none hidden sm:block border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                 <option value="1080">1080p</option>
                 <option value="720">720p</option>
                 <option value="480">480p</option>
@@ -542,11 +419,11 @@
                 <i class="fas fa-copy"></i> <span class="hidden md:inline">העתק קישורים</span>
             </button>
             
-            <button onclick="batchDownloadUrls()" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 border hide-on-mobile" title="ייצא קישורים כקובץ טקסט" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
+            <button onclick="batchDownloadUrls()" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 border" title="ייצא קישורים כקובץ טקסט" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                 <i class="fas fa-file-alt"></i> <span class="hidden md:inline">גיבוי קישורים</span>
             </button>
 
-            <button onclick="batchDownloadWithYtDlp()" class="bg-blue-600 hover:bg-blue-700 border border-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg text-white hide-on-mobile">
+            <button onclick="batchDownloadWithYtDlp()" class="bg-blue-600 hover:bg-blue-700 border border-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg text-white">
                 <i class="fas fa-download"></i> הורדה מרובה
             </button>
         </div>
@@ -568,10 +445,10 @@
             <div class="player-header p-4 flex justify-between items-center border-b" style="border-color: var(--border-color);">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2" style="color: var(--text-primary);"></h3>
                 <div class="flex gap-2">
-                    <button onclick="toggleYouTubeMode()" class="w-10 h-10 rounded-full flex items-center justify-center transition hide-on-mobile" style="color: var(--text-secondary);" title="מצב יוטיוב (תצוגה רחבה עם תור)">
+                    <button onclick="toggleYouTubeMode()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="מצב יוטיוב (תצוגה רחבה עם תור)">
                         <i class="fas fa-columns"></i>
                     </button>
-                    <button onclick="toggleFloatingMode()" class="w-10 h-10 rounded-full flex items-center justify-center transition hide-on-mobile" style="color: var(--text-secondary);" title="נגן צף פנימי נשלט גודל">
+                    <button onclick="toggleFloatingMode()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="נגן צף פנימי נשלט גודל">
                         <i class="fas fa-clone"></i>
                     </button>
                     <button onclick="minimizePlayer()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="מזער והמשך לשמוע ברקע">
@@ -600,7 +477,7 @@
                                     <i class="fas fa-step-backward"></i>
                                 </button>
 
-                                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full transition border hide-on-mobile" style="background-color: var(--bg-surface); border-color: var(--border-color);">
+                                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full transition border" style="background-color: var(--bg-surface); border-color: var(--border-color);">
                                     <select id="watchDlQuality" class="bg-transparent text-sm outline-none cursor-pointer" style="color: var(--text-secondary);">
                                         <option value="1080" style="background-color: var(--bg-surface);">1080p</option>
                                         <option value="720" style="background-color: var(--bg-surface);">720p</option>
@@ -651,22 +528,13 @@
             <h2 class="text-2xl font-bold mb-2 text-center" style="color: var(--text-primary);">הגדרות מערכת</h2>
             <p class="text-xs text-center mb-6" style="color: var(--text-muted);">ניהול מפתחות, נתונים ועיצוב</p>
             <div class="space-y-5 text-right">
-                <div class="flex gap-3">
-                    <div class="flex-1">
-                        <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">ערכת נושא</label>
-                        <select id="themeSelect" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
-                            <option value="system">ברירת מחדל של המערכת</option>
-                            <option value="dark">כהה</option>
-                            <option value="light">בהיר</option>
-                        </select>
-                    </div>
-                    <div class="flex-1">
-                        <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">תצוגת ממשק</label>
-                        <select id="deviceModeSelect" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
-                            <option value="desktop">מחשב (Desktop)</option>
-                            <option value="mobile">מובייל (Mobile)</option>
-                        </select>
-                    </div>
+                <div>
+                    <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">ערכת נושא</label>
+                    <select id="themeSelect" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                        <option value="system">ברירת מחדל של המערכת</option>
+                        <option value="dark">כהה</option>
+                        <option value="light">בהיר</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">YouTube Data API Key</label>
@@ -711,7 +579,7 @@
     <div id="netfreeTesterContainer" style="position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; overflow: hidden; opacity: 0;"></div>
 
     <script>
-        // ניהול ערכות נושא וממשק
+        // ניהול ערכות נושא (Theme)
         function applyTheme(theme) {
             if (theme === 'system') {
                 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
@@ -724,14 +592,6 @@
             }
         }
         
-        function applyDeviceMode(mode) {
-            if (mode === 'mobile') {
-                document.body.classList.add('force-mobile');
-            } else {
-                document.body.classList.remove('force-mobile');
-            }
-        }
-
         const savedTheme = localStorage.getItem('yt_theme') || 'system';
         applyTheme(savedTheme);
         
@@ -765,11 +625,8 @@
             currentLikedTab: 'videos',
             tempQueue: [],
             isNetfreeMode: localStorage.getItem('yt_netfree_mode') === 'true',
-            isIncognitoMode: localStorage.getItem('yt_incognito_mode') === 'true',
-            deviceMode: localStorage.getItem('yt_device_mode') || 'desktop'
+            isIncognitoMode: localStorage.getItem('yt_incognito_mode') === 'true'
         };
-
-        applyDeviceMode(appState.deviceMode);
 
         let ytPlayer = null;
 
@@ -795,6 +652,7 @@
                 const script = document.createElement('script');
                 window.handleAutocomplete = function(data) {
                     let suggestions = [];
+                    // ויקיפדיה מחזירה במערך השני את ההצעות
                     if (data && data[1]) {
                         suggestions = data[1];
                     }
@@ -1805,8 +1663,7 @@
                     geminiApiKey: localStorage.getItem('yt_gemini_api_key'),
                     clientId: localStorage.getItem('yt_client_id'), 
                     maxResults: localStorage.getItem('yt_max_results'), 
-                    theme: localStorage.getItem('yt_theme'),
-                    deviceMode: localStorage.getItem('yt_device_mode')
+                    theme: localStorage.getItem('yt_theme') 
                 },
                 channelVisits: localStorage.getItem('yt_channel_visits')
             };
@@ -1832,7 +1689,6 @@
                         if(data.settings.clientId) localStorage.setItem('yt_client_id', data.settings.clientId);
                         if(data.settings.maxResults) localStorage.setItem('yt_max_results', data.settings.maxResults);
                         if(data.settings.theme) localStorage.setItem('yt_theme', data.settings.theme);
-                        if(data.settings.deviceMode) localStorage.setItem('yt_device_mode', data.settings.deviceMode);
                     }
                     alert('הנתונים שוחזרו בהצלחה! הדף יתרענן כעת.');
                     location.reload();
@@ -2250,7 +2106,6 @@
             const newClientId = document.getElementById('clientIdInput').value.trim();
             const newMaxResults = document.getElementById('maxResultsInput').value;
             const newTheme = document.getElementById('themeSelect').value;
-            const newDeviceMode = document.getElementById('deviceModeSelect').value;
             
             if (!newKey) return alert("נא להזין API Key לפחות.");
             
@@ -2258,17 +2113,14 @@
             appState.geminiApiKey = newGeminiKey;
             appState.clientId = newClientId;
             appState.maxResults = newMaxResults ? parseInt(newMaxResults) : 12;
-            appState.deviceMode = newDeviceMode;
             
             localStorage.setItem('yt_api_key', appState.apiKey);
             localStorage.setItem('yt_gemini_api_key', appState.geminiApiKey);
             localStorage.setItem('yt_client_id', appState.clientId);
             localStorage.setItem('yt_max_results', appState.maxResults);
             localStorage.setItem('yt_theme', newTheme);
-            localStorage.setItem('yt_device_mode', newDeviceMode);
             
             applyTheme(newTheme);
-            applyDeviceMode(newDeviceMode);
             
             document.getElementById('configModal').style.display = 'none';
             
@@ -2293,14 +2145,12 @@
             const savedClient = localStorage.getItem('yt_client_id');
             const savedMaxResults = localStorage.getItem('yt_max_results');
             const storedTheme = localStorage.getItem('yt_theme');
-            const savedDeviceMode = localStorage.getItem('yt_device_mode') || 'desktop';
 
             if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
             if(savedGeminiKey) document.getElementById('geminiApiKeyInput').value = savedGeminiKey;
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
             if(savedMaxResults) { document.getElementById('maxResultsInput').value = savedMaxResults; appState.maxResults = parseInt(savedMaxResults); }
             if(storedTheme) document.getElementById('themeSelect').value = storedTheme;
-            if(document.getElementById('deviceModeSelect')) document.getElementById('deviceModeSelect').value = savedDeviceMode;
             
             loadPlaylistsToSidebar();
             updateNetfreeBtn();
@@ -2939,7 +2789,7 @@
                                     <i class="fas fa-step-forward"></i> לתור
                                 </button>
 
-                                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full transition w-fit border hide-on-mobile" onclick="event.stopPropagation();" style="background-color: var(--bg-surface); border-color: var(--border-color);">
+                                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full transition w-fit border" onclick="event.stopPropagation();" style="background-color: var(--bg-surface); border-color: var(--border-color);">
                                     <select id="dl-qual-${videoId}" class="bg-transparent text-[10px] outline-none cursor-pointer" style="color: var(--text-secondary);">
                                         <option value="1080" style="background-color: var(--bg-surface);">1080p</option>
                                         <option value="720" style="background-color: var(--bg-surface);">720p</option>
