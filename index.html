@@ -1296,7 +1296,7 @@
             }, 2000);
         }
 
-        /* עדכון אופציה א' - שולח את כל הקישורים יחד בפקודה אחת כדי למנוע חסימת דפדפן */
+        /* עדכון אופציה א' - שולח את כל הקישורים יחד מופרדים בנקודה כדי למנוע קידוד דפדפן */
         function batchDownloadWithYtDlp() {
             if (appState.selectedVideos.size === 0) return;
             
@@ -1312,8 +1312,8 @@
             
             showToast(`מעביר ${videos.length} סרטונים להורדה מרוכזת (${qualityText})...`);
 
-            // איסוף כל ה-IDs למחרוזת אחת מופרדת בפסיקים
-            const videoIds = videos.map(item => item.id.videoId || item.id).join(',');
+            // שימוש בנקודה (.) במקום פסיק כדי למנוע מהדפדפן לקודד את הכתובת ל-%2C
+            const videoIds = videos.map(item => item.id.videoId || item.id).join('.');
             
             // יצירת iframe יחיד עבור כל הרשימה הנוכחית
             const iframe = document.createElement('iframe');
@@ -2123,7 +2123,7 @@
         function handleLogout() {
             if (appState.token) google.accounts.oauth2.revoke(appState.token, () => { console.log('Token revoked.'); });
             appState.token = null;
-            document.getElementById('authContainer').classList.remove('hidden');
+            document.getElementById('authContainer').classList.add('hidden');
             document.getElementById('userDisplay').classList.remove('hidden');
             document.getElementById('userDisplay').classList.add('hidden');
             document.getElementById('userName').innerText = ''; document.getElementById('userImg').src = '';
