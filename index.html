@@ -1110,12 +1110,15 @@
             const isSubbedLocally = LocalSubsManager.isSubbed(channel.id);
 
             const tabsHtml = `
-                <div class="w-full flex gap-3 mt-4 border-t pt-5 px-4 pb-2" style="border-color: var(--border-color);">
+                <div class="w-full flex gap-3 mt-4 border-t pt-5 px-4 pb-2 flex-wrap" style="border-color: var(--border-color);">
                      <button onclick="loadChannelVideos('${channel.id}', false, false, 'recent')" class="px-5 py-2.5 rounded-full text-sm font-bold transition border shadow-sm flex items-center gap-2 ${currentViewMode === 'recent' ? 'bg-blue-600 text-white border-blue-600' : ''}" style="${currentViewMode !== 'recent' ? 'background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);' : ''}">
                          <i class="fas fa-calendar-alt"></i> חודש אחרון
                      </button>
                      <button onclick="loadChannelVideos('${channel.id}', false, false, 'all')" class="px-5 py-2.5 rounded-full text-sm font-bold transition border shadow-sm flex items-center gap-2 ${currentViewMode === 'all' ? 'bg-blue-600 text-white border-blue-600' : ''}" style="${currentViewMode !== 'all' ? 'background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);' : ''}">
                          <i class="fas fa-list"></i> כל הסרטונים
+                     </button>
+                     <button onclick="loadChannelVideos('${channel.id}', false, false, 'playlists')" class="px-5 py-2.5 rounded-full text-sm font-bold transition border shadow-sm flex items-center gap-2 ${currentViewMode === 'playlists' ? 'bg-blue-600 text-white border-blue-600' : ''}" style="${currentViewMode !== 'playlists' ? 'background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);' : ''}">
+                         <i class="fas fa-layer-group"></i> פלייליסטים
                      </button>
                 </div>
             `;
@@ -2390,28 +2393,32 @@
                     localStorage.setItem('yt_channel_visits', JSON.stringify(lastVisited));
                 }
 
-                try {
-                    if (!appState.currentVideoId) document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען ערוץ...</div>`;
-                    document.getElementById('sectionTitle').innerText = "טוען...";
-                    document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-                    document.getElementById('internalSearch').classList.add('hidden');
-                    
-                    const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet,statistics,brandingSettings&id=${channelId}&key=${appState.apiKey}`);
-                    const data = await res.json();
-                    
-                    if (!data.items || !data.items.length) return;
-                    
-                    const channel = data.items[0];
-                    renderChannelHeader(channel, viewMode);
-                    
-                    appState.query = channel.contentDetails.relatedPlaylists.uploads; 
-                    appState.searchContext = 'channel';
-                    appState.activeChannelId = channelId; 
-                    appState.pageToken = "";
-                    
-                    document.getElementById('sectionTitle').innerText = viewMode === 'recent' ? `סרטונים מהחודש האחרון: ${channel.snippet.title}` : `כל הסרטונים: ${channel.snippet.title}`;
+                if (channelId) {
+                    try {
+                        if (!appState.currentVideoId) document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען ערוץ...</div>`;
+                        document.getElementById('sectionTitle').innerText = "טוען...";
+                        document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+                        document.getElementById('internalSearch').classList.add('hidden');
+                        
+                        const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet,statistics,brandingSettings&id=${channelId}&key=${appState.apiKey}`);
+                        const data = await res.json();
+                        
+                        if (!data.items || !data.items.length) return;
+                        
+                        const channel = data.items[0];
+                        renderChannelHeader(channel, viewMode);
+                        
+                        appState.query = channel.contentDetails.relatedPlaylists.uploads; 
+                        appState.searchContext = 'channel';
+                        appState.activeChannelId = channelId; 
+                        appState.pageToken = "";
+                        
+                        if (viewMode === 'recent') document.getElementById('sectionTitle').innerText = `סרטונים מהחודש האחרון: ${channel.snippet.title}`;
+                        else if (viewMode === 'playlists') document.getElementById('sectionTitle').innerText = `פלייליסטים: ${channel.snippet.title}`;
+                        else document.getElementById('sectionTitle').innerText = `כל הסרטונים: ${channel.snippet.title}`;
 
-                } catch(e) { console.error(e); return; }
+                    } catch(e) { console.error(e); return; }
+                }
             }
 
             try {
@@ -2444,6 +2451,28 @@
                     } else if (!loadMore) {
                          document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50">לא נמצאו סרטונים מהחודש האחרון בערוץ זה.</div>`;
                          appState.currentRenderedItems = [];
+                    }
+
+                } else if (appState.channelViewMode === 'playlists') {
+                    let url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&maxResults=${appState.maxResults}&channelId=${appState.activeChannelId}&key=${appState.apiKey}`;
+                    if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
+
+                    const res = await fetch(url);
+                    const data = await res.json();
+
+                    appState.pageToken = data.nextPageToken || "";
+                    document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
+
+                    if (data.items && data.items.length > 0) {
+                        const formatted = data.items.map(item => ({
+                            id: { kind: 'youtube#playlist', playlistId: item.id },
+                            snippet: item.snippet,
+                            contentDetails: item.contentDetails
+                        }));
+                        renderResults(formatted, !loadMore);
+                    } else if (!loadMore) {
+                        document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50">לא נמצאו פלייליסטים בערוץ זה.</div>`;
+                        appState.currentRenderedItems = [];
                     }
 
                 } else {
@@ -2483,7 +2512,7 @@
             if (!appState.currentVideoId) document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען סרטונים...</div>`;
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
             
-            loadChannelVideos(null, true, false, 'all'); 
+            loadChannelVideos(null, false, false, 'all'); 
         }
 
         // ====== לוגיקת נטפרי ======
