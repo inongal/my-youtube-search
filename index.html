@@ -1084,7 +1084,7 @@
                     subs.push({ id: channelId, title, thumbnail });
                     let lastVisits = JSON.parse(localStorage.getItem('yt_channel_visits') || '{}');
                     lastVisits[channelId] = new Date().toISOString();
-                    localStorage.setItem('yt_channel_visits', JSON.stringify(lastVisits));
+                    localStorage.setItem('yt_channel_visits', JSON.stringify(lastVisited));
                     showToast('נוסף למנויים מקומיים');
                     isSubbed = true;
                 }
@@ -2454,7 +2454,8 @@
                     }
 
                 } else if (appState.channelViewMode === 'playlists') {
-                    let url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&maxResults=${appState.maxResults}&channelId=${appState.activeChannelId}&key=${appState.apiKey}`;
+                    // שינוי לשימוש במנוע החיפוש במקום בקשת פלייליסטים ישירה כדי לעקוף חסימות נטפרי
+                    let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=playlist&maxResults=${appState.maxResults}&channelId=${appState.activeChannelId}&key=${appState.apiKey}`;
                     if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
                     const res = await fetch(url);
@@ -2465,9 +2466,9 @@
 
                     if (data.items && data.items.length > 0) {
                         const formatted = data.items.map(item => ({
-                            id: { kind: 'youtube#playlist', playlistId: item.id },
+                            id: { kind: 'youtube#playlist', playlistId: item.id.playlistId },
                             snippet: item.snippet,
-                            contentDetails: item.contentDetails
+                            contentDetails: {} 
                         }));
                         renderResults(formatted, !loadMore);
                     } else if (!loadMore) {
