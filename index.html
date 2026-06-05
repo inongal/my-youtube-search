@@ -2098,12 +2098,12 @@
 
                 let newBadgeHTML = '';
                 if (status === 'blocked') {
-                    newBadgeHTML = `<div class="nf-badge absolute top-2 right-10 bg-red-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-red-800">חסום <i class="fas fa-ban ml-0.5"></i></div>`;
+                    newBadgeHTML = `<div class="nf-badge absolute top-2 right-10 bg-red-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-red-800" onclick="event.stopPropagation()">חסום <i class="fas fa-ban ml-0.5"></i></div>`;
                 } else if (status === 'unreviewed') {
                     const ticketUrl = `https://netfree.link/app/#/tickets/new?u=${encodeURIComponent(`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&rel=0&start=0&fs=1&disablekb=0&origin=${window.location.origin}`)}&r=${encodeURIComponent(window.location.href)}&t=video&bi=`;
                     newBadgeHTML = `<a href="${ticketUrl}" target="_blank" onclick="event.stopPropagation()" class="nf-badge absolute top-2 right-10 bg-orange-500/90 hover:bg-orange-600 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-orange-700 flex items-center">לשליחה לבדיקה <i class="fas fa-paper-plane ml-1"></i></a>`;
                 } else if (status === 'open' || status === 'watched') {
-                    newBadgeHTML = `<div class="nf-badge absolute top-2 right-10 bg-green-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-green-800">נצפה <i class="fas fa-check ml-0.5"></i></div>`;
+                    newBadgeHTML = `<div class="nf-badge absolute top-2 right-10 bg-green-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-green-800" onclick="event.stopPropagation()">נצפה <i class="fas fa-check ml-0.5"></i></div>`;
                 }
                 
                 if (newBadgeHTML) {
@@ -2391,7 +2391,7 @@
             try {
                 const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids.join(',')}&key=${appState.apiKey}`);
                 const data = await res.json();
-                const formatted = data.items.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: item.snippet, statistics: item.statistics, contentDetails: item.contentDetails }));
+                const formatted = data.items.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: i.snippet, statistics: i.statistics, contentDetails: i.contentDetails }));
                 renderResults(formatted, clear);
             } catch (e) { console.error(e); }
         }
@@ -2633,7 +2633,6 @@
         }
 
         async function renderResults(items, clear) {
-            // החזרנו את הפונקציה לקדמותה כפי שביקשת - ללא הרצת סינון אוטומטי מראש על כל הסרטונים בדף
             return renderResultsCore(items, clear);
         }
 
@@ -2766,7 +2765,7 @@
                 const isLiked = LocalLikesManager.isLiked(videoId, 'videos');
                 const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
                 
-                // --- יישום סעיף 1: קריאה נכונה של אובייקט הסטטוסים המקומי של נטפרי ---
+                // --- תיקון סעיף 1: בדיקה נטפרי גוברת על הגדרת watchedIds הרגילה ---
                 const isWatched = watchedIds.has(videoId);
                 let nfStatusesObj = JSON.parse(localStorage.getItem('yt_netfree_statuses') || '{}');
                 let nfStatus = nfStatusesObj[videoId];
@@ -2995,7 +2994,7 @@
             let statuses = JSON.parse(localStorage.getItem('yt_netfree_statuses') || '{}');
             let currentStatus = statuses[id];
 
-            // --- יישום סעיף 3: הרצת הבדיקה מאחורי הקלעים באמצעות IFrame וביצוע אבחון Fetch רק ברגע הכניסה ---
+            // בדיקה נטפרי חכמה ברגע הלחיצה
             if (!currentStatus || currentStatus === 'unreviewed') {
                 showToast('בודק סטטוס נטפרי...');
                 currentStatus = await testVideoNetfree(id);
@@ -3004,21 +3003,25 @@
                 updateVideoCardBadge(id, currentStatus);
             }
 
-            // חסימה או דרישת פנייה תמנע את פתיחת הנגן
-            if (currentStatus === 'blocked') {
-                showToast('הסרטון חסום בנטפרי, לא ניתן לנגן.');
-                return;
-            } else if (currentStatus === 'unreviewed') {
-                showToast('הסרטון טרם נבדק בנטפרי. לחץ על הכפתור הכתום עליו לשליחה לבדיקה.');
+            // תיקון סעיף 2: אם הסרטון חסום או צריך בדיקה, נמחוק אותו מההיסטוריה המקומית ונעצור את הטעינה
+            if (currentStatus === 'blocked' || currentStatus === 'unreviewed') {
+                let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
+                history = history.filter(item => item.id !== id);
+                localStorage.setItem('yt_local_history', JSON.stringify(history));
+                
+                if (currentStatus === 'blocked') {
+                    showToast('הסרטון חסום בנטפרי, לא ניתן לנגן.');
+                } else {
+                    showToast('הסרטון טרם נבדק בנטפרי. לחץ על הכפתור הכתום עליו לשליחה לבדיקה.');
+                }
                 return;
             }
             
-            // אם הכל עבר תקין - הסרטון פתוח, נשמור כפתוח ונרענן את התגית לירוק ("נצפה")
+            // תיקון סעיף 1: הרישום להיסטוריה והצביעה בירוק מבוצעים רק כאן - אחרי שווידאנו שהסרטון פתוח לחלוטין
             statuses[id] = 'open';
             localStorage.setItem('yt_netfree_statuses', JSON.stringify(statuses));
-            updateVideoCardBadge(id, 'watched'); 
-
             safeToLocalHistory(id, title, thumbnail, channel);
+            updateVideoCardBadge(id, 'watched'); 
 
             const view = document.getElementById('watchView');
             
