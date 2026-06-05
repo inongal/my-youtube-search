@@ -944,9 +944,6 @@
                 document.getElementById('searchType').value = state.filterType || '';
                 document.getElementById('searchOrder').value = state.order || 'relevance';
                 document.getElementById('searchDuration').value = state.duration || '';
-                document.getElementById('searchType').value = state.filterType || '';
-                document.getElementById('searchOrder').value = state.order || 'relevance';
-                document.getElementById('searchDuration').value = state.duration || '';
                 document.getElementById('searchDate').value = state.dateFilter || '';
                 performSearch(false, true); 
             } else if (state.type === 'channel') {
@@ -2573,7 +2570,6 @@
                         }
                         if (testerDiv.parentNode) testerDiv.remove();
 
-                        // אם הנגן לא מגיב, נבצע בקשת רשת מהירה לבדוק אם הוא חסום או טרם נבדק
                         try {
                             const res = await fetch(`https://www.youtube.com/embed/${videoId}?autoplay=1`);
                             if (res.status === 418) {
@@ -2637,50 +2633,8 @@
         }
 
         async function renderResults(items, clear) {
-            if (!appState.isNetfreeMode || appState.searchContext !== 'search') {
-                return renderResultsCore(items, clear);
-            }
-
-            const grid = document.getElementById('resultsGrid');
-            if (clear) { grid.innerHTML = ''; appState.currentRenderedItems = []; }
-
-            let videosToTest = items.filter(item => (item.id && (item.id.kind === 'youtube#video' || item.id.videoId || typeof item.id === 'string'))).slice(0, 10);
-            let otherItems = items.filter(item => !(item.id && (item.id.kind === 'youtube#video' || item.id.videoId || typeof item.id === 'string')));
-
-            if (videosToTest.length === 0) {
-                return renderResultsCore(otherItems, false);
-            }
-
-            showNetfreeProgress(0, videosToTest.length);
-
-            let passedVideos = [];
-            let statuses = JSON.parse(localStorage.getItem('yt_netfree_statuses') || '{}');
-
-            for (let i = 0; i < videosToTest.length; i++) {
-                const video = videosToTest[i];
-                const vidId = video.id.videoId || (typeof video.id === 'string' ? video.id : null);
-                
-                if (vidId) {
-                    let resStatus = statuses[vidId];
-                    if (!resStatus) {
-                        resStatus = await testVideoNetfree(vidId);
-                        statuses[vidId] = resStatus;
-                    }
-                    if (resStatus === 'open' || resStatus === 'watched') {
-                        passedVideos.push(video);
-                    }
-                }
-                showNetfreeProgress(i + 1, videosToTest.length);
-            }
-
-            localStorage.setItem('yt_netfree_statuses', JSON.stringify(statuses));
-            hideNetfreeProgress();
-            
-            if (passedVideos.length === 0 && otherItems.length === 0) {
-                grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים פתוחים במקבץ זה. <button onclick="handleLoadMore()" class="text-blue-500 underline">נסה לטעון עוד</button></div>`;
-            } else {
-                renderResultsCore([...otherItems, ...passedVideos], false);
-            }
+            // החזרנו את הפונקציה לקדמותה כפי שביקשת - ללא הרצת סינון אוטומטי מראש על כל הסרטונים בדף
+            return renderResultsCore(items, clear);
         }
 
         function renderResultsCore(items, clear) {
@@ -2812,18 +2766,19 @@
                 const isLiked = LocalLikesManager.isLiked(videoId, 'videos');
                 const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
                 
+                // --- יישום סעיף 1: קריאה נכונה של אובייקט הסטטוסים המקומי של נטפרי ---
                 const isWatched = watchedIds.has(videoId);
                 let nfStatusesObj = JSON.parse(localStorage.getItem('yt_netfree_statuses') || '{}');
                 let nfStatus = nfStatusesObj[videoId];
                 let customBadge = '';
 
                 if (nfStatus === 'blocked') {
-                    customBadge = `<div class="nf-badge absolute top-2 right-10 bg-red-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-red-800">חסום <i class="fas fa-ban ml-0.5"></i></div>`;
+                    customBadge = `<div class="nf-badge absolute top-2 right-10 bg-red-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-red-800" onclick="event.stopPropagation()">חסום <i class="fas fa-ban ml-0.5"></i></div>`;
                 } else if (nfStatus === 'unreviewed') {
                     const ticketUrl = `https://netfree.link/app/#/tickets/new?u=${encodeURIComponent(`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&rel=0&start=0&fs=1&disablekb=0&origin=${window.location.origin}`)}&r=${encodeURIComponent(window.location.href)}&t=video&bi=`;
                     customBadge = `<a href="${ticketUrl}" target="_blank" onclick="event.stopPropagation()" class="nf-badge absolute top-2 right-10 bg-orange-500/90 hover:bg-orange-600 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-orange-700 flex items-center">לשליחה לבדיקה <i class="fas fa-paper-plane ml-1"></i></a>`;
                 } else if (isWatched || nfStatus === 'open' || nfStatus === 'watched') {
-                    customBadge = `<div class="nf-badge absolute top-2 right-10 bg-green-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-green-800">נצפה <i class="fas fa-check ml-0.5"></i></div>`;
+                    customBadge = `<div class="nf-badge absolute top-2 right-10 bg-green-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-green-800" onclick="event.stopPropagation()">נצפה <i class="fas fa-check ml-0.5"></i></div>`;
                 }
 
                 const isWatchLater = PlaylistManager.getPlaylists()['Watch Later']?.some(v => v.id === videoId);
@@ -3040,6 +2995,7 @@
             let statuses = JSON.parse(localStorage.getItem('yt_netfree_statuses') || '{}');
             let currentStatus = statuses[id];
 
+            // --- יישום סעיף 3: הרצת הבדיקה מאחורי הקלעים באמצעות IFrame וביצוע אבחון Fetch רק ברגע הכניסה ---
             if (!currentStatus || currentStatus === 'unreviewed') {
                 showToast('בודק סטטוס נטפרי...');
                 currentStatus = await testVideoNetfree(id);
@@ -3048,6 +3004,7 @@
                 updateVideoCardBadge(id, currentStatus);
             }
 
+            // חסימה או דרישת פנייה תמנע את פתיחת הנגן
             if (currentStatus === 'blocked') {
                 showToast('הסרטון חסום בנטפרי, לא ניתן לנגן.');
                 return;
@@ -3056,6 +3013,7 @@
                 return;
             }
             
+            // אם הכל עבר תקין - הסרטון פתוח, נשמור כפתוח ונרענן את התגית לירוק ("נצפה")
             statuses[id] = 'open';
             localStorage.setItem('yt_netfree_statuses', JSON.stringify(statuses));
             updateVideoCardBadge(id, 'watched'); 
