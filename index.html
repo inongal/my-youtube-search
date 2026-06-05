@@ -130,17 +130,6 @@
         #configModal { display: none; backdrop-filter: blur(12px); background-color: var(--modal-overlay); }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         
-        /* Description expand/collapse */
-        .desc-collapsed {
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .desc-expanded {
-            display: block;
-        }
-
         .sidebar-item { display: flex; align-items: center; gap: 20px; padding: 12px; cursor: pointer; border-radius: 12px; transition: background 0.2s; color: var(--text-primary); }
         .sidebar-item:hover { background: var(--bg-surface); }
         .sidebar-item.active { background: var(--bg-surface); font-weight: 600; }
@@ -174,14 +163,6 @@
             backdrop-filter: blur(10px);
             background-color: rgba(59, 130, 246, 0.9);
         }
-
-        /* AI Gradient Animations */
-        @keyframes hue-shift {
-            0% { filter: hue-rotate(0deg); }
-            100% { filter: hue-rotate(360deg); }
-        }
-        .ai-btn-anim svg { animation: hue-shift 4s linear infinite; }
-        .ai-btn-searching svg { animation: hue-shift 0.5s linear infinite; transform: scale(1.1); }
     </style>
 </head>
 <body class="custom-scrollbar">
@@ -215,15 +196,14 @@
                     <i class="fas fa-microphone text-gray-500 hover:text-blue-500 transition-colors"></i>
                 </button>
 
-                <button id="aiSearchBtn" onclick="performGeminiSearch()" class="px-4 transition z-10 flex items-center justify-center ai-btn-anim" style="background-color: var(--bg-input); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);" title="חיפוש חכם בעזרת AI (Gemini)">
-                    <svg class="w-5 h-5 hover:opacity-80 transition-all duration-300" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <button onclick="performGeminiSearch()" class="px-4 transition z-10 flex items-center justify-center" style="background-color: var(--bg-input); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);" title="חיפוש חכם בעזרת AI (Gemini)">
+                    <svg class="w-5 h-5 hover:opacity-80 transition-opacity" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 24C12 17.3726 6.62742 12 0 12C6.62742 12 12 6.62742 12 0C12 6.62742 17.3726 12 24 12C17.3726 12 12 17.3726 12 24Z" fill="url(#gemini-gradient)"/>
                         <defs>
                             <linearGradient id="gemini-gradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-                                <stop offset="0%" stop-color="#4285F4"/>
-                                <stop offset="33%" stop-color="#EA4335"/>
-                                <stop offset="66%" stop-color="#FBBC05"/>
-                                <stop offset="100%" stop-color="#9B72CB"/>
+                                <stop stop-color="#4285F4"/>
+                                <stop offset="0.5" stop-color="#9B72CB"/>
+                                <stop offset="1" stop-color="#D96570"/>
                             </linearGradient>
                         </defs>
                     </svg>
@@ -345,17 +325,6 @@
                 <hr class="my-3" style="border-color: var(--border-color);">
                 <div class="px-4 py-2 text-xs font-bold uppercase" style="color: var(--text-muted);">הרשימות שלי</div>
                 <div id="playlistsNavContainer"></div>
-                
-                <div class="flex gap-2 px-4 mb-2 mt-2">
-                    <button onclick="exportPlaylistsOnly()" class="flex-1 text-[10px] py-2 rounded-lg border transition hover:opacity-80 font-bold" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);" title="ייצא את הפלייליסטים לקובץ">
-                        <i class="fas fa-file-export ml-1"></i> ייצוא
-                    </button>
-                    <label class="flex-1 text-[10px] py-2 rounded-lg border transition hover:opacity-80 cursor-pointer text-center font-bold" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);" title="ייבא פלייליסטים מקובץ גיבוי">
-                        <i class="fas fa-file-import ml-1"></i> ייבוא
-                        <input type="file" onchange="importPlaylistsOnly(this)" class="hidden" accept=".json">
-                    </label>
-                </div>
-
                 <div onclick="const n=prompt('שם הרשימה החדשה:'); if(n) PlaylistManager.createPlaylist(n);" class="sidebar-item text-blue-500">
                     <i class="fas fa-plus text-lg"></i><span>צור רשימה חדשה</span>
                 </div>
@@ -521,16 +490,6 @@
                                     </button>
                                 </div>
 
-                                <button id="playerQueueBtn" onclick="addCurrentToQueue()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="הוסף לתור">
-                                    <i class="fas fa-step-forward text-xl"></i>
-                                </button>
-                                <button id="playerSaveBtn" onclick="saveCurrentToPlaylist()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="שמור לרשימה">
-                                    <i class="fas fa-list-ul text-xl"></i>
-                                </button>
-                                <button id="playerWatchLaterBtn" onclick="toggleCurrentWatchLater()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="צפייה בהמשך">
-                                    <i class="fas fa-clock text-xl" id="playerWatchLaterIcon"></i>
-                                </button>
-
                                 <button id="toggleChaptersBtn" class="w-10 h-10 rounded-full hidden flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="הצג/הסתר פרקי הסרטון">
                                     <i class="fas fa-list-ol text-xl"></i>
                                 </button>
@@ -539,14 +498,9 @@
                                 </button>
                             </div>
                         </div>
-                        
                         <div class="p-5 rounded-2xl" style="background-color: var(--bg-surface);">
                             <p id="modalStats" class="text-sm font-bold mb-3" style="color: var(--text-primary);"></p>
-                            
-                            <div id="descContainer" class="relative bg-black/5 p-3 rounded-xl border border-transparent transition-colors">
-                                <div id="modalDesc" class="text-sm whitespace-pre-wrap leading-relaxed desc-collapsed" style="color: var(--text-secondary);"></div>
-                                <button id="descToggleBtn" onclick="toggleDescription()" class="text-blue-500 hover:text-blue-400 text-sm font-bold mt-2 hidden transition-colors">הצג עוד</button>
-                            </div>
+                            <div id="modalDesc" class="text-sm whitespace-pre-wrap leading-relaxed" style="color: var(--text-secondary);"></div>
                             
                             <div id="chaptersContainer" class="hidden mt-6 p-4 rounded-xl border" style="background-color: var(--bg-input); border-color: var(--border-color);">
                                 <h4 class="font-bold mb-3 flex items-center gap-2" style="color: var(--text-primary);"><i class="fas fa-list-ol text-blue-500"></i> פרקי הסרטון</h4>
@@ -600,13 +554,13 @@
                 </div>
                 
                 <div class="mt-4 border-t pt-4" style="border-color: var(--border-color);">
-                    <h3 class="text-sm font-bold mb-3" style="color: var(--text-secondary);">ניהול נתונים (גיבוי ושחזור כללי)</h3>
+                    <h3 class="text-sm font-bold mb-3" style="color: var(--text-secondary);">ניהול נתונים (גיבוי ושחזור)</h3>
                     <div class="flex gap-3">
                         <button onclick="exportData()" class="flex-1 py-2 rounded-lg text-xs font-bold border transition" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
-                            <i class="fas fa-download mb-1 block"></i> ייצוא הכל
+                            <i class="fas fa-download mb-1 block"></i> ייצוא נתונים
                         </button>
                         <label class="flex-1 py-2 rounded-lg text-xs font-bold border cursor-pointer text-center transition" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
-                            <i class="fas fa-upload mb-1 block"></i> ייבוא הכל
+                            <i class="fas fa-upload mb-1 block"></i> ייבוא נתונים
                             <input type="file" onchange="importData(this)" class="hidden" accept=".json">
                         </label>
                     </div>
@@ -941,48 +895,6 @@
             if (appState.isYouTubeMode) populateUpNext();
         }
 
-        // פונקציות עזר לשליטה מתוך הנגן החדשות
-        function addCurrentToQueue() {
-            if (appState.currentVideoDetails) addToQueue(appState.currentVideoDetails);
-        }
-
-        function saveCurrentToPlaylist() {
-            if (appState.currentVideoDetails) {
-                const name = prompt('הכנס שם רשימה (למשל: מוזיקה, הרצאות):'); 
-                if(name) PlaylistManager.addToPlaylist(name, appState.currentVideoDetails);
-            }
-        }
-
-        function toggleCurrentWatchLater() {
-            if (appState.currentVideoDetails) {
-                const btn = document.getElementById('playerWatchLaterBtn');
-                PlaylistManager.toggleWatchLater(btn, appState.currentVideoDetails);
-                updateWatchLaterButtonUI(appState.currentVideoId);
-            }
-        }
-
-        function updateWatchLaterButtonUI(id) {
-            const isWatchLater = PlaylistManager.getPlaylists()['Watch Later']?.some(v => v.id === id);
-            const icon = document.getElementById('playerWatchLaterIcon');
-            if (icon) {
-                icon.className = isWatchLater ? 'fas fa-clock text-blue-500' : 'fas fa-clock';
-            }
-        }
-
-        function toggleDescription() {
-            const desc = document.getElementById('modalDesc');
-            const btn = document.getElementById('descToggleBtn');
-            if (desc.classList.contains('desc-collapsed')) {
-                desc.classList.remove('desc-collapsed');
-                desc.classList.add('desc-expanded');
-                btn.innerText = 'הצג פחות';
-            } else {
-                desc.classList.add('desc-collapsed');
-                desc.classList.remove('desc-expanded');
-                btn.innerText = 'הצג עוד';
-            }
-        }
-
         let navHistory = [];
         let navIndex = -1;
         let isInternalNav = false; 
@@ -1172,7 +1084,7 @@
                     subs.push({ id: channelId, title, thumbnail });
                     let lastVisits = JSON.parse(localStorage.getItem('yt_channel_visits') || '{}');
                     lastVisits[channelId] = new Date().toISOString();
-                    localStorage.setItem('yt_channel_visits', JSON.stringify(lastVisits));
+                    localStorage.setItem('yt_channel_visits', JSON.stringify(lastVisited));
                     showToast('נוסף למנויים מקומיים');
                     isSubbed = true;
                 }
@@ -1459,34 +1371,6 @@
             document.body.removeChild(a);
         }
 
-        // ייבוא וייצוא רשימות אישיות (Playlists) בלבד
-        function exportPlaylistsOnly() {
-            const playlists = localStorage.getItem('yt_playlists');
-            if (!playlists || playlists === '{"Watch Later":[]}') return alert('אין רשימות לייצוא בינתיים.');
-            triggerDownloadBlob(playlists, `yt_playlists_${new Date().toISOString().slice(0,10)}.json`);
-            showToast('רשימות ההשמעה יוצאו בהצלחה');
-        }
-
-        function importPlaylistsOnly(inputElement) {
-            const file = inputElement.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if (typeof data === 'object' && data['Watch Later'] !== undefined) {
-                        localStorage.setItem('yt_playlists', JSON.stringify(data));
-                        loadPlaylistsToSidebar();
-                        alert('רשימות ההשמעה יובאו בהצלחה!');
-                    } else {
-                        alert('קובץ לא תקין. יש לבחור קובץ JSON שיוצר מהמערכת.');
-                    }
-                } catch(err) { alert('שגיאה בקריאת הקובץ'); console.error(err); }
-            };
-            reader.readAsText(file);
-            inputElement.value = ''; // כדי לאפשר טעינה חוזרת של אותו קובץ
-        }
-
         const PlaylistManager = {
             getPlaylists: () => JSON.parse(localStorage.getItem('yt_playlists') || '{"Watch Later": []}'),
             savePlaylists: (playlists) => localStorage.setItem('yt_playlists', JSON.stringify(playlists)),
@@ -1710,7 +1594,7 @@
                 const div = document.createElement('div');
                 div.className = 'sidebar-item';
                 div.onclick = () => loadPlaylistView(name);
-                const icon = name === 'Watch Later' ? 'fa-clock' : 'fa-list';
+                const icon = name === 'Watch Later' ? 'צפייה בהמשך' : 'fa-list';
                 const label = name === 'Watch Later' ? 'צפייה בהמשך' : name;
                 div.innerHTML = `<i class="fas ${icon} text-lg"></i><span>${label}</span>`;
                 container.appendChild(div);
@@ -2204,6 +2088,31 @@
             } else if (appState.currentVideoId) {
                 watchView.classList.remove('active', 'hidden'); watchView.classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
             } else { closePlayer(); }
+        }
+
+        function updateVideoCardBadge(videoId, status) {
+            const cards = document.querySelectorAll(`.video-card[data-video-id="${videoId}"]`);
+            cards.forEach(card => {
+                let badgeEl = card.querySelector('.nf-badge');
+                if (badgeEl) badgeEl.remove();
+
+                const imgContainer = card.querySelector('.relative.mb-4.group\\/img');
+                if (!imgContainer) return;
+
+                let newBadgeHTML = '';
+                if (status === 'blocked') {
+                    newBadgeHTML = `<div class="nf-badge absolute top-2 right-10 bg-red-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-red-800">חסום <i class="fas fa-ban ml-0.5"></i></div>`;
+                } else if (status === 'unreviewed') {
+                    const ticketUrl = `https://netfree.link/app/#/tickets/new?u=${encodeURIComponent(`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&rel=0&start=0&fs=1&disablekb=0&origin=${window.location.origin}`)}&r=${encodeURIComponent(window.location.href)}&t=video&bi=`;
+                    newBadgeHTML = `<a href="${ticketUrl}" target="_blank" onclick="event.stopPropagation()" class="nf-badge absolute top-2 right-10 bg-orange-500/90 hover:bg-orange-600 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-orange-700 flex items-center">לשליחה לבדיקה <i class="fas fa-paper-plane ml-1"></i></a>`;
+                } else if (status === 'open' || status === 'watched') {
+                    newBadgeHTML = `<div class="nf-badge absolute top-2 right-10 bg-green-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-green-800">נצפה <i class="fas fa-check ml-0.5"></i></div>`;
+                }
+                
+                if (newBadgeHTML) {
+                    imgContainer.insertAdjacentHTML('beforeend', newBadgeHTML);
+                }
+            });
         }
 
         function toggleConfig() {
@@ -2871,7 +2780,18 @@
                 const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
                 
                 const isWatched = watchedIds.has(videoId);
-                const watchedBadge = isWatched ? `<div class="absolute top-2 right-10 bg-green-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow">נצפה <i class="fas fa-check ml-0.5"></i></div>` : '';
+                let nfStatusesObj = JSON.parse(localStorage.getItem('yt_netfree_statuses') || '{}');
+                let nfStatus = nfStatusesObj[videoId];
+                let customBadge = '';
+
+                if (nfStatus === 'blocked') {
+                    customBadge = `<div class="nf-badge absolute top-2 right-10 bg-red-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-red-800">חסום <i class="fas fa-ban ml-0.5"></i></div>`;
+                } else if (nfStatus === 'unreviewed') {
+                    const ticketUrl = `https://netfree.link/app/#/tickets/new?u=${encodeURIComponent(`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&rel=0&start=0&fs=1&disablekb=0&origin=${window.location.origin}`)}&r=${encodeURIComponent(window.location.href)}&t=video&bi=`;
+                    customBadge = `<a href="${ticketUrl}" target="_blank" onclick="event.stopPropagation()" class="nf-badge absolute top-2 right-10 bg-orange-500/90 hover:bg-orange-600 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-orange-700 flex items-center">לשליחה לבדיקה <i class="fas fa-paper-plane ml-1"></i></a>`;
+                } else if (isWatched || nfStatus === 'open' || nfStatus === 'watched') {
+                    customBadge = `<div class="nf-badge absolute top-2 right-10 bg-green-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow border border-green-800">נצפה <i class="fas fa-check ml-0.5"></i></div>`;
+                }
 
                 const isWatchLater = PlaylistManager.getPlaylists()['Watch Later']?.some(v => v.id === videoId);
                 const watchLaterIconClass = isWatchLater ? 'fas fa-clock text-blue-500' : 'fas fa-clock';
@@ -2880,7 +2800,7 @@
                     <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">
                         <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl" style="background-color: var(--bg-surface);">
                         ${durationText}
-                        ${watchedBadge}
+                        ${customBadge}
                         ${progressHtml}
                         
                         <div class="selection-checkbox absolute top-2 right-2 z-10 w-6 h-6 bg-black/80 rounded border-2 border-gray-400 items-center justify-center transition">
@@ -3084,6 +3004,40 @@
                 return; 
             }
 
+            let statuses = JSON.parse(localStorage.getItem('yt_netfree_statuses') || '{}');
+            let currentStatus = statuses[id];
+
+            if (!currentStatus) {
+                showToast('בודק סטטוס נטפרי...');
+                try {
+                    const res = await fetch(`https://www.youtube.com/embed/${id}?autoplay=1`);
+                    if (res.status === 418) {
+                        const text = await res.text();
+                        currentStatus = (text.includes('ticket') || text.includes('לא נבדק') || text.includes('לשליחה לבדיקה') || text.includes('לשלוח לבדיקה')) ? 'unreviewed' : 'blocked';
+                    } else {
+                        currentStatus = 'open'; 
+                    }
+                } catch (e) {
+                    currentStatus = 'open';
+                }
+                
+                statuses[id] = currentStatus;
+                localStorage.setItem('yt_netfree_statuses', JSON.stringify(statuses));
+                updateVideoCardBadge(id, currentStatus);
+            }
+
+            if (currentStatus === 'blocked') {
+                showToast('הסרטון חסום בנטפרי, לא ניתן לנגן.');
+                return;
+            } else if (currentStatus === 'unreviewed') {
+                showToast('הסרטון טרם נבדק בנטפרי. לחץ על הכפתור הכתום עליו לשליחה לבדיקה.');
+                return;
+            }
+            
+            statuses[id] = 'open';
+            localStorage.setItem('yt_netfree_statuses', JSON.stringify(statuses));
+            updateVideoCardBadge(id, 'watched'); 
+
             safeToLocalHistory(id, title, thumbnail, channel);
 
             const view = document.getElementById('watchView');
@@ -3159,24 +3113,6 @@
                     renderChapters(descText);
                 }
                 
-                // אתחול כפתור Watch Later וכפתור ה"הצג עוד"
-                updateWatchLaterButtonUI(id);
-                
-                const desc = document.getElementById('modalDesc');
-                const descBtn = document.getElementById('descToggleBtn');
-                desc.classList.add('desc-collapsed');
-                desc.classList.remove('desc-expanded');
-                
-                // נותנים ל-DOM שניה להתרנדר ואז בודקים אם יש צורך בכפתור הצג עוד
-                setTimeout(() => {
-                    if (desc.scrollHeight > desc.clientHeight || (desc.innerText && desc.innerText.split('\n').length > 3)) {
-                        descBtn.classList.remove('hidden');
-                        descBtn.innerText = 'הצג עוד';
-                    } else {
-                        descBtn.classList.add('hidden');
-                    }
-                }, 100);
-
                 document.getElementById('commentsList').innerHTML = '<p style="color: var(--text-secondary);">טוען תגובות...</p>';
                 fetchComments(id);
                 
@@ -3301,10 +3237,6 @@
             document.getElementById('sectionTitle').innerText = `חיפוש חכם: ${query}`;
             document.getElementById('channelHeaderContainer').classList.add('hidden');
             document.getElementById('pagination').classList.add('hidden');
-            
-            const aiBtn = document.getElementById('aiSearchBtn');
-            aiBtn.classList.remove('ai-btn-anim');
-            aiBtn.classList.add('ai-btn-searching');
 
             const systemPrompt = `אתה עוזר חכם לחיפוש ביוטיוב. המשתמש יכתוב לך מה הוא מחפש בשפה טבעית, ואתה צריך להחזיר אך ורק את מילות החיפוש המדויקות והטובות ביותר לחיפוש ב-YouTube, ללא שום טקסט נוסף, הקדמות או הסברים.\n\nבקשת המשתמש: "${query}"`;
 
@@ -3334,9 +3266,6 @@
                 console.error("Gemini API Error:", error);
                 alert("אירעה שגיאה בחיפוש החכם. בדוק את המפתח בהגדרות או את החיבור לרשת.");
                 loadHomePage();
-            } finally {
-                aiBtn.classList.remove('ai-btn-searching');
-                aiBtn.classList.add('ai-btn-anim');
             }
         }
         
