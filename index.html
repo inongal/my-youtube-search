@@ -944,6 +944,9 @@
                 document.getElementById('searchType').value = state.filterType || '';
                 document.getElementById('searchOrder').value = state.order || 'relevance';
                 document.getElementById('searchDuration').value = state.duration || '';
+                document.getElementById('searchType').value = state.filterType || '';
+                document.getElementById('searchOrder').value = state.order || 'relevance';
+                document.getElementById('searchDuration').value = state.duration || '';
                 document.getElementById('searchDate').value = state.dateFilter || '';
                 performSearch(false, true); 
             } else if (state.type === 'channel') {
@@ -1084,7 +1087,7 @@
                     subs.push({ id: channelId, title, thumbnail });
                     let lastVisits = JSON.parse(localStorage.getItem('yt_channel_visits') || '{}');
                     lastVisits[channelId] = new Date().toISOString();
-                    localStorage.setItem('yt_channel_visits', JSON.stringify(lastVisited));
+                    localStorage.setItem('yt_channel_visits', JSON.stringify(lastVisits));
                     showToast('נוסף למנויים מקומיים');
                     isSubbed = true;
                 }
@@ -1299,7 +1302,6 @@
             }, 2000);
         }
 
-        /* עדכון אופציה א' - שולח את כל הקישורים יחד מופרדים בנקודה כדי למנוע קידוד דפדפן */
         function batchDownloadWithYtDlp() {
             if (appState.selectedVideos.size === 0) return;
             
@@ -1315,10 +1317,8 @@
             
             showToast(`מעביר ${videos.length} סרטונים להורדה מרוכזת (${qualityText})...`);
 
-            // שימוש בנקודה (.) במקום פסיק כדי למנוע מהדפדפן לקודד את הכתובת ל-%2C
             const videoIds = videos.map(item => item.id.videoId || item.id).join('.');
             
-            // יצירת iframe יחיד עבור כל הרשימה הנוכחית
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
             iframe.src = `ytdlp://${videoIds}/${quality}`;
@@ -1594,7 +1594,7 @@
                 const div = document.createElement('div');
                 div.className = 'sidebar-item';
                 div.onclick = () => loadPlaylistView(name);
-                const icon = name === 'Watch Later' ? 'צפייה בהמשך' : 'fa-list';
+                const icon = name === 'Watch Later' ? 'fa-clock' : 'fa-list';
                 const label = name === 'Watch Later' ? 'צפייה בהמשך' : name;
                 div.innerHTML = `<i class="fas ${icon} text-lg"></i><span>${label}</span>`;
                 container.appendChild(div);
@@ -2479,7 +2479,6 @@
                     }
 
                 } else if (appState.channelViewMode === 'playlists') {
-                    // שינוי לשימוש במנוע החיפוש במקום בקשת פלייליסטים ישירה כדי לעקוף חסימות נטפרי
                     let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=playlist&maxResults=${appState.maxResults}&channelId=${appState.activeChannelId}&key=${appState.apiKey}`;
                     if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
@@ -2566,16 +2565,29 @@
 
                 let player;
                 
-                let timeout = setTimeout(() => {
+                let timeout = setTimeout(async () => {
                     if (!isResolved) {
                         isResolved = true;
                         if (player && typeof player.destroy === 'function') {
                             try { player.destroy(); } catch(e){}
                         }
                         if (testerDiv.parentNode) testerDiv.remove();
-                        resolve(false); 
+
+                        // אם הנגן לא מגיב, נבצע בקשת רשת מהירה לבדוק אם הוא חסום או טרם נבדק
+                        try {
+                            const res = await fetch(`https://www.youtube.com/embed/${videoId}?autoplay=1`);
+                            if (res.status === 418) {
+                                const text = await res.text();
+                                const isUnreviewed = (text.includes('ticket') || text.includes('לא נבדק') || text.includes('לשליחה לבדיקה') || text.includes('לשלוח לבדיקה'));
+                                resolve(isUnreviewed ? 'unreviewed' : 'blocked');
+                            } else {
+                                resolve('open');
+                            }
+                        } catch(err) {
+                            resolve('open');
+                        }
                     }
-                }, 2000);
+                }, 1800);
 
                 player = new YT.Player('tester-' + videoId, {
                     height: '10', width: '10', videoId: videoId,
@@ -2589,13 +2601,25 @@
                         'onReady': (event) => {
                             event.target.playVideo();
                         },
-                        'onError': (event) => {
+                        'onError': async (event) => {
                             if (!isResolved) {
                                 isResolved = true;
                                 clearTimeout(timeout);
                                 if (player && typeof player.destroy === 'function') { try{ player.destroy(); }catch(e){} }
                                 if(testerDiv.parentNode) testerDiv.remove();
-                                resolve(false);
+
+                                try {
+                                    const res = await fetch(`https://www.youtube.com/embed/${videoId}?autoplay=1`);
+                                    if (res.status === 418) {
+                                        const text = await res.text();
+                                        const isUnreviewed = (text.includes('ticket') || text.includes('לא נבדק') || text.includes('לשליחה לבדיקה') || text.includes('לשלוח לבדיקה'));
+                                        resolve(isUnreviewed ? 'unreviewed' : 'blocked');
+                                    } else {
+                                        resolve('blocked');
+                                    }
+                                } catch(err) {
+                                    resolve('blocked');
+                                }
                             }
                         },
                         'onStateChange': (event) => {
@@ -2604,7 +2628,7 @@
                                 clearTimeout(timeout);
                                 if (player && typeof player.destroy === 'function') { try{ player.destroy(); }catch(e){} }
                                 if(testerDiv.parentNode) testerDiv.remove();
-                                resolve(true);
+                                resolve('open');
                             }
                         }
                     }
@@ -2630,17 +2654,26 @@
             showNetfreeProgress(0, videosToTest.length);
 
             let passedVideos = [];
+            let statuses = JSON.parse(localStorage.getItem('yt_netfree_statuses') || '{}');
+
             for (let i = 0; i < videosToTest.length; i++) {
                 const video = videosToTest[i];
                 const vidId = video.id.videoId || (typeof video.id === 'string' ? video.id : null);
                 
                 if (vidId) {
-                    const passed = await testVideoNetfree(vidId);
-                    if (passed) passedVideos.push(video);
+                    let resStatus = statuses[vidId];
+                    if (!resStatus) {
+                        resStatus = await testVideoNetfree(vidId);
+                        statuses[vidId] = resStatus;
+                    }
+                    if (resStatus === 'open' || resStatus === 'watched') {
+                        passedVideos.push(video);
+                    }
                 }
                 showNetfreeProgress(i + 1, videosToTest.length);
             }
 
+            localStorage.setItem('yt_netfree_statuses', JSON.stringify(statuses));
             hideNetfreeProgress();
             
             if (passedVideos.length === 0 && otherItems.length === 0) {
@@ -3007,20 +3040,9 @@
             let statuses = JSON.parse(localStorage.getItem('yt_netfree_statuses') || '{}');
             let currentStatus = statuses[id];
 
-            if (!currentStatus) {
+            if (!currentStatus || currentStatus === 'unreviewed') {
                 showToast('בודק סטטוס נטפרי...');
-                try {
-                    const res = await fetch(`https://www.youtube.com/embed/${id}?autoplay=1`);
-                    if (res.status === 418) {
-                        const text = await res.text();
-                        currentStatus = (text.includes('ticket') || text.includes('לא נבדק') || text.includes('לשליחה לבדיקה') || text.includes('לשלוח לבדיקה')) ? 'unreviewed' : 'blocked';
-                    } else {
-                        currentStatus = 'open'; 
-                    }
-                } catch (e) {
-                    currentStatus = 'open';
-                }
-                
+                currentStatus = await testVideoNetfree(id);
                 statuses[id] = currentStatus;
                 localStorage.setItem('yt_netfree_statuses', JSON.stringify(statuses));
                 updateVideoCardBadge(id, currentStatus);
