@@ -216,7 +216,7 @@
                 </button>
 
                 <button id="aiSearchBtn" onclick="performGeminiSearch()" class="px-4 transition z-10 flex items-center justify-center ai-btn-anim" style="background-color: var(--bg-input); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);" title="חיפוש חכם בעזרת AI (Gemini)">
-                    <svg class="w-5 h-5 hover:opacity-80 transition-all duration-300" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <svg class="w-5 h-5 hover:opacity-80 transition-all duration-300" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2004/svg">
                         <path d="M12 24C12 17.3726 6.62742 12 0 12C6.62742 12 12 6.62742 12 0C12 6.62742 17.3726 12 24 12C17.3726 12 12 17.3726 12 24Z" fill="url(#gemini-gradient)"/>
                         <defs>
                             <linearGradient id="gemini-gradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
@@ -343,7 +343,10 @@
                 </div>
                 
                 <hr class="my-3" style="border-color: var(--border-color);">
-                <div class="px-4 py-2 text-xs font-bold uppercase" style="color: var(--text-muted);">הרשימות שלי</div>
+                <div class="px-4 py-2 text-xs font-bold uppercase flex justify-between items-center" style="color: var(--text-muted);">
+                    <span>הרשימות שלי</span>
+                    <button onclick="loadAllPlaylistsHub()" class="text-blue-500 hover:underline text-[11px] font-bold transition" title="הצג את כל הרשימות בתצוגת כרטיסים">הצג הכל</button>
+                </div>
                 <div id="playlistsNavContainer"></div>
                 
                 <div class="flex gap-2 px-4 mb-2 mt-2">
@@ -584,11 +587,11 @@
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">YouTube Data API Key</label>
-                    <input type="text" id="apiKeyInput" onfocus="if(this.value.startsWith('••••')) this.value='';" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                    <input type="text" id="apiKeyInput" dir="ltr" onfocus="if(this.value.startsWith('••••')) this.value='';" class="w-full text-left border rounded-xl py-3 px-4 outline-none transition font-mono" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">Gemini API Key (לחיפוש חכם)</label>
-                    <input type="text" id="geminiApiKeyInput" onfocus="if(this.value.startsWith('••••')) this.value='';" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                    <input type="text" id="geminiApiKeyInput" dir="ltr" onfocus="if(this.value.startsWith('••••')) this.value='';" class="w-full text-left border rounded-xl py-3 px-4 outline-none transition font-mono" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">Google Client ID</label>
@@ -795,12 +798,12 @@
             
             if(appState.isNetfreeMode) {
                 btnText.innerText = "נטפרי: פעיל";
-                btnIcon.className = "fas fa-shield-alt text-green-500";
-                btn.classList.add('border-green-500');
+                btnIcon.className = "fas fa-shield-alt text-blue-500 dark:text-green-500";
+                btn.className = "px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2 border-blue-500 dark:border-green-500 text-blue-600 dark:text-white";
             } else {
                 btnText.innerText = "נטפרי: כבוי";
                 btnIcon.className = "fas fa-shield-alt text-gray-500";
-                btn.classList.remove('border-green-500');
+                btn.className = "px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2 border-[var(--border-light)] text-[var(--text-primary)]";
             }
         }
 
@@ -819,12 +822,12 @@
             
             if(appState.isIncognitoMode) {
                 btnText.innerText = "אנונימי: פעיל";
-                btnIcon.className = "fas fa-user-secret text-purple-500";
-                btn.classList.add('border-purple-500');
+                btnIcon.className = "fas fa-user-secret text-blue-500 dark:text-purple-500";
+                btn.className = "px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2 border-blue-500 dark:border-purple-500 text-blue-600 dark:text-white";
             } else {
                 btnText.innerText = "אנונימי: כבוי";
                 btnIcon.className = "fas fa-user-secret text-gray-500";
-                btn.classList.remove('border-purple-500');
+                btn.className = "px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2 border-[var(--border-light)] text-[var(--text-primary)]";
             }
         }
 
@@ -1009,6 +1012,11 @@
                 loadQueueTab(true);
             } else if (appState.searchContext === 'liked') {
                 renderLikedTab(appState.currentLikedTab);
+            } else if (appState.searchContext === 'playlists_hub') {
+                loadAllPlaylistsHub(true);
+            } else if (appState.searchContext.startsWith('playlist_')) {
+                const pName = appState.searchContext.replace('playlist_', '');
+                loadPlaylistView(pName, true);
             } else if (appState.currentRenderedItems && appState.currentRenderedItems.length > 0) {
                 const itemsCopy = [...appState.currentRenderedItems];
                 renderResultsCore(itemsCopy, true);
@@ -1089,6 +1097,8 @@
                 loadResumeTab(true);
             } else if (state.type === 'queue') {
                 loadQueueTab(true);
+            } else if (state.type === 'playlists_hub') {
+                loadAllPlaylistsHub(true);
             }
         }
 
@@ -1521,6 +1531,15 @@
             showToast('רשימות ההשמעה יוצאו בהצלחה');
         }
 
+        function exportSinglePlaylist(name) {
+            const playlists = PlaylistManager.getPlaylists();
+            const playlist = playlists[name];
+            if (!playlist) return alert('רשימה לא קיימת');
+            const dataStr = JSON.stringify({ [name]: playlist }, null, 2);
+            triggerDownloadBlob(dataStr, `playlist_${name}_${new Date().toISOString().slice(0,10)}.json`);
+            showToast(`הרשימה "${name}" הורדה בהצלחה!`);
+        }
+
         function importPlaylistsOnly(inputElement) {
             const file = inputElement.files[0];
             if (!file) return;
@@ -1552,6 +1571,7 @@
                 playlists[name] = [];
                 PlaylistManager.savePlaylists(playlists);
                 loadPlaylistsToSidebar(); 
+                if (appState.searchContext === 'playlists_hub') loadAllPlaylistsHub(true);
             },
 
             renamePlaylist: (oldName, newName) => {
@@ -1571,7 +1591,11 @@
                 delete playlists[name];
                 PlaylistManager.savePlaylists(playlists);
                 loadPlaylistsToSidebar();
-                loadHomePage(); 
+                if (appState.searchContext === 'playlists_hub') {
+                    loadAllPlaylistsHub(true);
+                } else {
+                    loadHomePage();
+                }
             },
 
             addToPlaylist: (playlistName, video, silent = false) => {
@@ -1588,6 +1612,7 @@
                     channel: video.channel, duration: video.duration, addedAt: new Date().toISOString()
                 });
                 PlaylistManager.savePlaylists(playlists);
+                loadPlaylistsToSidebar();
                 
                 if(!silent) showToast(`נוסף ל-${playlistName === 'Watch Later' ? 'צפייה בהמשך' : playlistName}`);
             },
@@ -1597,6 +1622,7 @@
                 if (playlists[playlistName]) {
                     playlists[playlistName] = playlists[playlistName].filter(v => v.id !== videoId);
                     PlaylistManager.savePlaylists(playlists);
+                    loadPlaylistsToSidebar();
                     if (appState.searchContext === 'playlist_' + playlistName) {
                         loadPlaylistView(playlistName, true); 
                     }
@@ -1623,6 +1649,7 @@
                 }
                 playlists['Watch Later'] = wl;
                 PlaylistManager.savePlaylists(playlists);
+                loadPlaylistsToSidebar();
                 
                 if (appState.searchContext === 'playlist_Watch Later') {
                     loadPlaylistView('Watch Later', true);
@@ -1761,13 +1788,80 @@
             
             container.innerHTML = '';
             Object.keys(playlists).forEach(name => {
+                const count = playlists[name] ? playlists[name].length : 0;
                 const div = document.createElement('div');
-                div.className = 'sidebar-item';
+                div.className = 'sidebar-item justify-between flex items-center';
                 div.onclick = () => loadPlaylistView(name);
                 const icon = name === 'Watch Later' ? 'fa-clock' : 'fa-list';
                 const label = name === 'Watch Later' ? 'צפייה בהמשך' : name;
-                div.innerHTML = `<i class="fas ${icon} text-lg"></i><span>${label}</span>`;
+                div.innerHTML = `
+                    <div class="flex items-center gap-3 truncate">
+                        <i class="fas ${icon} text-lg flex-shrink-0"></i><span class="truncate">${label}</span>
+                    </div>
+                    <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 flex-shrink-0">${count}</span>
+                `;
                 container.appendChild(div);
+            });
+        }
+
+        function loadAllPlaylistsHub(isHistoryNav = false) {
+            if (appState.isSelectionMode) toggleSelectionMode();
+            setActiveNavItem('');
+            appState.searchContext = 'playlists_hub';
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.add('hidden');
+            if (!isHistoryNav) pushHistory({ type: 'playlists_hub' });
+
+            const titleEl = document.getElementById('sectionTitle');
+            titleEl.innerText = "כל רשימות ההשמעה שלי";
+            titleEl.classList.remove('hidden');
+            document.getElementById('pagination').classList.add('hidden');
+            document.getElementById('exportUrlsBtn').classList.add('hidden');
+
+            const playlists = PlaylistManager.getPlaylists();
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = '';
+            appState.currentRenderedItems = [];
+
+            Object.keys(playlists).forEach(name => {
+                const list = playlists[name] || [];
+                const count = list.length;
+                const firstThumb = count > 0 ? list[0].thumbnail : '';
+                
+                const card = document.createElement('div');
+                card.className = "video-card group flex flex-col cursor-pointer bg-[var(--bg-card)] p-4 rounded-2xl border border-[var(--border-color)]";
+                card.onclick = () => loadPlaylistView(name);
+
+                const safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+
+                card.innerHTML = `
+                    <div class="relative mb-4 group/img">
+                        ${firstThumb ? `<img src="${firstThumb}" class="w-full aspect-video object-cover rounded-2xl">` : `
+                        <div class="w-full aspect-video bg-[var(--bg-surface)] rounded-2xl flex flex-col items-center justify-center text-gray-500">
+                            <i class="fas fa-list-ul text-4xl mb-2"></i>
+                            <span class="text-xs">רשימה ריקה</span>
+                        </div>`}
+                        <div class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1 font-bold z-10">
+                            <i class="fas fa-video"></i> <span>${count} סרטונים</span>
+                        </div>
+                    </div>
+                    <div class="flex-1 px-1 flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-lg leading-snug line-clamp-1 mb-1" style="color: var(--text-primary);">${name === 'Watch Later' ? 'צפייה בהמשך' : name}</h3>
+                            <p class="text-xs" style="color: var(--text-secondary);">רשימה מקומית אישית</p>
+                        </div>
+                        <div class="flex gap-2 mt-4">
+                            <button onclick="event.stopPropagation(); loadPlaylistView('${safeName}')" class="text-xs px-4 py-2 rounded-full font-bold transition flex items-center gap-2 shadow bg-[var(--text-primary)] text-[var(--bg-main)]">
+                                <i class="fas fa-folder-open"></i> פתח רשימה
+                            </button>
+                            ${name !== 'Watch Later' ? `
+                            <button onclick="event.stopPropagation(); PlaylistManager.deletePlaylist('${safeName}'); loadAllPlaylistsHub(true);" class="text-xs p-2 px-3 rounded-full font-bold transition border text-red-500 border-red-500/30 hover:bg-red-500/10">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>` : ''}
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
             });
         }
 
@@ -1779,16 +1873,26 @@
             document.getElementById('internalSearch').classList.remove('hidden');
             if (!isInternal) pushHistory({ type: 'playlist', playlistName: name });
 
+            const playlists = PlaylistManager.getPlaylists();
+            const videos = playlists[name] || [];
+            const count = videos.length;
+
             const titleEl = document.getElementById('sectionTitle');
             const isWatchLater = name === 'Watch Later';
             const safeName = name.replace(/"/g, "&quot;");
             
-            let titleHTML = isWatchLater ? 'צפייה בהמשך' : `רשימת השמעה: ${safeName}`;
+            let titleHTML = isWatchLater ? `צפייה בהמשך (${count} סרטונים)` : `רשימת השמעה: ${safeName} (${count} סרטונים)`;
             if (!isWatchLater) {
                 titleHTML += `
-                    <span class="mr-4 text-sm font-normal">
+                    <span class="mr-4 text-sm font-normal flex items-center gap-1 inline-flex">
                         <button onclick="const newName = prompt('שם חדש:', '${safeName}'); if(newName) PlaylistManager.renamePlaylist('${safeName}', newName)" class="mx-1 text-blue-500 hover:opacity-80 transition" title="שנה שם"><i class="fas fa-edit"></i></button>
                         <button onclick="PlaylistManager.deletePlaylist('${safeName}')" class="mx-1 text-red-500 hover:opacity-80 transition" title="מחק רשימה"><i class="fas fa-trash-alt"></i></button>
+                        <button onclick="exportSinglePlaylist('${safeName}')" class="mx-1 text-green-500 hover:opacity-80 transition" title="הורד רשימה זו כקובץ"><i class="fas fa-file-download"></i></button>
+                    </span>`;
+            } else {
+                titleHTML += `
+                    <span class="mr-4 text-sm font-normal flex items-center gap-1 inline-flex">
+                        <button onclick="exportSinglePlaylist('Watch Later')" class="mx-1 text-green-500 hover:opacity-80 transition" title="הורד רשימה זו כקובץ"><i class="fas fa-file-download"></i></button>
                     </span>`;
             }
             titleHTML += `<button onclick="playRandomFromPlaylist('${safeName}')" class="mr-4 text-xs px-3 py-1.5 rounded-full font-bold transition inline-flex items-center gap-2" style="background-color: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-light);"><i class="fas fa-random text-blue-500"></i> נגן באקראי</button>`;
@@ -1800,10 +1904,7 @@
             
             if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
 
-            const playlists = PlaylistManager.getPlaylists();
-            const videos = playlists[name] || [];
-
-            if (videos.length === 0) {
+            if (count === 0) {
                 document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">הרשימה ריקה.</div>`;
                 appState.currentRenderedItems = [];
                 return;
@@ -3384,8 +3485,8 @@
             document.getElementById('pagination').classList.add('hidden');
             
             const aiBtn = document.getElementById('aiSearchBtn');
-            aiBtn.classList.remove('ai-btn-anim');
-            aiBtn.classList.add('ai-btn-searching');
+            aiBtn.classList.remove('ai-btn-searching');
+            aiBtn.classList.add('ai-btn-anim');
 
             const systemPrompt = `אתה עוזר חכם לחיפוש ביוטיוב. המשתמש יכתוב לך מה הוא מחפש בשפה טבעית, ואתה צריך להחזיר אך ורק את מילות החיפוש המדויקות והטובות ביותר לחיפוש ב-YouTube, ללא שום טקסט נוסף, הקדמות או הסברים.\n\nבקשת המשתמש: "${query}"`;
 
