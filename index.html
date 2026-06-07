@@ -476,7 +476,7 @@
             <div class="player-header p-4 flex justify-between items-center border-b" style="border-color: var(--border-color);">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2" style="color: var(--text-primary);"></h3>
                 <div class="flex gap-2">
-                    <button onclick="toggleYouTubeMode()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="מצב יוטיוב (תצוגה רחבה עם תור)">
+                    <button onclick="toggleYouTubeMode()" id="youtubeModeBtn" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="תצוגה מוגדלת">
                         <i class="fas fa-columns"></i>
                     </button>
                     <button onclick="toggleFloatingMode()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="נגן צף פנימי נשלט גודל">
@@ -584,11 +584,11 @@
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">YouTube Data API Key</label>
-                    <input type="password" id="apiKeyInput" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                    <input type="text" id="apiKeyInput" onfocus="if(this.value.startsWith('••••')) this.value='';" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">Gemini API Key (לחיפוש חכם)</label>
-                    <input type="password" id="geminiApiKeyInput" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                    <input type="text" id="geminiApiKeyInput" onfocus="if(this.value.startsWith('••••')) this.value='';" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">Google Client ID</label>
@@ -878,6 +878,9 @@
 
         function onPlayerStateChange(event) {
             if (event.data === 0) { 
+                if (appState.currentVideoId) {
+                    PlaylistManager.removeFromPlaylist('Watch Later', appState.currentVideoId);
+                }
                 if (appState.currentVideoId && !appState.isIncognitoMode) {
                     let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
                     if (positions[appState.currentVideoId]) {
@@ -982,6 +985,44 @@
                 btn.innerText = 'הצג עוד';
             }
         }
+
+        function toggleChannelDescription() {
+            const desc = document.getElementById('channelDesc');
+            const btn = document.getElementById('channelDescToggleBtn');
+            if (desc.classList.contains('desc-collapsed')) {
+                desc.classList.remove('desc-collapsed');
+                desc.classList.add('desc-expanded');
+                btn.innerText = 'הצג פחות';
+            } else {
+                desc.classList.add('desc-collapsed');
+                desc.classList.remove('desc-expanded');
+                btn.innerText = 'הצג עוד';
+            }
+        }
+
+        function refreshCurrentView() {
+            if (appState.searchContext === 'local_history') {
+                loadLocalHistory(true);
+            } else if (appState.searchContext === 'local_resume') {
+                loadResumeTab(true);
+            } else if (appState.searchContext === 'queue') {
+                loadQueueTab(true);
+            } else if (appState.searchContext === 'liked') {
+                renderLikedTab(appState.currentLikedTab);
+            } else if (appState.currentRenderedItems && appState.currentRenderedItems.length > 0) {
+                const itemsCopy = [...appState.currentRenderedItems];
+                renderResultsCore(itemsCopy, true);
+            }
+        }
+
+        window.markAsUnwatched = function(id, event) {
+            if (event) event.stopPropagation();
+            let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
+            history = history.filter(item => item.id !== id);
+            localStorage.setItem('yt_local_history', JSON.stringify(history));
+            showToast("הסרטון סומן כלא נצפה");
+            refreshCurrentView();
+        };
 
         let navHistory = [];
         let navIndex = -1;
@@ -1218,7 +1259,10 @@
                     <div class="flex flex-col items-center sm:items-start flex-1 text-center sm:text-right mt-2 sm:mt-0">
                         <h1 class="text-2xl sm:text-3xl font-bold" style="color: var(--text-primary);">${snip.title}</h1>
                         <p class="text-sm mt-1" style="color: var(--text-secondary);">${snip.customUrl || ''} • ${subs} מנויים • ${videos} סרטונים</p>
-                        <p class="text-sm mt-2 line-clamp-2 max-w-2xl" style="color: var(--text-muted);" title="${snip.description ? snip.description.replace(/"/g, '&quot;') : ''}">${safeLinkifyWithTimestamps(snip.description || '')}</p>
+                        <div id="channelDescContainer" class="relative max-w-2xl text-right">
+                            <p id="channelDesc" class="text-sm mt-2 desc-collapsed" style="color: var(--text-muted);" title="${snip.description ? snip.description.replace(/"/g, '&quot;') : ''}">${safeLinkifyWithTimestamps(snip.description || '')}</p>
+                            <button id="channelDescToggleBtn" onclick="toggleChannelDescription()" class="text-blue-500 hover:text-blue-400 text-sm font-bold mt-1 hidden transition-colors">הצג עוד</button>
+                        </div>
                     </div>
                     <div class="mt-4 sm:mt-0 self-center sm:self-start pt-2 flex gap-2">
                          <a href="https://www.youtube.com/channel/${channel.id}?sub_confirmation=1" target="_blank" class="px-6 py-2 rounded-full font-bold transition whitespace-nowrap inline-block shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
@@ -1233,6 +1277,16 @@
             `;
             container.classList.remove('hidden');
             container.classList.add('flex');
+
+            setTimeout(() => {
+                const cDesc = document.getElementById('channelDesc');
+                const cDescBtn = document.getElementById('channelDescToggleBtn');
+                if (cDesc && cDescBtn) {
+                    if (cDesc.scrollHeight > cDesc.clientHeight || (snip.description && snip.description.split('\n').length > 2)) {
+                        cDescBtn.classList.remove('hidden');
+                    }
+                }
+            }, 100);
         }
 
         function toggleViewMode() {
@@ -2100,20 +2154,23 @@
             appState.isYouTubeMode = !appState.isYouTubeMode;
             const container = document.querySelector('#watchView .player-container');
             const upNextSidebar = document.getElementById('upNextSidebar');
+            const ytModeBtn = document.getElementById('youtubeModeBtn');
 
             if (appState.isYouTubeMode) {
                 container.classList.remove('max-w-5xl');
-                container.style.maxWidth = '80vw';
-                container.style.width = '80vw';
+                container.style.maxWidth = '75vw';
+                container.style.width = '75vw';
                 upNextSidebar.classList.remove('hidden');
                 upNextSidebar.classList.add('flex');
                 populateUpNext();
+                if(ytModeBtn) ytModeBtn.setAttribute('title', 'תצוגה רגילה');
             } else {
                 container.style.maxWidth = '';
                 container.style.width = '';
                 container.classList.add('max-w-5xl');
                 upNextSidebar.classList.add('hidden');
                 upNextSidebar.classList.remove('flex');
+                if(ytModeBtn) ytModeBtn.setAttribute('title', 'תצוגה מוגדלת');
             }
         }
 
@@ -2212,12 +2269,19 @@
         }
 
         function saveAndStart() {
-            const newKey = document.getElementById('apiKeyInput').value.trim();
-            const newGeminiKey = document.getElementById('geminiApiKeyInput').value.trim();
+            let newKey = document.getElementById('apiKeyInput').value.trim();
+            let newGeminiKey = document.getElementById('geminiApiKeyInput').value.trim();
             const newClientId = document.getElementById('clientIdInput').value.trim();
             const newMaxResults = document.getElementById('maxResultsInput').value;
             const newTheme = document.getElementById('themeSelect').value;
             
+            if (newKey.startsWith("••••")) {
+                newKey = localStorage.getItem('yt_api_key') || "";
+            }
+            if (newGeminiKey.startsWith("••••")) {
+                newGeminiKey = localStorage.getItem('yt_gemini_api_key') || "";
+            }
+
             if (!newKey) return alert("נא להזין API Key לפחות.");
             
             appState.apiKey = newKey;
@@ -2257,8 +2321,14 @@
             const savedMaxResults = localStorage.getItem('yt_max_results');
             const storedTheme = localStorage.getItem('yt_theme');
 
-            if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
-            if(savedGeminiKey) document.getElementById('geminiApiKeyInput').value = savedGeminiKey;
+            function maskApiKey(key) {
+                if (!key) return "";
+                if (key.length <= 4) return key;
+                return "••••••••" + key.slice(-4);
+            }
+
+            if(savedKey) document.getElementById('apiKeyInput').value = maskApiKey(savedKey);
+            if(savedGeminiKey) document.getElementById('geminiApiKeyInput').value = maskApiKey(savedGeminiKey);
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
             if(savedMaxResults) { document.getElementById('maxResultsInput').value = savedMaxResults; appState.maxResults = parseInt(savedMaxResults); }
             if(storedTheme) document.getElementById('themeSelect').value = storedTheme;
@@ -2871,7 +2941,18 @@
                 const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
                 
                 const isWatched = watchedIds.has(videoId);
-                const watchedBadge = isWatched ? `<div class="absolute top-2 right-10 bg-green-600/90 text-white text-[10px] px-2 py-0.5 rounded font-bold z-10 shadow">נצפה <i class="fas fa-check ml-0.5"></i></div>` : '';
+                const watchedBadge = isWatched ? `
+                    <div class="absolute top-2 right-10 z-30 group/watched">
+                        <button onclick="event.stopPropagation(); this.nextElementSibling.classList.toggle('hidden');" class="bg-green-600/90 hover:bg-green-700 text-white text-[10px] px-2 py-0.5 rounded font-bold shadow flex items-center gap-1">
+                            נצפה <i class="fas fa-chevron-down text-[8px]"></i>
+                        </button>
+                        <div class="hidden absolute top-full right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded shadow-lg py-1 text-xs whitespace-nowrap z-50">
+                            <button onclick="event.stopPropagation(); window.markAsUnwatched('${videoId}', event);" class="w-full text-right px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-zinc-700 text-red-500 font-semibold flex items-center gap-1">
+                                <i class="fas fa-eye-slash"></i> סמן כלא נצפה
+                            </button>
+                        </div>
+                    </div>
+                ` : '';
 
                 const isWatchLater = PlaylistManager.getPlaylists()['Watch Later']?.some(v => v.id === videoId);
                 const watchLaterIconClass = isWatchLater ? 'fas fa-clock text-blue-500' : 'fas fa-clock';
