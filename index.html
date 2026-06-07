@@ -587,11 +587,11 @@
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">YouTube Data API Key</label>
-                    <input type="text" id="apiKeyInput" dir="ltr" onfocus="if(this.value.startsWith('••••')) this.value='';" class="w-full text-left border rounded-xl py-3 px-4 outline-none transition font-mono" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                    <input type="text" id="apiKeyInput" dir="ltr" onfocus="if(this.value.includes('•')) this.value='';" onblur="if(this.value==='') this.value=maskApiKey(localStorage.getItem('yt_api_key'));" class="w-full text-left border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">Gemini API Key (לחיפוש חכם)</label>
-                    <input type="text" id="geminiApiKeyInput" dir="ltr" onfocus="if(this.value.startsWith('••••')) this.value='';" class="w-full text-left border rounded-xl py-3 px-4 outline-none transition font-mono" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                    <input type="text" id="geminiApiKeyInput" dir="ltr" onfocus="if(this.value.includes('•')) this.value='';" onblur="if(this.value==='') this.value=maskApiKey(localStorage.getItem('yt_gemini_api_key'));" class="w-full text-left border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">Google Client ID</label>
@@ -2035,7 +2035,7 @@
 
             const formattedItems = items.map(item => ({
                 id: { kind: 'youtube#video', videoId: item.details.id },
-                snippet: { title: item.details.title, channelTitle: item.details.channel, thumbnails: { high: { url: item.details.thumbnail }, medium: { url: item.details.thumbnail } }, publishedAt: new Date().toISOString() },
+                snippet: { title: item.details.title, channelTitle: item.channel, thumbnails: { high: { url: item.details.thumbnail }, medium: { url: item.details.thumbnail } }, publishedAt: new Date().toISOString() },
                 contentDetails: { duration: item.details.duration },
                 statistics: { viewCount: 0, likeCount: 0 },
                 resumeData: { time: item.time }
@@ -2369,6 +2369,12 @@
             modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
         }
 
+        function maskApiKey(key) {
+            if (!key) return "";
+            if (key.length <= 4) return key;
+            return "•".repeat(key.length - 4) + key.slice(-4);
+        }
+
         function saveAndStart() {
             let newKey = document.getElementById('apiKeyInput').value.trim();
             let newGeminiKey = document.getElementById('geminiApiKeyInput').value.trim();
@@ -2376,10 +2382,10 @@
             const newMaxResults = document.getElementById('maxResultsInput').value;
             const newTheme = document.getElementById('themeSelect').value;
             
-            if (newKey.startsWith("••••")) {
+            if (newKey.includes("•") || newKey === "") {
                 newKey = localStorage.getItem('yt_api_key') || "";
             }
-            if (newGeminiKey.startsWith("••••")) {
+            if (newGeminiKey.includes("•") || newGeminiKey === "") {
                 newGeminiKey = localStorage.getItem('yt_gemini_api_key') || "";
             }
 
@@ -2421,12 +2427,6 @@
             const savedClient = localStorage.getItem('yt_client_id');
             const savedMaxResults = localStorage.getItem('yt_max_results');
             const storedTheme = localStorage.getItem('yt_theme');
-
-            function maskApiKey(key) {
-                if (!key) return "";
-                if (key.length <= 4) return key;
-                return "••••••••" + key.slice(-4);
-            }
 
             if(savedKey) document.getElementById('apiKeyInput').value = maskApiKey(savedKey);
             if(savedGeminiKey) document.getElementById('geminiApiKeyInput').value = maskApiKey(savedGeminiKey);
@@ -2741,7 +2741,6 @@
                     }
 
                 } else if (appState.channelViewMode === 'playlists') {
-                    // שינוי לשימוש במנוע החיפוש במקום בקשת פלייליסטים ישירה כדי לעקוף חסימות נטפרי
                     let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=playlist&maxResults=${appState.maxResults}&channelId=${appState.activeChannelId}&key=${appState.apiKey}`;
                     if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
@@ -3341,7 +3340,6 @@
                     renderChapters(descText);
                 }
                 
-                // אתחול כפתור Watch Later וכפתור ה"הצג עוד"
                 updateWatchLaterButtonUI(id);
                 
                 const desc = document.getElementById('modalDesc');
@@ -3349,7 +3347,6 @@
                 desc.classList.add('desc-collapsed');
                 desc.classList.remove('desc-expanded');
                 
-                // נותנים ל-DOM שניה להתרנדר ואז בודקים אם יש צורך בכפתור הצג עוד
                 setTimeout(() => {
                     if (desc.scrollHeight > desc.clientHeight || (desc.innerText && desc.innerText.split('\n').length > 3)) {
                         descBtn.classList.remove('hidden');
