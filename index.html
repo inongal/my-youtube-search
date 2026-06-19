@@ -530,6 +530,9 @@
                                 <button id="playerSaveBtn" onclick="saveCurrentToPlaylist()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="שמור לרשימה">
                                     <i class="fas fa-list-ul text-xl"></i>
                                 </button>
+                                <button id="playerFindPlaylistsBtn" onclick="findPlaylistsAndDisplayOnGrid()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="איתור פלייליסטים ציבוריים המכילים סרטון זה">
+                                    <i class="fas fa-search-location text-xl"></i>
+                                </button>
                                 <button id="playerWatchLaterBtn" onclick="toggleCurrentWatchLater()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="background-color: var(--bg-surface); color: var(--text-secondary);" title="צפייה בהמשך">
                                     <i class="fas fa-clock text-xl" id="playerWatchLaterIcon"></i>
                                 </button>
@@ -755,7 +758,7 @@
 
                 recents.forEach(sug => {
                     const div = document.createElement('div');
-                    div.className = 'px-4 py-3 cursor-pointer transition text-right text-sm border-b hover:opacity-80 flex items-center justify-between gap-3';
+                    div.className = "px-4 py-3 cursor-pointer transition text-right text-sm border-b hover:opacity-80 flex items-center justify-between gap-3";
                     div.style.color = 'var(--text-primary)';
                     div.style.borderColor = 'var(--border-color)';
                     const safeSug = sug.replace(/'/g, "\\'");
@@ -2962,11 +2965,11 @@
                     const channelTitle = snip.channelTitle || '';
                     
                     card.innerHTML = `
-                         <div class="relative mb-4 group/img" onclick="openExternalPlaylist('${playlistId}', '${title}')">
+                         <div class="relative mb-4 group/img" onclick="loadExternalPlaylistOnGrid('${playlistId}', '${title}')">
                             <div class="relative">
                                 <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl" style="background-color: var(--bg-surface);">
                                 <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition rounded-2xl">
-                                    <span class="text-white font-bold">נגן הכל</span>
+                                    <span class="text-white font-bold">פתח פלייליסט</span>
                                 </div>
                                 <div class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
                                     <i class="fas fa-list-ul"></i><span>${item.contentDetails?.itemCount ? item.contentDetails.itemCount + ' סרטונים' : 'פלייליסט'}</span>
@@ -2977,7 +2980,7 @@
                         <div class="flex-1 px-1">
                             <h3 class="font-semibold text-base leading-snug line-clamp-2 mb-1" title="${snip.title}" style="color: var(--text-primary);">${snip.title}</h3>
                             <p class="text-sm transition-colors hover:underline" style="color: var(--text-secondary);" onclick="event.stopPropagation(); loadChannelVideos('${snip.channelId}', false, false, 'all')">${channelTitle}</p>
-                            <button onclick="event.stopPropagation(); openExternalPlaylist('${playlistId}', '${title}')" class="mt-2 text-xs px-3 py-1.5 rounded-full font-bold transition flex items-center gap-2 w-fit shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
+                            <button onclick="event.stopPropagation(); loadExternalPlaylistOnGrid('${playlistId}', '${title}')" class="mt-2 text-xs px-3 py-1.5 rounded-full font-bold transition flex items-center gap-2 w-fit shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
                                 <i class="fas fa-play"></i> נגן הכל
                             </button>
                         </div>
@@ -3034,7 +3037,7 @@
                 card.className = "video-card group flex flex-col cursor-pointer";
                 card.setAttribute('data-video-id', videoId);
                 
-                if(appState.selectedVideos.has(videoId)) card.classList.add('selected-card');
+                if(appState.selectedVideos.has(videoId) ? card.classList.add('selected-card') : '');
                 
                 const durationForSave = item.contentDetails?.duration || '';
                 const isLiked = LocalLikesManager.isLiked(videoId, 'videos');
@@ -3116,7 +3119,7 @@
                                     <button onclick="downloadWithYtDlp('${videoId}')" class="transition flex items-center gap-1" style="color: #3b82f6;" title="הורד עכשיו">
                                         <i class="fas fa-download"></i>
                                     </button>
-                                </div>
+                               </div>
                                 ${appState.searchContext === 'local_history' ? `
                                 <button onclick="removeFromLocalHistory('${videoId}', event)" class="flex items-center justify-center text-[10px] px-3 py-1.5 rounded-full transition w-fit border" title="הסר מההיסטוריה" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;">
                                     <i class="fas fa-trash-alt"></i>
@@ -3748,6 +3751,140 @@
             
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
+        }
+
+        // ====== לוגיקת איתור פלייליסטים ציבוריים חיצוניים ======
+
+        async function findPlaylistsAndDisplayOnGrid() {
+            if (!appState.currentVideoDetails || !appState.currentVideoDetails.title) return;
+            const btn = document.getElementById('playerFindPlaylistsBtn');
+            if (!btn) return;
+            
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner animate-spin text-xl"></i>';
+            btn.disabled = true;
+            
+            const videoTitle = appState.currentVideoDetails.title;
+            let query = `"${videoTitle}"`;
+            let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=playlist&q=${encodeURIComponent(query)}&maxResults=20&key=${appState.apiKey}`;
+            
+            try {
+                let res = await fetch(url);
+                let data = await res.json();
+                
+                if ((!data.items || data.items.length === 0) && videoTitle) {
+                    url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=playlist&q=${encodeURIComponent(videoTitle)}&maxResults=20&key=${appState.apiKey}`;
+                    res = await fetch(url);
+                    data = await res.json();
+                }
+                
+                closePlayer();
+                
+                const titleEl = document.getElementById('sectionTitle');
+                titleEl.innerText = `פלייליסטים המכילים את: ${videoTitle}`;
+                titleEl.classList.remove('hidden');
+                
+                const grid = document.getElementById('resultsGrid');
+                grid.innerHTML = '';
+                appState.currentRenderedItems = [];
+                
+                const items = data.items || [];
+                if (items.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו פלייליסטים ציבוריים המכילים סרטון זה.</div>`;
+                } else {
+                    items.forEach(item => {
+                        const playlistId = item.id.playlistId;
+                        if (!playlistId) return;
+                        const snip = item.snippet;
+                        const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                        const thumbUrl = snip.thumbnails?.medium?.url || snip.thumbnails?.high?.url || snip.thumbnails?.default?.url || '';
+                        const channelTitle = snip.channelTitle || '';
+                        
+                        const isLikedPl = LocalLikesManager.isLiked(playlistId, 'playlists');
+                        const likeIconPl = isLikedPl ? 'fas fa-heart text-red-500' : 'far fa-heart';
+                        
+                        const card = document.createElement('div');
+                        card.className = "video-card group flex flex-col cursor-pointer";
+                        
+                        card.innerHTML = `
+                             <div class="relative mb-4 group/img" onclick="loadExternalPlaylistOnGrid('${playlistId}', '${title}')">
+                                <div class="relative">
+                                    <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl" style="background-color: var(--bg-surface);">
+                                    <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition rounded-2xl">
+                                        <span class="text-white font-bold">פתח פלייליסט</span>
+                                    </div>
+                                    <div class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                                        <i class="fas fa-list-ul"></i><span>פלייליסט ציבורי</span>
+                                    </div>
+                                    <button onclick="event.stopPropagation(); toggleLikeItem(this, {id: '${playlistId}', title: '${title}', thumbnail: '${thumbUrl}'}, 'playlists', event)" class="absolute top-2 left-2 bg-black/60 p-2 rounded-full transition opacity-0 group-hover/img:opacity-100 backdrop-blur-sm z-10" style="color: white;"><i class="${likeIconPl}"></i></button>
+                                </div>
+                            </div>
+                            <div class="flex-1 px-1">
+                                <h3 class="font-semibold text-base leading-snug line-clamp-2 mb-1" title="${snip.title}" style="color: var(--text-primary);">${snip.title}</h3>
+                                <p class="text-sm transition-colors" style="color: var(--text-secondary);">${channelTitle}</p>
+                                <button onclick="event.stopPropagation(); loadExternalPlaylistOnGrid('${playlistId}', '${title}')" class="mt-2 text-xs px-3 py-1.5 rounded-full font-bold transition flex items-center gap-2 w-fit shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
+                                    <i class="fas fa-folder-open"></i> הצג סרטונים
+                                </button>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                }
+                
+            } catch (err) {
+                console.error("Error finding playlists:", err);
+                alert("אירעה שגיאה באיתור הפלייליסטים.");
+            } {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        }
+
+        async function loadExternalPlaylistOnGrid(playlistId, title) {
+            if (appState.isSelectionMode) toggleSelectionMode();
+            
+            appState.searchContext = 'search';
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.add('hidden');
+            
+            const titleEl = document.getElementById('sectionTitle');
+            titleEl.innerText = `סרטונים מתוך הפלייליסט: ${title}`;
+            titleEl.classList.remove('hidden');
+            
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען סרטונים מתוך הפלייליסט...</div>`;
+            
+            let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=25&playlistId=${playlistId}&key=${appState.apiKey}`;
+            
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                if (!data.items || data.items.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים בפלייליסט זה.</div>`;
+                    appState.currentRenderedItems = [];
+                    return;
+                }
+                
+                const videoIds = data.items.map(item => item.snippet.resourceId?.videoId).filter(Boolean).join(',');
+                if (videoIds) {
+                    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${appState.apiKey}`);
+                    const statsData = await statsRes.json();
+                    const formatted = statsData.items.map(item => ({ 
+                        id: { kind: 'youtube#video', videoId: item.id }, 
+                        snippet: item.snippet, 
+                        statistics: item.statistics, 
+                        contentDetails: item.contentDetails 
+                    }));
+                    renderResults(formatted, true);
+                } else {
+                    grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים תקינים בפלייליסט זה.</div>`;
+                    appState.currentRenderedItems = [];
+                }
+            } catch (err) {
+                console.error("Error loading external playlist items:", err);
+                grid.innerHTML = `<div class="col-span-full text-center py-20 text-red-500">אירעה שגיאה בטעינת סרטוני הפלייליסט.</div>`;
+            }
         }
     </script>
 </body>
