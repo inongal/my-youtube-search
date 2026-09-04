@@ -668,6 +668,8 @@
             isYouTubeMode: false,
             currentChapters: [],
             activeChannelId: null,
+            activePlaylistId: null,      
+            activePlaylistTitle: null,   
             channelViewMode: 'all',
             currentRenderedItems: [],
             maxResults: 12,
@@ -950,7 +952,6 @@
             if (appState.isYouTubeMode) populateUpNext();
         }
 
-        // פונקציות עזר לשליטה מתוך הנגן החדשות
         function addCurrentToQueue() {
             if (appState.currentVideoDetails) addToQueue(appState.currentVideoDetails);
         }
@@ -1277,11 +1278,14 @@
                             <button id="channelDescToggleBtn" onclick="toggleChannelDescription()" class="text-blue-500 hover:text-blue-400 text-sm font-bold mt-1 hidden transition-colors">הצג עוד</button>
                         </div>
                     </div>
-                    <div class="mt-4 sm:mt-0 self-center sm:self-start pt-2 flex gap-2">
-                         <a href="https://www.youtube.com/channel/${channel.id}?sub_confirmation=1" target="_blank" class="px-6 py-2 rounded-full font-bold transition whitespace-nowrap inline-block shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
+                    <div class="mt-4 sm:mt-0 self-center sm:self-start pt-2 flex gap-2 flex-wrap justify-center sm:justify-start">
+                         <a href="https://www.youtube.com/channel/${channel.id}?sub_confirmation=1" target="_blank" class="px-5 py-2 rounded-full font-bold transition whitespace-nowrap inline-block shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
                              YouTube
                          </a>
-                         <button onclick="const btn=this; const isSubbed = LocalSubsManager.toggleSub('${channel.id}', '${snip.title.replace(/'/g, "\\'")}', '${avatarUrl}'); btn.innerHTML = isSubbed ? '<i class=\\'fas fa-bell-slash\\'></i> ביטול מעקב' : '<i class=\\'fas fa-bell\\'></i> מעקב מקומי';" class="px-6 py-2 rounded-full font-bold transition whitespace-nowrap inline-block shadow border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">
+                         <button onclick="copyChannelLink('${channel.id}')" class="px-5 py-2 rounded-full font-bold transition whitespace-nowrap inline-flex items-center gap-2 shadow border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);" title="העתק קישור לערוץ">
+                             <i class="fas fa-link text-blue-500"></i> העתק קישור
+                         </button>
+                         <button onclick="const btn=this; const isSubbed = LocalSubsManager.toggleSub('${channel.id}', '${snip.title.replace(/'/g, "\\'")}', '${avatarUrl}'); btn.innerHTML = isSubbed ? '<i class=\\'fas fa-bell-slash\\'></i> ביטול מעקב' : '<i class=\\'fas fa-bell\\'></i> מעקב מקומי';" class="px-5 py-2 rounded-full font-bold transition whitespace-nowrap inline-block shadow border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">
                              ${isSubbedLocally ? '<i class="fas fa-bell-slash"></i> ביטול מעקב' : '<i class="fas fa-bell"></i> מעקב מקומי'}
                          </button>
                     </div>
@@ -1454,7 +1458,6 @@
             }, 2000);
         }
 
-        /* עדכון אופציה א' - שולח את כל הקישורים יחד מופרדים בנקודה כדי למנוע קידוד דפדפן */
         function batchDownloadWithYtDlp() {
             if (appState.selectedVideos.size === 0) return;
             
@@ -1470,10 +1473,8 @@
             
             showToast(`מעביר ${videos.length} סרטונים להורדה מרוכזת (${qualityText})...`);
 
-            // שימוש בנקודה (.) במקום פסיק כדי למנוע מהדפדפן לקודד את הכתובת ל-%2C
             const videoIds = videos.map(item => item.id.videoId || item.id).join('.');
             
-            // יצירת iframe יחיד עבור כל הרשימה הנוכחית
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
             iframe.src = `ytdlp://${videoIds}/${quality}`;
@@ -1560,7 +1561,7 @@
                 } catch(err) { alert('שגיאה בקריאת הקובץ'); console.error(err); }
             };
             reader.readAsText(file);
-            inputElement.value = ''; // כדי לאפשר טעינה חוזרת של אותו קובץ
+            inputElement.value = ''; 
         }
 
         const PlaylistManager = {
@@ -2186,7 +2187,10 @@
                         <p class="text-xs text-center mb-4" style="color: var(--text-secondary);">ערוץ במעקב</p>
                         <div class="flex gap-2">
                             <button class="text-white text-xs font-bold px-4 py-2 rounded-full transition shadow" style="background-color: var(--text-primary); color: var(--bg-main);">צפה בעדכונים</button>
-                            <a href="https://www.youtube.com/channel/${sub.id}" target="_blank" onclick="event.stopPropagation();" class="text-xs font-bold px-4 py-2 rounded-full transition border shadow-sm flex items-center gap-1 hover:opacity-80" style="color: var(--text-secondary); border-color: var(--border-color); background-color: var(--bg-surface);" title="פתח ישירות ב-YouTube">
+                            <button onclick="event.stopPropagation(); copyChannelLink('${sub.id}')" class="text-xs font-bold px-3 py-2 rounded-full transition border shadow-sm flex items-center gap-1 hover:opacity-80" style="color: var(--text-secondary); border-color: var(--border-color); background-color: var(--bg-surface);" title="העתק קישור לערוץ">
+                                <i class="fas fa-link text-blue-500"></i>
+                            </button>
+                            <a href="https://www.youtube.com/channel/${sub.id}" target="_blank" onclick="event.stopPropagation();" class="text-xs font-bold px-3 py-2 rounded-full transition border shadow-sm flex items-center gap-1 hover:opacity-80" style="color: var(--text-secondary); border-color: var(--border-color); background-color: var(--bg-surface);" title="פתח ישירות ב-YouTube">
                                 <i class="fab fa-youtube text-red-500"></i>
                             </a>
                         </div>
@@ -2478,7 +2482,9 @@
         }
 
         function handleLoadMore() {
-            if (appState.searchContext === 'channel') {
+            if (appState.searchContext === 'external_playlist') {
+                loadExternalPlaylistOnGrid(null, null, true);
+            } else if (appState.searchContext === 'channel') {
                 loadChannelVideos(null, true, false, appState.channelViewMode);
             } else if (appState.searchContext === 'general' || appState.searchContext === 'search') {
                 if (appState.query) {
@@ -2766,7 +2772,7 @@
                     }
 
                 } else {
-                    let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${appState.maxResults}&playlistId=${appState.query}&key=${appState.apiKey}`;
+                    let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${appState.query}&key=${appState.apiKey}`;
                     if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
                     const res = await fetch(url);
@@ -2787,22 +2793,7 @@
         }
 
         async function openExternalPlaylist(playlistId, title) {
-            if (appState.isSelectionMode) toggleSelectionMode();
-            
-            appState.query = playlistId; 
-            appState.searchContext = 'channel'; 
-            appState.pageToken = ""; 
-            appState.activeChannelId = null; 
-            appState.currentRenderedItems = []; 
-            appState.channelViewMode = 'all';
-            
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
-            document.getElementById('internalSearch').classList.add('hidden');
-            document.getElementById('sectionTitle').innerText = `פלייליסט: ${title}`;
-            if (!appState.currentVideoId) document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען סרטונים...</div>`;
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
-            
-            loadChannelVideos(null, false, false, 'all'); 
+            return loadExternalPlaylistOnGrid(playlistId, title);
         }
 
         // ====== לוגיקת נטפרי ======
@@ -2884,7 +2875,7 @@
             const grid = document.getElementById('resultsGrid');
             if (clear) { grid.innerHTML = ''; appState.currentRenderedItems = []; }
 
-            let videosToTest = items.filter(item => (item.id && (item.id.kind === 'youtube#video' || item.id.videoId || typeof item.id === 'string'))).slice(0, 10);
+            let videosToTest = items.filter(item => (item.id && (item.id.kind === 'youtube#video' || item.id.videoId || typeof item.id === 'string')));
             let otherItems = items.filter(item => !(item.id && (item.id.kind === 'youtube#video' || item.id.videoId || typeof item.id === 'string')));
 
             if (videosToTest.length === 0) {
@@ -2946,7 +2937,12 @@
                         <div class="flex-1 flex flex-col items-center channel-details-wrap w-full">
                             <h3 class="font-bold text-lg text-center mb-1 line-clamp-1" style="color: var(--text-primary);">${snip.title}</h3>
                             <p class="text-xs text-center mb-3" style="color: var(--text-secondary);">ערוץ</p>
-                            <button class="text-white text-xs font-bold px-4 py-2 rounded-full transition" style="background-color: var(--text-primary); color: var(--bg-main);">צפה בערוץ</button>
+                            <div class="flex gap-2">
+                                <button class="text-white text-xs font-bold px-4 py-2 rounded-full transition" style="background-color: var(--text-primary); color: var(--bg-main);">צפה בערוץ</button>
+                                <button onclick="event.stopPropagation(); copyChannelLink('${channelId}')" class="text-xs px-3 py-2 rounded-full font-bold transition border shadow-sm flex items-center gap-1 hover:opacity-80" style="color: var(--text-secondary); border-color: var(--border-color); background-color: var(--bg-surface);" title="העתק קישור לערוץ">
+                                    <i class="fas fa-link text-blue-500"></i>
+                                </button>
+                            </div>
                         </div>
                     `;
                     grid.appendChild(card);
@@ -2980,9 +2976,14 @@
                         <div class="flex-1 px-1">
                             <h3 class="font-semibold text-base leading-snug line-clamp-2 mb-1" title="${snip.title}" style="color: var(--text-primary);">${snip.title}</h3>
                             <p class="text-sm transition-colors hover:underline" style="color: var(--text-secondary);" onclick="event.stopPropagation(); loadChannelVideos('${snip.channelId}', false, false, 'all')">${channelTitle}</p>
-                            <button onclick="event.stopPropagation(); loadExternalPlaylistOnGrid('${playlistId}', '${title}')" class="mt-2 text-xs px-3 py-1.5 rounded-full font-bold transition flex items-center gap-2 w-fit shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
-                                <i class="fas fa-play"></i> נגן הכל
-                            </button>
+                            <div class="flex gap-2 mt-2">
+                                <button onclick="event.stopPropagation(); loadExternalPlaylistOnGrid('${playlistId}', '${title}')" class="text-xs px-3 py-1.5 rounded-full font-bold transition flex items-center gap-2 shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
+                                    <i class="fas fa-play"></i> נגן הכל
+                                </button>
+                                <button onclick="event.stopPropagation(); copyPlaylistLink('${playlistId}')" class="text-xs px-3 py-1.5 rounded-full font-bold transition flex items-center gap-1 border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);" title="העתק קישור לפלייליסט">
+                                    <i class="fas fa-link text-blue-500"></i> העתק קישור
+                                </button>
+                            </div>
                         </div>
                     `;
                     grid.appendChild(card);
@@ -3089,7 +3090,7 @@
                             </div>
                             ${resumeStatsHtml}
                             <div class="flex items-center gap-2 mt-auto pt-3 flex-wrap">
-                                <button onclick="event.stopPropagation(); copyLink('${videoId}')" class="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-full transition w-fit border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">
+                                <button onclick="event.stopPropagation(); copyLink('${videoId}')" class="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-full transition w-fit border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);" title="העתק קישור לסרטון">
                                     <i class="fas fa-link"></i>
                                 </button>
                                 
@@ -3400,6 +3401,22 @@
             const dummy = document.createElement("input"); document.body.appendChild(dummy);
             dummy.value = url; dummy.select(); document.execCommand('copy'); document.body.removeChild(dummy);
             showToast("הקישור הועתק ללוח!");
+        }
+
+        function copyChannelLink(channelId) {
+            if (!channelId) return;
+            const url = `https://www.youtube.com/channel/${channelId}`;
+            const dummy = document.createElement("input"); document.body.appendChild(dummy);
+            dummy.value = url; dummy.select(); document.execCommand('copy'); document.body.removeChild(dummy);
+            showToast("קישור הערוץ הועתק ללוח!");
+        }
+
+        function copyPlaylistLink(playlistId) {
+            if (!playlistId) return;
+            const url = `https://www.youtube.com/playlist?list=${playlistId}`;
+            const dummy = document.createElement("input"); document.body.appendChild(dummy);
+            dummy.value = url; dummy.select(); document.execCommand('copy'); document.body.removeChild(dummy);
+            showToast("קישור הפלייליסט הועתק ללוח!");
         }
 
         document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key === 'Enter') performSearch(false); });
@@ -3822,9 +3839,14 @@
                             <div class="flex-1 px-1">
                                 <h3 class="font-semibold text-base leading-snug line-clamp-2 mb-1" title="${snip.title}" style="color: var(--text-primary);">${snip.title}</h3>
                                 <p class="text-sm transition-colors" style="color: var(--text-secondary);">${channelTitle}</p>
-                                <button onclick="event.stopPropagation(); loadExternalPlaylistOnGrid('${playlistId}', '${title}')" class="mt-2 text-xs px-3 py-1.5 rounded-full font-bold transition flex items-center gap-2 w-fit shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
-                                    <i class="fas fa-folder-open"></i> הצג סרטונים
-                                </button>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="event.stopPropagation(); loadExternalPlaylistOnGrid('${playlistId}', '${title}')" class="text-xs px-3 py-1.5 rounded-full font-bold transition flex items-center gap-2 shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
+                                        <i class="fas fa-folder-open"></i> הצג סרטונים
+                                    </button>
+                                    <button onclick="event.stopPropagation(); copyPlaylistLink('${playlistId}')" class="text-xs px-3 py-1.5 rounded-full font-bold transition flex items-center gap-1 border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);" title="העתק קישור לפלייליסט">
+                                        <i class="fas fa-link text-blue-500"></i> העתק קישור
+                                    </button>
+                                </div>
                             </div>
                         `;
                         grid.appendChild(card);
@@ -3834,35 +3856,51 @@
             } catch (err) {
                 console.error("Error finding playlists:", err);
                 alert("אירעה שגיאה באיתור הפלייליסטים.");
-            } {
+            } finally {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
             }
         }
 
-        async function loadExternalPlaylistOnGrid(playlistId, title) {
+        async function loadExternalPlaylistOnGrid(playlistId, title, loadMore = false) {
             if (appState.isSelectionMode) toggleSelectionMode();
             
-            appState.searchContext = 'search';
-            document.getElementById('channelHeaderContainer').classList.add('hidden');
-            document.getElementById('internalSearch').classList.add('hidden');
+            if (!loadMore) {
+                appState.searchContext = 'external_playlist';
+                appState.activePlaylistId = playlistId;
+                appState.activePlaylistTitle = title;
+                appState.pageToken = "";
+                
+                document.getElementById('channelHeaderContainer').classList.add('hidden');
+                document.getElementById('internalSearch').classList.add('hidden');
+                
+                const titleEl = document.getElementById('sectionTitle');
+                titleEl.innerHTML = `סרטונים מתוך הפלייליסט: ${title} <button onclick="copyPlaylistLink('${playlistId}')" class="mr-3 text-xs px-3 py-1.5 rounded-full border transition inline-flex items-center gap-1 font-normal" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);" title="העתק קישור לפלייליסט"><i class="fas fa-link text-blue-500"></i> העתק קישור לפלייליסט</button>`;
+                titleEl.classList.remove('hidden');
+                
+                const grid = document.getElementById('resultsGrid');
+                grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען סרטונים מתוך הפלייליסט...</div>`;
+                document.getElementById('exportUrlsBtn').classList.remove('hidden');
+            }
             
-            const titleEl = document.getElementById('sectionTitle');
-            titleEl.innerText = `סרטונים מתוך הפלייליסט: ${title}`;
-            titleEl.classList.remove('hidden');
-            
-            const grid = document.getElementById('resultsGrid');
-            grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען סרטונים מתוך הפלייליסט...</div>`;
-            
-            let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=25&playlistId=${playlistId}&key=${appState.apiKey}`;
+            let url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${appState.activePlaylistId}&key=${appState.apiKey}`;
+            if (appState.pageToken) {
+                url += `&pageToken=${appState.pageToken}`;
+            }
             
             try {
                 const res = await fetch(url);
                 const data = await res.json();
                 
+                appState.pageToken = data.nextPageToken || "";
+                document.getElementById('pagination').classList.toggle('hidden', !appState.pageToken);
+                
                 if (!data.items || data.items.length === 0) {
-                    grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים בפלייליסט זה.</div>`;
-                    appState.currentRenderedItems = [];
+                    if (!loadMore) {
+                        const grid = document.getElementById('resultsGrid');
+                        grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים בפלייליסט זה.</div>`;
+                        appState.currentRenderedItems = [];
+                    }
                     return;
                 }
                 
@@ -3876,14 +3914,18 @@
                         statistics: item.statistics, 
                         contentDetails: item.contentDetails 
                     }));
-                    renderResults(formatted, true);
-                } else {
+                    renderResults(formatted, !loadMore);
+                } else if (!loadMore) {
+                    const grid = document.getElementById('resultsGrid');
                     grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים תקינים בפלייליסט זה.</div>`;
                     appState.currentRenderedItems = [];
                 }
             } catch (err) {
                 console.error("Error loading external playlist items:", err);
-                grid.innerHTML = `<div class="col-span-full text-center py-20 text-red-500">אירעה שגיאה בטעינת סרטוני הפלייליסט.</div>`;
+                if (!loadMore) {
+                    const grid = document.getElementById('resultsGrid');
+                    grid.innerHTML = `<div class="col-span-full text-center py-20 text-red-500">אירעה שגיאה בטעינת סרטוני הפלייליסט.</div>`;
+                }
             }
         }
     </script>
