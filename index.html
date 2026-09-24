@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube</title>
     
-<link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -170,11 +170,6 @@
             padding-left: 2.5rem; 
         }
 
-        #netfreeProgressContainer {
-            backdrop-filter: blur(10px);
-            background-color: rgba(59, 130, 246, 0.9);
-        }
-
         /* AI Gradient Animations */
         @keyframes hue-shift {
             0% { filter: hue-rotate(0deg); }
@@ -276,10 +271,6 @@
                 <i class="fas fa-user-secret text-gray-500" id="incognitoIcon"></i> <span class="hidden md:inline" id="incognitoText">אנונימי: כבוי</span>
             </button>
 
-            <button onclick="toggleNetfreeMode()" id="netfreeToggleBtn" class="px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2" style="background-color: var(--bg-surface); border-color: var(--border-light); color: var(--text-primary);" title="הפעל/כבה בדיקת סרטונים (מצב נטפרי)">
-                <i class="fas fa-shield-alt text-gray-500" id="netfreeIcon"></i> <span class="hidden md:inline" id="netfreeText">נטפרי: כבוי</span>
-            </button>
-
             <button onclick="toggleConfig()" class="p-2 rounded-full transition" style="color: var(--text-secondary);" title="הגדרות המערכת">
                 <i class="fas fa-cog text-xl"></i>
             </button>
@@ -300,13 +291,6 @@
         </div>
     </header>
 
-    <div id="netfreeProgressContainer" class="hidden fixed top-16 left-0 right-0 z-[90] text-white p-3 flex flex-col items-center justify-center border-b border-blue-400">
-        <span id="netfreeProgressText" class="text-sm font-bold mb-2">בודק סרטונים מול נטפרי... 0/10</span>
-        <div class="w-full max-w-md bg-black/40 h-2 rounded-full overflow-hidden border border-blue-300/30">
-            <div id="netfreeProgressBar" class="bg-white h-full transition-all duration-300" style="width: 0%;"></div>
-        </div>
-    </div>
-
     <div class="flex pt-16 min-h-screen">
         <aside id="mainSidebar" class="w-64 fixed right-0 top-16 bottom-0 hidden lg:flex flex-col overflow-y-auto custom-scrollbar border-l">
             <nav class="space-y-1">
@@ -326,9 +310,23 @@
                 <div onclick="loadQueueTab()" class="sidebar-item" id="navQueue">
                     <i class="fas fa-list-ol text-lg text-green-500"></i><span>תור השמעה</span>
                 </div>
-                <div onclick="loadLocalSubscriptionsFeed()" class="sidebar-item" id="navLocalSubs">
-                    <i class="fas fa-users text-lg text-purple-500"></i><span>עדכונים מערוצים</span>
+                
+                <div onclick="loadLocalSubscriptionsFeed()" class="sidebar-item justify-between flex items-center" id="navLocalSubs">
+                    <div class="flex items-center gap-3 truncate">
+                        <i class="fas fa-users text-lg text-purple-500 flex-shrink-0"></i>
+                        <span>עדכונים מערוצים</span>
+                    </div>
+                    <span id="channelUpdatesBadge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-600 text-white flex-shrink-0">0</span>
                 </div>
+
+                <div onclick="loadLocalPlaylistsFeed()" class="sidebar-item justify-between flex items-center" id="navLocalPlaylistSubs">
+                    <div class="flex items-center gap-3 truncate">
+                        <i class="fas fa-layer-group text-lg text-amber-500 flex-shrink-0"></i>
+                        <span>עדכונים מפלייליסטים</span>
+                    </div>
+                    <span id="playlistUpdatesBadge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-600 text-white flex-shrink-0">0</span>
+                </div>
+
                 <hr class="my-3" style="border-color: var(--border-color);">
                 
                 <div class="px-4 py-2 text-xs font-bold uppercase" style="color: var(--text-muted);">מועדפים</div>
@@ -628,8 +626,6 @@
 
     <div id="toast" class="copy-toast">הודעה</div>
 
-    <div id="netfreeTesterContainer" style="position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; overflow: hidden; opacity: 0;"></div>
-
     <script>
         // ניהול ערכות נושא (Theme)
         function applyTheme(theme) {
@@ -678,7 +674,6 @@
             selectedVideos: new Set(),
             currentLikedTab: 'videos',
             tempQueue: [],
-            isNetfreeMode: localStorage.getItem('yt_netfree_mode') === 'true',
             isIncognitoMode: localStorage.getItem('yt_incognito_mode') === 'true'
         };
 
@@ -784,33 +779,6 @@
             localStorage.setItem('yt_recent_searches', JSON.stringify(recents));
             showRecentSearches();
         };
-
-        function toggleNetfreeMode() {
-            appState.isNetfreeMode = !appState.isNetfreeMode;
-            localStorage.setItem('yt_netfree_mode', appState.isNetfreeMode);
-            toggleConfig && updateNetfreeBtn();
-            if(appState.isNetfreeMode) {
-                showToast("מצב נטפרי הופעל - התוצאות יסוננו במסך החיפוש");
-            } else {
-                showToast("מצב נטפרי כובה");
-            }
-        }
-
-        function updateNetfreeBtn() {
-            const btnText = document.getElementById('netfreeText');
-            const btnIcon = document.getElementById('netfreeIcon');
-            const btn = document.getElementById('netfreeToggleBtn');
-            
-            if(appState.isNetfreeMode) {
-                btnText.innerText = "נטפרי: פעיל";
-                btnIcon.className = "fas fa-shield-alt text-blue-500 dark:text-green-500";
-                btn.className = "px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2 border-blue-500 dark:border-green-500 text-blue-600 dark:text-white";
-            } else {
-                btnText.innerText = "נטפרי: כבוי";
-                btnIcon.className = "fas fa-shield-alt text-gray-500";
-                btn.className = "px-4 py-2 rounded-full text-sm font-bold border transition flex items-center gap-2 border-[var(--border-light)] text-[var(--text-primary)]";
-            }
-        }
 
         function toggleIncognitoMode() {
             appState.isIncognitoMode = !appState.isIncognitoMode;
@@ -1018,6 +986,10 @@
                 renderLikedTab(appState.currentLikedTab);
             } else if (appState.searchContext === 'playlists_hub') {
                 loadAllPlaylistsHub(true);
+            } else if (appState.searchContext === 'local_subs') {
+                loadLocalSubscriptionsFeed(true);
+            } else if (appState.searchContext === 'local_playlist_subs') {
+                loadLocalPlaylistsFeed(true);
             } else if (appState.searchContext.startsWith('playlist_')) {
                 const pName = appState.searchContext.replace('playlist_', '');
                 loadPlaylistView(pName, true);
@@ -1103,6 +1075,10 @@
                 loadQueueTab(true);
             } else if (state.type === 'playlists_hub') {
                 loadAllPlaylistsHub(true);
+            } else if (state.type === 'local_subs') {
+                loadLocalSubscriptionsFeed(true);
+            } else if (state.type === 'local_playlist_subs') {
+                loadLocalPlaylistsFeed(true);
             }
         }
 
@@ -1232,12 +1208,101 @@
                     isSubbed = true;
                 }
                 localStorage.setItem('yt_local_subs', JSON.stringify(subs));
+                checkAllUpdates();
                 return isSubbed;
             },
             isSubbed: (channelId) => {
                 return LocalSubsManager.getSubs().some(s => s.id === channelId);
             }
         };
+
+        const LocalPlaylistSubsManager = {
+            getSubs: () => {
+                let subs = JSON.parse(localStorage.getItem('yt_local_playlist_subs') || '[]');
+                if (subs.length === 0) {
+                    const likedPls = (LocalLikesManager.getLikes().playlists || []);
+                    if (likedPls.length > 0) {
+                        subs = likedPls.map(p => ({ id: p.id, title: p.title, thumbnail: p.thumbnail }));
+                        localStorage.setItem('yt_local_playlist_subs', JSON.stringify(subs));
+                    }
+                }
+                return subs;
+            },
+            toggleSub: (playlistId, title, thumbnail) => {
+                let subs = LocalPlaylistSubsManager.getSubs();
+                const index = subs.findIndex(s => s.id === playlistId);
+                let isSubbed = false;
+                if (index > -1) {
+                    subs.splice(index, 1);
+                    showToast('הוסר ממעקב פלייליסטים');
+                } else {
+                    subs.push({ id: playlistId, title, thumbnail });
+                    let lastVisits = JSON.parse(localStorage.getItem('yt_playlist_visits') || '{}');
+                    lastVisits[playlistId] = new Date().toISOString();
+                    localStorage.setItem('yt_playlist_visits', JSON.stringify(lastVisits));
+                    showToast('נוסף למעקב פלייליסטים');
+                    isSubbed = true;
+                }
+                localStorage.setItem('yt_local_playlist_subs', JSON.stringify(subs));
+                checkAllUpdates();
+                return isSubbed;
+            },
+            isSubbed: (playlistId) => {
+                return LocalPlaylistSubsManager.getSubs().some(s => s.id === playlistId);
+            }
+        };
+
+        function updateBadgeUI(elementId, count) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            if (count > 0) {
+                el.innerText = count > 99 ? '99+' : count;
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
+        }
+
+        async function checkAllUpdates() {
+            if (!appState.apiKey) return;
+            
+            // 1. בדיקת ערוצים
+            const subs = LocalSubsManager.getSubs();
+            const lastVisitedChannels = JSON.parse(localStorage.getItem('yt_channel_visits') || '{}');
+            let totalChNew = 0;
+
+            const chPromises = subs.map(async (sub) => {
+                if (!sub.uploadsId) return;
+                try {
+                    const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${sub.uploadsId}&maxResults=10&key=${appState.apiKey}`);
+                    const data = await res.json();
+                    if (data.items) {
+                        const visitedDate = lastVisitedChannels[sub.id] ? new Date(lastVisitedChannels[sub.id]) : new Date(0);
+                        totalChNew += data.items.filter(item => new Date(item.snippet.publishedAt) > visitedDate).length;
+                    }
+                } catch(e) {}
+            });
+
+            // 2. בדיקת פלייליסטים
+            const plSubs = LocalPlaylistSubsManager.getSubs();
+            const lastVisitedPlaylists = JSON.parse(localStorage.getItem('yt_playlist_visits') || '{}');
+            let totalPlNew = 0;
+
+            const plPromises = plSubs.map(async (pl) => {
+                try {
+                    const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${pl.id}&maxResults=10&key=${appState.apiKey}`);
+                    const data = await res.json();
+                    if (data.items) {
+                        const visitedDate = lastVisitedPlaylists[pl.id] ? new Date(lastVisitedPlaylists[pl.id]) : new Date(0);
+                        totalPlNew += data.items.filter(item => new Date(item.snippet.publishedAt) > visitedDate).length;
+                    }
+                } catch(e) {}
+            });
+
+            await Promise.all([...chPromises, ...plPromises]);
+            updateBadgeUI('channelUpdatesBadge', totalChNew);
+            updateBadgeUI('playlistUpdatesBadge', totalPlNew);
+        }
 
         function renderChannelHeader(channel, currentViewMode = 'all') {
             const container = document.getElementById('channelHeaderContainer');
@@ -1929,6 +1994,7 @@
                 likesV2: localStorage.getItem('yt_local_likes_v2'),
                 resumePositions: localStorage.getItem('yt_resume_positions'),
                 localSubs: localStorage.getItem('yt_local_subs'),
+                localPlaylistSubs: localStorage.getItem('yt_local_playlist_subs'),
                 settings: { 
                     apiKey: localStorage.getItem('yt_api_key'), 
                     geminiApiKey: localStorage.getItem('yt_gemini_api_key'),
@@ -1936,7 +2002,8 @@
                     maxResults: localStorage.getItem('yt_max_results'), 
                     theme: localStorage.getItem('yt_theme') 
                 },
-                channelVisits: localStorage.getItem('yt_channel_visits')
+                channelVisits: localStorage.getItem('yt_channel_visits'),
+                playlistVisits: localStorage.getItem('yt_playlist_visits')
             };
             triggerDownloadBlob(JSON.stringify(data), `yt_backup_${new Date().toISOString().slice(0,10)}.json`);
         }
@@ -1953,7 +2020,9 @@
                     if(data.likesV2) localStorage.setItem('yt_local_likes_v2', data.likesV2); 
                     if(data.resumePositions) localStorage.setItem('yt_resume_positions', data.resumePositions);
                     if(data.localSubs) localStorage.setItem('yt_local_subs', data.localSubs);
+                    if(data.localPlaylistSubs) localStorage.setItem('yt_local_playlist_subs', data.localPlaylistSubs);
                     if(data.channelVisits) localStorage.setItem('yt_channel_visits', data.channelVisits);
+                    if(data.playlistVisits) localStorage.setItem('yt_playlist_visits', data.playlistVisits);
                     if(data.settings) {
                         if(data.settings.apiKey) localStorage.setItem('yt_api_key', data.settings.apiKey);
                         if(data.settings.geminiApiKey) localStorage.setItem('yt_gemini_api_key', data.settings.geminiApiKey);
@@ -2091,10 +2160,11 @@
             grid.appendChild(clearBtn);
         }
 
-        async function loadLocalSubscriptionsFeed() {
+        async function loadLocalSubscriptionsFeed(isHistoryNav = false) {
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navLocalSubs');
             appState.searchContext = 'local_subs'; 
+            if (!isHistoryNav) pushHistory({ type: 'local_subs' });
             
             const headerContainer = document.getElementById('channelHeaderContainer');
             document.getElementById('internalSearch').classList.add('hidden');
@@ -2108,16 +2178,17 @@
                 document.getElementById('pagination').classList.add('hidden');
                 headerContainer.innerHTML = '';
                 headerContainer.classList.add('hidden');
+                updateBadgeUI('channelUpdatesBadge', 0);
                 return;
             }
 
-            document.getElementById('sectionTitle').innerText = "הערוצים שלי (מסודרים לפי עדכונים אחרונים)";
+            document.getElementById('sectionTitle').innerText = "עדכונים מערוצים במעקב";
             document.getElementById('sectionTitle').classList.remove('hidden');
             document.getElementById('pagination').classList.add('hidden');
             headerContainer.innerHTML = '';
             headerContainer.classList.add('hidden');
             
-            grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse">בודק עדכונים בערוצים (חסכוני ב-API)...</div>`;
+            grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse">בודק עדכונים בערוצים...</div>`;
 
             const missingUploads = subs.filter(s => !s.uploadsId).map(s => s.id);
             if (missingUploads.length > 0) {
@@ -2143,24 +2214,30 @@
             const fetchPromises = subs.map(async (sub) => {
                 let latestDate = new Date(0); 
                 let hasNew = false;
+                let newCount = 0;
                 if (sub.uploadsId) {
                     try {
-                        const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${sub.uploadsId}&maxResults=1&key=${appState.apiKey}`);
+                        const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${sub.uploadsId}&maxResults=20&key=${appState.apiKey}`);
                         const data = await res.json();
                         if (data.items && data.items.length > 0) {
                             latestDate = new Date(data.items[0].snippet.publishedAt);
                             const visitedDate = lastVisited[sub.id] ? new Date(lastVisited[sub.id]) : new Date(0);
-                            if (latestDate > visitedDate) {
+                            
+                            newCount = data.items.filter(item => new Date(item.snippet.publishedAt) > visitedDate).length;
+                            if (newCount > 0) {
                                 hasNew = true;
                             }
                         }
                     } catch (e) { console.error(e); }
                 }
-                return { ...sub, latestDate, hasNew };
+                return { ...sub, latestDate, hasNew, newCount };
             });
 
             channelUpdates = await Promise.all(fetchPromises);
             channelUpdates.sort((a, b) => b.latestDate - a.latestDate);
+
+            const totalChannelNewVideos = channelUpdates.reduce((acc, curr) => acc + (curr.newCount || 0), 0);
+            updateBadgeUI('channelUpdatesBadge', totalChannelNewVideos);
 
             grid.innerHTML = '';
             appState.currentRenderedItems = [];
@@ -2168,7 +2245,10 @@
             channelUpdates.forEach(sub => {
                 const isLikedCh = LocalLikesManager.isLiked(sub.id, 'channels');
                 const likeIconCh = isLikedCh ? 'fas fa-heart text-red-500' : 'far fa-heart';
-                const badgeHtml = sub.hasNew ? `<span class="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-black shadow animate-bounce z-20">חדש</span>` : '';
+                
+                const badgeHtml = sub.hasNew && sub.newCount > 0 
+                    ? `<span class="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-black shadow animate-bounce z-20">${sub.newCount} חדשים</span>` 
+                    : '';
 
                 const card = document.createElement('div');
                 card.className = "video-card channel-card group flex flex-col items-center p-6 rounded-2xl cursor-pointer transition border";
@@ -2184,7 +2264,7 @@
                     </div>
                     <div class="flex-1 flex flex-col items-center channel-details-wrap w-full">
                         <h3 class="font-bold text-lg text-center mb-1 line-clamp-1" style="color: var(--text-primary);">${sub.title}</h3>
-                        <p class="text-xs text-center mb-4" style="color: var(--text-secondary);">ערוץ במעקב</p>
+                        <p class="text-xs text-center mb-4" style="color: var(--text-secondary);">${sub.newCount > 0 ? `${sub.newCount} סרטונים חדשים` : 'אין סרטונים חדשים'}</p>
                         <div class="flex gap-2">
                             <button class="text-white text-xs font-bold px-4 py-2 rounded-full transition shadow" style="background-color: var(--text-primary); color: var(--bg-main);">צפה בעדכונים</button>
                             <button onclick="event.stopPropagation(); copyChannelLink('${sub.id}')" class="text-xs font-bold px-3 py-2 rounded-full transition border shadow-sm flex items-center gap-1 hover:opacity-80" style="color: var(--text-secondary); border-color: var(--border-color); background-color: var(--bg-surface);" title="העתק קישור לערוץ">
@@ -2193,6 +2273,118 @@
                             <a href="https://www.youtube.com/channel/${sub.id}" target="_blank" onclick="event.stopPropagation();" class="text-xs font-bold px-3 py-2 rounded-full transition border shadow-sm flex items-center gap-1 hover:opacity-80" style="color: var(--text-secondary); border-color: var(--border-color); background-color: var(--bg-surface);" title="פתח ישירות ב-YouTube">
                                 <i class="fab fa-youtube text-red-500"></i>
                             </a>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function loadLocalPlaylistsFeed(isHistoryNav = false) {
+            if (appState.isSelectionMode) toggleSelectionMode();
+            setActiveNavItem('navLocalPlaylistSubs');
+            appState.searchContext = 'local_playlist_subs';
+            if (!isHistoryNav) pushHistory({ type: 'local_playlist_subs' });
+            
+            const headerContainer = document.getElementById('channelHeaderContainer');
+            document.getElementById('internalSearch').classList.add('hidden');
+            const grid = document.getElementById('resultsGrid');
+
+            let subs = LocalPlaylistSubsManager.getSubs();
+            if (subs.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50">לא עקבת אחרי פלייליסטים עדיין.<br>פתח פלייליסט או סמן אותו ב'אהבתי' כדי לקבל עדכונים.</div>`;
+                document.getElementById('sectionTitle').innerText = "עדכונים מפלייליסטים";
+                document.getElementById('sectionTitle').classList.remove('hidden');
+                document.getElementById('pagination').classList.add('hidden');
+                headerContainer.innerHTML = '';
+                headerContainer.classList.add('hidden');
+                updateBadgeUI('playlistUpdatesBadge', 0);
+                return;
+            }
+
+            document.getElementById('sectionTitle').innerText = "עדכונים מפלייליסטים במעקב";
+            document.getElementById('sectionTitle').classList.remove('hidden');
+            document.getElementById('pagination').classList.add('hidden');
+            headerContainer.innerHTML = '';
+            headerContainer.classList.add('hidden');
+
+            grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse">בודק עדכונים בפלייליסטים...</div>`;
+
+            const lastVisited = JSON.parse(localStorage.getItem('yt_playlist_visits') || '{}');
+
+            const fetchPromises = subs.map(async (pl) => {
+                let latestDate = new Date(0);
+                let hasNew = false;
+                let newCount = 0;
+                try {
+                    const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${pl.id}&maxResults=20&key=${appState.apiKey}`);
+                    const data = await res.json();
+                    if (data.items && data.items.length > 0) {
+                        latestDate = new Date(data.items[0].snippet.publishedAt);
+                        const visitedDate = lastVisited[pl.id] ? new Date(lastVisited[pl.id]) : new Date(0);
+
+                        newCount = data.items.filter(item => new Date(item.snippet.publishedAt) > visitedDate).length;
+                        if (newCount > 0) {
+                            hasNew = true;
+                        }
+                    }
+                } catch (e) { console.error(e); }
+                return { ...pl, latestDate, hasNew, newCount };
+            });
+
+            const playlistUpdates = await Promise.all(fetchPromises);
+            playlistUpdates.sort((a, b) => b.latestDate - a.latestDate);
+
+            const totalPlaylistNewVideos = playlistUpdates.reduce((acc, curr) => acc + (curr.newCount || 0), 0);
+            updateBadgeUI('playlistUpdatesBadge', totalPlaylistNewVideos);
+
+            grid.innerHTML = '';
+            appState.currentRenderedItems = [];
+
+            playlistUpdates.forEach(pl => {
+                const isLikedPl = LocalLikesManager.isLiked(pl.id, 'playlists');
+                const likeIconPl = isLikedPl ? 'fas fa-heart text-red-500' : 'far fa-heart';
+                
+                const badgeHtml = pl.hasNew && pl.newCount > 0 
+                    ? `<span class="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-black shadow animate-bounce z-20">${pl.newCount} חדשים</span>` 
+                    : '';
+
+                const card = document.createElement('div');
+                card.className = "video-card group flex flex-col cursor-pointer bg-[var(--bg-card)] p-4 rounded-2xl border border-[var(--border-color)]";
+                
+                card.onclick = () => {
+                    let visits = JSON.parse(localStorage.getItem('yt_playlist_visits') || '{}');
+                    visits[pl.id] = new Date().toISOString();
+                    localStorage.setItem('yt_playlist_visits', JSON.stringify(visits));
+                    checkAllUpdates();
+                    loadExternalPlaylistOnGrid(pl.id, pl.title);
+                };
+
+                const safeTitle = pl.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+
+                card.innerHTML = `
+                    <div class="relative mb-4 group/img">
+                        <img src="${pl.thumbnail}" class="w-full aspect-video object-cover rounded-2xl" style="background-color: var(--bg-surface);">
+                        ${badgeHtml}
+                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition rounded-2xl">
+                            <span class="text-white font-bold text-sm">פתח פלייליסט</span>
+                        </div>
+                        <button onclick="event.stopPropagation(); toggleLikeItem(this, {id: '${pl.id}', title: '${safeTitle}', thumbnail: '${pl.thumbnail}'}, 'playlists', event)" class="absolute top-2 left-2 bg-black/60 p-2 rounded-full transition opacity-0 group-hover/img:opacity-100 backdrop-blur-sm z-10 text-white">
+                            <i class="${likeIconPl}"></i>
+                        </button>
+                    </div>
+                    <div class="flex-1 px-1 flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-base leading-snug line-clamp-2 mb-1" style="color: var(--text-primary);">${pl.title}</h3>
+                            <p class="text-xs" style="color: var(--text-secondary);">${pl.newCount > 0 ? `${pl.newCount} סרטונים חדשים נוספו` : 'מעודכן'}</p>
+                        </div>
+                        <div class="flex gap-2 mt-4">
+                            <button class="text-xs px-4 py-2 rounded-full font-bold transition flex items-center gap-2 shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
+                                <i class="fas fa-play"></i> צפה ברשימה
+                            </button>
+                            <button onclick="event.stopPropagation(); LocalPlaylistSubsManager.toggleSub('${pl.id}', '${safeTitle}', '${pl.thumbnail}'); loadLocalPlaylistsFeed();" class="text-xs px-3 py-2 rounded-full font-bold border transition text-red-500 border-red-500/30 hover:bg-red-500/10" title="בטל מעקב">
+                                <i class="fas fa-bell-slash"></i>
+                            </button>
                         </div>
                     </div>
                 `;
@@ -2415,6 +2607,7 @@
             
             if (appState.clientId) initAuth();
             loadHomePage();
+            checkAllUpdates();
         }
 
         function handleLogout() {
@@ -2442,13 +2635,13 @@
             if(storedTheme) document.getElementById('themeSelect').value = storedTheme;
             
             loadPlaylistsToSidebar();
-            updateNetfreeBtn();
             updateIncognitoBtn();
 
             if(savedKey) { 
                 appState.apiKey = savedKey; 
                 appState.geminiApiKey = savedGeminiKey;
                 appState.clientId = savedClient; 
+                checkAllUpdates();
             } 
             else { toggleConfig(); }
         };
@@ -2687,6 +2880,7 @@
                     let lastVisited = JSON.parse(localStorage.getItem('yt_channel_visits') || '{}');
                     lastVisited[channelId] = new Date().toISOString();
                     localStorage.setItem('yt_channel_visits', JSON.stringify(lastVisited));
+                    checkAllUpdates();
                 }
 
                 if (channelId) {
@@ -2796,113 +2990,8 @@
             return loadExternalPlaylistOnGrid(playlistId, title);
         }
 
-        // ====== לוגיקת נטפרי ======
-        
-        function showNetfreeProgress(current, total) {
-            const container = document.getElementById('netfreeProgressContainer');
-            const text = document.getElementById('netfreeProgressText');
-            const bar = document.getElementById('netfreeProgressBar');
-            container.classList.remove('hidden');
-            text.innerText = `בודק סרטונים מול נטפרי... ${current}/${total}`;
-            bar.style.width = `${(current / total) * 100}%`;
-        }
-
-        function hideNetfreeProgress() {
-            document.getElementById('netfreeProgressContainer').classList.add('hidden');
-        }
-
-        function testVideoNetfree(videoId) {
-            return new Promise((resolve) => {
-                let isResolved = false;
-                
-                const testerDiv = document.createElement('div');
-                testerDiv.id = 'tester-' + videoId;
-                document.getElementById('netfreeTesterContainer').appendChild(testerDiv);
-
-                let player;
-                
-                let timeout = setTimeout(() => {
-                    if (!isResolved) {
-                        isResolved = true;
-                        if (player && typeof player.destroy === 'function') {
-                            try { player.destroy(); } catch(e){}
-                        }
-                        if (testerDiv.parentNode) testerDiv.remove();
-                        resolve(false); 
-                    }
-                }, 2000);
-
-                player = new YT.Player('tester-' + videoId, {
-                    height: '10', width: '10', videoId: videoId,
-                    playerVars: { 
-                        'autoplay': 1, 
-                        'controls': 0, 
-                        'mute': 1,
-                        'origin': window.location.origin
-                    },
-                    events: {
-                        'onReady': (event) => {
-                            event.target.playVideo();
-                        },
-                        'onError': (event) => {
-                            if (!isResolved) {
-                                isResolved = true;
-                                clearTimeout(timeout);
-                                if (player && typeof player.destroy === 'function') { try{ player.destroy(); }catch(e){} }
-                                if(testerDiv.parentNode) testerDiv.remove();
-                                resolve(false);
-                            }
-                        },
-                        'onStateChange': (event) => {
-                            if ((event.data === 1 || event.data === 3) && !isResolved) {
-                                isResolved = true;
-                                clearTimeout(timeout);
-                                if (player && typeof player.destroy === 'function') { try{ player.destroy(); }catch(e){} }
-                                if(testerDiv.parentNode) testerDiv.remove();
-                                resolve(true);
-                            }
-                        }
-                    }
-                });
-            });
-        }
-
-        async function renderResults(items, clear) {
-            if (!appState.isNetfreeMode || appState.searchContext !== 'search') {
-                return renderResultsCore(items, clear);
-            }
-
-            const grid = document.getElementById('resultsGrid');
-            if (clear) { grid.innerHTML = ''; appState.currentRenderedItems = []; }
-
-            let videosToTest = items.filter(item => (item.id && (item.id.kind === 'youtube#video' || item.id.videoId || typeof item.id === 'string')));
-            let otherItems = items.filter(item => !(item.id && (item.id.kind === 'youtube#video' || item.id.videoId || typeof item.id === 'string')));
-
-            if (videosToTest.length === 0) {
-                return renderResultsCore(otherItems, false);
-            }
-
-            showNetfreeProgress(0, videosToTest.length);
-
-            let passedVideos = [];
-            for (let i = 0; i < videosToTest.length; i++) {
-                const video = videosToTest[i];
-                const vidId = video.id.videoId || (typeof video.id === 'string' ? video.id : null);
-                
-                if (vidId) {
-                    const passed = await testVideoNetfree(vidId);
-                    if (passed) passedVideos.push(video);
-                }
-                showNetfreeProgress(i + 1, videosToTest.length);
-            }
-
-            hideNetfreeProgress();
-            
-            if (passedVideos.length === 0 && otherItems.length === 0) {
-                grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים פתוחים במקבץ זה. <button onclick="handleLoadMore()" class="text-blue-500 underline">נסה לטעון עוד</button></div>`;
-            } else {
-                renderResultsCore([...otherItems, ...passedVideos], false);
-            }
+        function renderResults(items, clear) {
+            renderResultsCore(items, clear);
         }
 
         function renderResultsCore(items, clear) {
@@ -3038,7 +3127,7 @@
                 card.className = "video-card group flex flex-col cursor-pointer";
                 card.setAttribute('data-video-id', videoId);
                 
-                if(appState.selectedVideos.has(videoId) ? card.classList.add('selected-card') : '');
+                if(appState.selectedVideos.has(videoId)) card.classList.add('selected-card');
                 
                 const durationForSave = item.contentDetails?.duration || '';
                 const isLiked = LocalLikesManager.isLiked(videoId, 'videos');
