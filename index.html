@@ -679,6 +679,79 @@
 
         let ytPlayer = null;
 
+        // זיכרון מטמון לתמונות פרופיל של ערוצים ולכמויות סרטונים בפלייליסטים
+        let channelAvatarsCache = JSON.parse(localStorage.getItem('yt_channel_avatars') || '{}');
+        let playlistCountsCache = JSON.parse(localStorage.getItem('yt_playlist_counts') || '{}');
+
+        async function loadMissingChannelAvatars(channelIds) {
+            if (!appState.apiKey) return;
+            const missing = [...new Set(channelIds)].filter(id => id && !channelAvatarsCache[id]);
+            if (missing.length === 0) return;
+
+            for (let i = 0; i < missing.length; i += 50) {
+                const chunk = missing.slice(i, i + 50).join(',');
+                try {
+                    const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${chunk}&key=${appState.apiKey}`);
+                    const data = await res.json();
+                    if (data.items) {
+                        data.items.forEach(c => {
+                            const url = c.snippet?.thumbnails?.default?.url || c.snippet?.thumbnails?.medium?.url;
+                            if (url) channelAvatarsCache[c.id] = url;
+                        });
+                    }
+                } catch (e) {
+                    console.error("שגיאה בטעינת תמונות ערוץ:", e);
+                }
+            }
+
+            try {
+                localStorage.setItem('yt_channel_avatars', JSON.stringify(channelAvatarsCache));
+            } catch (e) {}
+
+            document.querySelectorAll('img[data-channel-avatar-id]').forEach(img => {
+                const cId = img.getAttribute('data-channel-avatar-id');
+                if (channelAvatarsCache[cId]) {
+                    img.src = channelAvatarsCache[cId];
+                    img.classList.remove('hidden');
+                    if (img.nextElementSibling) img.nextElementSibling.classList.add('hidden');
+                }
+            });
+        }
+
+        async function loadMissingPlaylistDetails(playlistIds) {
+            if (!appState.apiKey) return;
+            const missing = [...new Set(playlistIds)].filter(id => id && playlistCountsCache[id] === undefined);
+            if (missing.length === 0) return;
+
+            for (let i = 0; i < missing.length; i += 50) {
+                const chunk = missing.slice(i, i + 50).join(',');
+                try {
+                    const res = await fetch(`https://www.googleapis.com/youtube/v3/playlists?part=contentDetails&id=${chunk}&key=${appState.apiKey}`);
+                    const data = await res.json();
+                    if (data.items) {
+                        data.items.forEach(p => {
+                            if (p.contentDetails && p.contentDetails.itemCount !== undefined) {
+                                playlistCountsCache[p.id] = p.contentDetails.itemCount;
+                            }
+                        });
+                    }
+                } catch(e) {
+                    console.error("שגיאה בטעינת פרטי פלייליסטים:", e);
+                }
+            }
+
+            try {
+                localStorage.setItem('yt_playlist_counts', JSON.stringify(playlistCountsCache));
+            } catch (e) {}
+
+            document.querySelectorAll('[data-playlist-count-id]').forEach(el => {
+                const pid = el.getAttribute('data-playlist-count-id');
+                if (playlistCountsCache[pid] !== undefined) {
+                    el.innerText = `${playlistCountsCache[pid]} סרטונים`;
+                }
+            });
+        }
+
         // Autocomplete & Recent Searches Logic
         let autocompleteTimeout;
         const searchInputEl = document.getElementById('searchInput');
@@ -1910,14 +1983,14 @@
                             <i class="fas fa-list-ul text-4xl mb-2"></i>
                             <span class="text-xs">רשימה ריקה</span>
                         </div>`}
-                        <div class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1 font-bold z-10">
-                            <i class="fas fa-video"></i> <span>${count} סרטונים</span>
+                        <div class="absolute bottom-2 right-2 bg-black/85 text-white text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-bold z-10 border border-white/10 shadow">
+                            <i class="fas fa-list-ol text-blue-400"></i> <span>${count} סרטונים</span>
                         </div>
                     </div>
                     <div class="flex-1 px-1 flex flex-col justify-between">
                         <div>
                             <h3 class="font-bold text-lg leading-snug line-clamp-1 mb-1" style="color: var(--text-primary);">${name === 'Watch Later' ? 'צפייה בהמשך' : name}</h3>
-                            <p class="text-xs" style="color: var(--text-secondary);">רשימה מקומית אישית</p>
+                            <p class="text-xs" style="color: var(--text-secondary);">${count} סרטונים שמורים ברשימה זו</p>
                         </div>
                         <div class="flex gap-2 mt-4">
                             <button onclick="event.stopPropagation(); loadPlaylistView('${safeName}')" class="text-xs px-4 py-2 rounded-full font-bold transition flex items-center gap-2 shadow bg-[var(--text-primary)] text-[var(--bg-main)]">
@@ -2312,6 +2385,9 @@
 
             const lastVisited = JSON.parse(localStorage.getItem('yt_playlist_visits') || '{}');
 
+            // שליפת כמות סרטונים כוללת חסרה
+            await loadMissingPlaylistDetails(subs.map(s => s.id));
+
             const fetchPromises = subs.map(async (pl) => {
                 let latestDate = new Date(0);
                 let hasNew = false;
@@ -2329,7 +2405,8 @@
                         }
                     }
                 } catch (e) { console.error(e); }
-                return { ...pl, latestDate, hasNew, newCount };
+                const totalCount = playlistCountsCache[pl.id] !== undefined ? playlistCountsCache[pl.id] : null;
+                return { ...pl, latestDate, hasNew, newCount, totalCount };
             });
 
             const playlistUpdates = await Promise.all(fetchPromises);
@@ -2349,6 +2426,8 @@
                     ? `<span class="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-black shadow animate-bounce z-20">${pl.newCount} חדשים</span>` 
                     : '';
 
+                const totalVideosText = pl.totalCount !== null ? `${pl.totalCount} סרטונים` : 'פלייליסט';
+
                 const card = document.createElement('div');
                 card.className = "video-card group flex flex-col cursor-pointer bg-[var(--bg-card)] p-4 rounded-2xl border border-[var(--border-color)]";
                 
@@ -2366,6 +2445,10 @@
                     <div class="relative mb-4 group/img">
                         <img src="${pl.thumbnail}" class="w-full aspect-video object-cover rounded-2xl" style="background-color: var(--bg-surface);">
                         ${badgeHtml}
+                        <div class="absolute bottom-2 right-2 bg-black/85 text-white text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-bold z-10 border border-white/10 shadow">
+                            <i class="fas fa-list-ol text-blue-400"></i>
+                            <span data-playlist-count-id="${pl.id}">${totalVideosText}</span>
+                        </div>
                         <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition rounded-2xl">
                             <span class="text-white font-bold text-sm">פתח פלייליסט</span>
                         </div>
@@ -2376,7 +2459,7 @@
                     <div class="flex-1 px-1 flex flex-col justify-between">
                         <div>
                             <h3 class="font-bold text-base leading-snug line-clamp-2 mb-1" style="color: var(--text-primary);">${pl.title}</h3>
-                            <p class="text-xs" style="color: var(--text-secondary);">${pl.newCount > 0 ? `${pl.newCount} סרטונים חדשים נוספו` : 'מעודכן'}</p>
+                            <p class="text-xs" style="color: var(--text-secondary);">${pl.totalCount !== null ? `${pl.totalCount} סרטונים` : ''} ${pl.newCount > 0 ? `• <span class="text-red-500 font-bold">${pl.newCount} חדשים נוספו</span>` : '• מעודכן'}</p>
                         </div>
                         <div class="flex gap-2 mt-4">
                             <button class="text-xs px-4 py-2 rounded-full font-bold transition flex items-center gap-2 shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
@@ -3005,6 +3088,25 @@
             const localHistory = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             const watchedIds = new Set(localHistory.map(h => h.id));
 
+            // איסוף מזהי ערוצים ומזהי פלייליסטים לצורך טעינה מרוכזת של תמונות וכמויות סרטונים
+            const channelIdsToFetch = items
+                .filter(item => item.id?.kind === 'youtube#video' || typeof item.id === 'string' || item.id?.videoId)
+                .map(item => item.snippet?.channelId)
+                .filter(Boolean);
+            
+            if (channelIdsToFetch.length > 0) {
+                loadMissingChannelAvatars(channelIdsToFetch);
+            }
+
+            const playlistIdsToFetch = items
+                .filter(item => item.id?.kind === 'youtube#playlist' || item.id?.playlistId)
+                .map(item => item.id?.playlistId || item.id)
+                .filter(Boolean);
+
+            if (playlistIdsToFetch.length > 0) {
+                loadMissingPlaylistDetails(playlistIdsToFetch);
+            }
+
             items.forEach(item => {
                 const snip = item.snippet; const kind = item.id.kind;
                 
@@ -3039,7 +3141,7 @@
                 }
 
                 if (kind === 'youtube#playlist') {
-                    const playlistId = item.id.playlistId;
+                    const playlistId = item.id.playlistId || item.id;
                     const isLikedPl = LocalLikesManager.isLiked(playlistId, 'playlists');
                     const likeIconPl = isLikedPl ? 'fas fa-heart text-red-500' : 'far fa-heart';
                     
@@ -3048,6 +3150,11 @@
                     const title = snip.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     const thumbUrl = snip.thumbnails?.medium?.url || snip.thumbnails?.high?.url || snip.thumbnails?.default?.url || '';
                     const channelTitle = snip.channelTitle || '';
+
+                    const cachedCount = playlistCountsCache[playlistId];
+                    const countLabel = (item.contentDetails?.itemCount !== undefined) 
+                        ? `${item.contentDetails.itemCount} סרטונים` 
+                        : (cachedCount !== undefined ? `${cachedCount} סרטונים` : 'טוען כמות...');
                     
                     card.innerHTML = `
                          <div class="relative mb-4 group/img" onclick="loadExternalPlaylistOnGrid('${playlistId}', '${title}')">
@@ -3056,8 +3163,9 @@
                                 <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition rounded-2xl">
                                     <span class="text-white font-bold">פתח פלייליסט</span>
                                 </div>
-                                <div class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
-                                    <i class="fas fa-list-ul"></i><span>${item.contentDetails?.itemCount ? item.contentDetails.itemCount + ' סרטונים' : 'פלייליסט'}</span>
+                                <div class="absolute bottom-2 right-2 bg-black/85 text-white text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow font-bold z-10 border border-white/10">
+                                    <i class="fas fa-list-ol text-blue-400"></i>
+                                    <span data-playlist-count-id="${playlistId}">${countLabel}</span>
                                 </div>
                                 <button onclick="event.stopPropagation(); toggleLikeItem(this, {id: '${playlistId}', title: '${title}', thumbnail: '${thumbUrl}'}, 'playlists', event)" class="absolute top-2 left-2 bg-black/60 p-2 rounded-full transition opacity-0 group-hover/img:opacity-100 backdrop-blur-sm z-10" style="color: white;"><i class="${likeIconPl}"></i></button>
                             </div>
@@ -3150,6 +3258,9 @@
                 const isWatchLater = PlaylistManager.getPlaylists()['Watch Later']?.some(v => v.id === videoId);
                 const watchLaterIconClass = isWatchLater ? 'fas fa-clock text-blue-500' : 'fas fa-clock';
 
+                // תמונת ערוץ מתוך זיכרון המטמון
+                const channelAvatarUrl = snip.channelId && channelAvatarsCache[snip.channelId] ? channelAvatarsCache[snip.channelId] : '';
+
                 card.innerHTML = `
                     <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">
                         <img src="${thumbUrl}" class="w-full aspect-video object-cover rounded-2xl" style="background-color: var(--bg-surface);">
@@ -3168,9 +3279,17 @@
                         </button>
                     </div>
                     <div class="flex-1 flex gap-3 px-1">
-                        <div class="w-9 h-9 rounded-full flex-shrink-0 border flex items-center justify-center" style="background-color: var(--bg-surface); border-color: var(--border-color);">
-                            <i class="fas fa-play text-[10px] opacity-30" style="color: var(--text-primary);"></i>
+                        <!-- תמונת הערוץ במקום סמל ה-Play האפור -->
+                        <div class="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden border flex items-center justify-center relative cursor-pointer hover:opacity-80 transition" 
+                             style="background-color: var(--bg-surface); border-color: var(--border-color);" 
+                             title="${channelTitle}"
+                             onclick="event.stopPropagation(); if('${snip.channelId}') loadChannelVideos('${snip.channelId}', false, false, 'all')">
+                            <img src="${channelAvatarUrl}" data-channel-avatar-id="${snip.channelId || ''}" class="w-full h-full object-cover ${channelAvatarUrl ? '' : 'hidden'}" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');">
+                            <div class="w-full h-full flex items-center justify-center ${channelAvatarUrl ? 'hidden' : ''}">
+                                <i class="fas fa-user text-xs opacity-40" style="color: var(--text-primary);"></i>
+                            </div>
                         </div>
+
                         <div class="flex-1 flex flex-col">
                             <h3 class="font-semibold text-base leading-snug line-clamp-2" title="${snip.title}" style="color: var(--text-primary);" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">${snip.title}</h3>
                             <div class="text-sm mt-1" style="color: var(--text-secondary);">
@@ -3898,6 +4017,9 @@
                 if (items.length === 0) {
                     grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו פלייליסטים ציבוריים המכילים סרטון זה.</div>`;
                 } else {
+                    const playlistIds = items.map(item => item.id.playlistId).filter(Boolean);
+                    loadMissingPlaylistDetails(playlistIds);
+
                     items.forEach(item => {
                         const playlistId = item.id.playlistId;
                         if (!playlistId) return;
@@ -3908,6 +4030,9 @@
                         
                         const isLikedPl = LocalLikesManager.isLiked(playlistId, 'playlists');
                         const likeIconPl = isLikedPl ? 'fas fa-heart text-red-500' : 'far fa-heart';
+
+                        const cachedCount = playlistCountsCache[playlistId];
+                        const countLabel = cachedCount !== undefined ? `${cachedCount} סרטונים` : 'טוען כמות...';
                         
                         const card = document.createElement('div');
                         card.className = "video-card group flex flex-col cursor-pointer";
@@ -3919,8 +4044,9 @@
                                     <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition rounded-2xl">
                                         <span class="text-white font-bold">פתח פלייליסט</span>
                                     </div>
-                                    <div class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
-                                        <i class="fas fa-list-ul"></i><span>פלייליסט ציבורי</span>
+                                    <div class="absolute bottom-2 right-2 bg-black/85 text-white text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow font-bold z-10 border border-white/10">
+                                        <i class="fas fa-list-ol text-blue-400"></i>
+                                        <span data-playlist-count-id="${playlistId}">${countLabel}</span>
                                     </div>
                                     <button onclick="event.stopPropagation(); toggleLikeItem(this, {id: '${playlistId}', title: '${title}', thumbnail: '${thumbUrl}'}, 'playlists', event)" class="absolute top-2 left-2 bg-black/60 p-2 rounded-full transition opacity-0 group-hover/img:opacity-100 backdrop-blur-sm z-10" style="color: white;"><i class="${likeIconPl}"></i></button>
                                 </div>
