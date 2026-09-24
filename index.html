@@ -721,14 +721,19 @@
         async function loadMissingPlaylistDetails(playlistIds) {
             if (!appState.apiKey) return;
 
-            const cleanIds = playlistIds.map(id => {
-                if (typeof id === 'string') return id;
-                if (id && typeof id === 'object') return id.playlistId || null;
-                return null;
-            }).filter(Boolean);
+            const cleanIds = [];
+            playlistIds.forEach(id => {
+                const pid = typeof id === 'string' ? id : (id?.playlistId || null);
+                if (!pid) return;
+                if (pid.startsWith('RD')) {
+                    playlistCountsCache[pid] = 'mix';
+                } else {
+                    cleanIds.push(pid);
+                }
+            });
 
             const missing = [...new Set(cleanIds)].filter(id => playlistCountsCache[id] === undefined);
-            
+
             if (missing.length === 0) {
                 updatePlaylistCountBadges();
                 return;
@@ -771,9 +776,12 @@
         function updatePlaylistCountBadges() {
             document.querySelectorAll('[data-playlist-count-id]').forEach(el => {
                 const pid = el.getAttribute('data-playlist-count-id');
-                if (playlistCountsCache[pid] !== undefined) {
-                    if (playlistCountsCache[pid] !== null) {
-                        el.innerText = `${playlistCountsCache[pid]} סרטונים`;
+                const count = playlistCountsCache[pid];
+                if (count !== undefined) {
+                    if (typeof count === 'number') {
+                        el.innerText = `${count} סרטונים`;
+                    } else if (count === 'mix') {
+                        el.innerText = 'מיקס';
                     } else {
                         el.innerText = 'פלייליסט';
                     }
@@ -2454,7 +2462,12 @@
                     ? `<span class="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-black shadow animate-bounce z-20">${pl.newCount} חדשים</span>` 
                     : '';
 
-                const totalVideosText = pl.totalCount !== null ? `${pl.totalCount} סרטונים` : 'פלייליסט';
+                let totalVideosText = 'פלייליסט';
+                if (typeof pl.totalCount === 'number') {
+                    totalVideosText = `${pl.totalCount} סרטונים`;
+                } else if (pl.totalCount === 'mix') {
+                    totalVideosText = 'מיקס';
+                }
 
                 const card = document.createElement('div');
                 card.className = "video-card group flex flex-col cursor-pointer bg-[var(--bg-card)] p-4 rounded-2xl border border-[var(--border-color)]";
@@ -2487,7 +2500,7 @@
                     <div class="flex-1 px-1 flex flex-col justify-between">
                         <div>
                             <h3 class="font-bold text-base leading-snug line-clamp-2 mb-1" style="color: var(--text-primary);">${pl.title}</h3>
-                            <p class="text-xs" style="color: var(--text-secondary);">${pl.totalCount !== null ? `${pl.totalCount} סרטונים` : ''} ${pl.newCount > 0 ? `• <span class="text-red-500 font-bold">${pl.newCount} חדשים נוספו</span>` : '• מעודכן'}</p>
+                            <p class="text-xs" style="color: var(--text-secondary);">${typeof pl.totalCount === 'number' ? `${pl.totalCount} סרטונים` : ''} ${pl.newCount > 0 ? `• <span class="text-red-500 font-bold">${pl.newCount} חדשים נוספו</span>` : '• מעודכן'}</p>
                         </div>
                         <div class="flex gap-2 mt-4">
                             <button class="text-xs px-4 py-2 rounded-full font-bold transition flex items-center gap-2 shadow" style="background-color: var(--text-primary); color: var(--bg-main);">
@@ -3116,7 +3129,7 @@
             const localHistory = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             const watchedIds = new Set(localHistory.map(h => h.id));
 
-            // איסוף מזהי ערוצים ומזהי פלייליסטים לצורך טעינה מרוכזת
+            // איסוף מזהי ערוצים
             const channelIdsToFetch = items
                 .filter(item => item.id?.kind === 'youtube#video' || typeof item.id === 'string' || item.id?.videoId)
                 .map(item => item.snippet?.channelId)
@@ -3174,10 +3187,17 @@
 
                     const cachedCount = playlistCountsCache[playlistId];
                     let countLabel = 'טוען כמות...';
-                    if (item.contentDetails?.itemCount !== undefined) {
+                    
+                    if (playlistId.startsWith('RD')) {
+                        countLabel = 'מיקס';
+                        playlistCountsCache[playlistId] = 'mix';
+                    } else if (item.contentDetails?.itemCount !== undefined) {
                         countLabel = `${item.contentDetails.itemCount} סרטונים`;
+                        playlistCountsCache[playlistId] = item.contentDetails.itemCount;
                     } else if (cachedCount !== undefined) {
-                        countLabel = cachedCount !== null ? `${cachedCount} סרטונים` : 'פלייליסט';
+                        if (typeof cachedCount === 'number') countLabel = `${cachedCount} סרטונים`;
+                        else if (cachedCount === 'mix') countLabel = 'מיקס';
+                        else countLabel = 'פלייליסט';
                     }
                     
                     card.innerHTML = `
@@ -3282,7 +3302,6 @@
                 const isWatchLater = PlaylistManager.getPlaylists()['Watch Later']?.some(v => v.id === videoId);
                 const watchLaterIconClass = isWatchLater ? 'fas fa-clock text-blue-500' : 'fas fa-clock';
 
-                // תמונת ערוץ מתוך זיכרון המטמון
                 const channelAvatarUrl = snip.channelId && channelAvatarsCache[snip.channelId] ? channelAvatarsCache[snip.channelId] : '';
 
                 card.innerHTML = `
@@ -3383,7 +3402,6 @@
                 grid.appendChild(card);
             });
 
-            // קריאה לטעינת כמויות פלייליסטים לאחר שכל האלמנטים הוכנסו ל-DOM
             const playlistIdsToFetch = items
                 .filter(item => item.id?.kind === 'youtube#playlist' || item.id?.playlistId)
                 .map(item => item.id?.playlistId || (typeof item.id === 'string' ? item.id : null))
@@ -4064,8 +4082,13 @@
 
                         const cachedCount = playlistCountsCache[playlistId];
                         let countLabel = 'טוען כמות...';
-                        if (cachedCount !== undefined) {
-                            countLabel = cachedCount !== null ? `${cachedCount} סרטונים` : 'פלייליסט';
+                        if (playlistId.startsWith('RD')) {
+                            countLabel = 'מיקס';
+                            playlistCountsCache[playlistId] = 'mix';
+                        } else if (cachedCount !== undefined) {
+                            if (typeof cachedCount === 'number') countLabel = `${cachedCount} סרטונים`;
+                            else if (cachedCount === 'mix') countLabel = 'מיקס';
+                            else countLabel = 'פלייליסט';
                         }
                         
                         const card = document.createElement('div');
