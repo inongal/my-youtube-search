@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>YouTube</title>
     
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ff0000'%3E%3Cpath d='M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z'/%3E%3C/svg%3E">
@@ -120,17 +121,35 @@
         
         #watchView.floating-mode { position: fixed; top: auto; left: 20px; bottom: 20px; right: auto; background: transparent; backdrop-filter: none; padding: 0; z-index: 9999; align-items: flex-end; justify-content: flex-start; pointer-events: none; }
         #watchView.floating-mode .modal-overlay-bg { display: none; }
+        #watchView:not(.floating-mode) .player-container {
+            width: 100% !important;
+            height: 90vh !important;
+            max-height: 90vh !important;
+            resize: none !important;
+            transform: none !important;
+        }
+        #watchView:not(.floating-mode):not(.yt-expanded-mode) .player-container {
+            max-width: 64rem !important;
+        }
+        #watchView:not(.floating-mode).yt-expanded-mode .player-container {
+            max-width: 78vw !important;
+            width: 78vw !important;
+        }
         #watchView.floating-mode .player-container { 
-            width: 400px; height: 225px; 
-            min-width: 250px; min-height: 140px;
+            width: var(--floating-w, 400px); height: var(--floating-h, 225px); 
+            min-width: 260px; min-height: 146px;
             max-width: 90vw; max-height: 90vh;
             resize: both; 
             overflow: hidden; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid var(--border-color); pointer-events: auto; display: block; position: relative; background: var(--bg-main); 
         }
         #watchView.floating-mode .player-info-section, #watchView.floating-mode .player-header, #upNextSidebar { display: none !important; }
+        #watchView.floating-mode #watchMainContent, #watchView.floating-mode #watchVideoArea { height: 100% !important; overflow: hidden !important; }
         #watchView.floating-mode .aspect-video { width: 100%; height: 100%; position: absolute; inset: 0; padding: 0; margin: 0; }
-        .floating-controls { display: none; }
-        #watchView.floating-mode .player-container:hover .floating-controls { display: flex; position: absolute; top: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); z-index: 20; opacity: 1; justify-content: flex-end; gap: 10px; cursor: move; }
+        .floating-controls, .floating-resize-handle { display: none; }
+        #watchView.floating-mode .floating-controls { display: flex; position: absolute; top: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); z-index: 30; opacity: 0; transition: opacity 0.2s ease; justify-content: flex-end; gap: 8px; cursor: move; pointer-events: auto; }
+        #watchView.floating-mode .floating-resize-handle { display: flex; position: absolute; bottom: 0; right: 0; width: 22px; height: 22px; z-index: 35; cursor: nwse-resize; align-items: flex-end; justify-content: flex-end; padding: 3px; color: rgba(255,255,255,0.7); background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.7) 50%); opacity: 0; transition: opacity 0.2s ease; pointer-events: auto; }
+        #watchView.floating-mode .player-container:hover .floating-controls,
+        #watchView.floating-mode .player-container:hover .floating-resize-handle { opacity: 1; }
 
         #configModal { display: none; backdrop-filter: blur(12px); background-color: var(--modal-overlay); }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -315,6 +334,13 @@
                 <div onclick="loadQueueTab()" class="sidebar-item" id="navQueue">
                     <i class="fas fa-list-ol text-lg text-green-500"></i><span>תור השמעה</span>
                 </div>
+                <div onclick="loadDownloadHistoryTab()" class="sidebar-item justify-between flex items-center" id="navDownloads">
+                    <div class="flex items-center gap-3 truncate">
+                        <i class="fas fa-download text-lg text-cyan-500 flex-shrink-0"></i>
+                        <span>היסטוריית הורדות</span>
+                    </div>
+                    <span id="downloadsCountBadge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-600 text-white flex-shrink-0">0</span>
+                </div>
                 
                 <div onclick="loadLocalSubscriptionsFeed()" class="sidebar-item justify-between flex items-center" id="navLocalSubs">
                     <div class="flex items-center gap-3 truncate">
@@ -474,12 +500,18 @@
         
         <div class="player-container relative w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border shadow-2xl z-10 transition-all duration-300" style="background-color: var(--bg-main); border-color: var(--border-color);">
             <div class="floating-controls">
-                 <button onclick="toggleFloatingMode()" class="w-8 h-8 bg-black/60 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition" title="חזור למסך רגיל">
+                <button onclick="openAlwaysOnTopPlayer()" class="w-8 h-8 bg-black/70 hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition shadow" title="נגן צף מעל כל החלונות במחשב (PiP)">
+                    <i class="fas fa-external-link-alt text-xs"></i>
+                </button>
+                <button onclick="toggleFloatingMode()" class="w-8 h-8 bg-black/70 hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition shadow" title="חזור למסך רגיל">
                     <i class="fas fa-expand-alt text-xs"></i>
                 </button>
-                <button onclick="closePlayer()" class="w-8 h-8 bg-black/60 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition" title="סגור">
+                <button onclick="closePlayer()" class="w-8 h-8 bg-black/70 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition shadow" title="סגור">
                     <i class="fas fa-times text-xs"></i>
                 </button>
+            </div>
+            <div class="floating-resize-handle" title="גרור לשינוי גודל הנגן הממוזער">
+                <i class="fas fa-caret-right text-[10px] transform rotate-45"></i>
             </div>
 
             <div class="player-header p-4 flex justify-between items-center border-b" style="border-color: var(--border-color);">
@@ -487,6 +519,9 @@
                 <div class="flex gap-2">
                     <button onclick="toggleYouTubeMode()" id="youtubeModeBtn" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="תצוגה מוגדלת">
                         <i class="fas fa-columns"></i>
+                    </button>
+                    <button onclick="openAlwaysOnTopPlayer()" id="alwaysOnTopBtn" class="w-10 h-10 rounded-full flex items-center justify-center transition hover:text-blue-500" style="color: var(--text-secondary);" title="נגן צף מעל כל החלונות במחשב (PiP)">
+                        <i class="fas fa-external-link-alt"></i>
                     </button>
                     <button onclick="toggleFloatingMode()" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="נגן צף פנימי נשלט גודל">
                         <i class="fas fa-clone"></i>
@@ -606,9 +641,20 @@
                     <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">Google Client ID</label>
                     <input type="text" id="clientIdInput" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
-                <div>
-                    <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">מספר תוצאות לחיפוש (1-50)</label>
-                    <input type="number" id="maxResultsInput" min="1" max="50" value="12" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">מספר תוצאות לחיפוש (1-50)</label>
+                        <input type="number" id="maxResultsInput" min="1" max="50" value="12" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">איכות הורדה ברירת מחדל</label>
+                        <select id="defaultDownloadQualitySelect" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                            <option value="1080">1080p (איכות מלאה)</option>
+                            <option value="720">720p (HD)</option>
+                            <option value="480">480p (חסכוני)</option>
+                            <option value="audio">שמע בלבד (MP3)</option>
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="mt-4 border-t pt-4" style="border-color: var(--border-color);">
@@ -832,6 +878,7 @@
             channelViewMode: 'all',
             currentRenderedItems: [],
             maxResults: 12,
+            defaultDownloadQuality: localStorage.getItem('yt_default_dl_quality') || '1080',
             isListView: false,
             isSelectionMode: false,
             selectedVideos: new Set(),
@@ -1278,6 +1325,8 @@
                 loadResumeTab(true);
             } else if (appState.searchContext === 'queue') {
                 loadQueueTab(true);
+            } else if (appState.searchContext === 'download_history') {
+                loadDownloadHistoryTab(true);
             } else if (appState.searchContext === 'liked') {
                 renderLikedTab(appState.currentLikedTab);
             } else if (appState.searchContext === 'playlists_hub') {
@@ -1369,6 +1418,8 @@
                 loadResumeTab(true);
             } else if (state.type === 'queue') {
                 loadQueueTab(true);
+            } else if (state.type === 'download_history') {
+                loadDownloadHistoryTab(true);
             } else if (state.type === 'playlists_hub') {
                 loadAllPlaylistsHub(true);
             } else if (state.type === 'local_subs') {
@@ -1787,79 +1838,465 @@
             updateBatchActionBar();
         }
 
-        function downloadWithYtDlp(videoId) {
-            if (!isValidVideoId(videoId)) return showToast('מזהה סרטון לא תקין להורדה');
+        const DownloadHistoryManager = {
+            getHistory: () => JSON.parse(localStorage.getItem('yt_download_history') || '[]'),
+            saveHistory: (list) => {
+                safeSetLocalStorage('yt_download_history', JSON.stringify(list));
+                DownloadHistoryManager.updateBadge();
+            },
+            updateBadge: () => {
+                const list = DownloadHistoryManager.getHistory();
+                const badge = document.getElementById('downloadsCountBadge');
+                if (!badge) return;
+                if (list.length > 0) {
+                    badge.innerText = list.length > 99 ? '99+' : list.length;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            },
+            addRecord: ({ id, title, thumbnail, channel, quality, status = 'pending', reason = '' }) => {
+                const list = DownloadHistoryManager.getHistory();
+                const recordId = 'dl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+                const record = {
+                    recordId,
+                    id,
+                    url: `https://www.youtube.com/watch?v=${id}`,
+                    title: title || `סרטון (${id})`,
+                    thumbnail: thumbnail || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+                    channel: channel || '',
+                    quality: quality || '1080',
+                    status, // 'success' | 'failed' | 'pending'
+                    reason,
+                    timestamp: new Date().toISOString()
+                };
+                list.unshift(record);
+                if (list.length > 500) list.length = 500;
+                DownloadHistoryManager.saveHistory(list);
+                return recordId;
+            },
+            updateStatus: (recordId, status, reason = '') => {
+                const list = DownloadHistoryManager.getHistory();
+                const idx = list.findIndex(r => r.recordId === recordId);
+                if (idx > -1) {
+                    list[idx].status = status;
+                    if (reason !== undefined) list[idx].reason = reason;
+                    DownloadHistoryManager.saveHistory(list);
+                    if (appState.searchContext === 'download_history') {
+                        loadDownloadHistoryTab(true, appState.downloadHistoryFilter || 'all');
+                    }
+                }
+            },
+            removeRecord: (recordId) => {
+                let list = DownloadHistoryManager.getHistory();
+                list = list.filter(r => r.recordId !== recordId);
+                DownloadHistoryManager.saveHistory(list);
+                if (appState.searchContext === 'download_history') {
+                    loadDownloadHistoryTab(true, appState.downloadHistoryFilter || 'all');
+                }
+            },
+            clearAll: () => {
+                safeSetLocalStorage('yt_download_history', '[]');
+                DownloadHistoryManager.updateBadge();
+                if (appState.searchContext === 'download_history') {
+                    loadDownloadHistoryTab(true, 'all');
+                }
+            }
+        };
+
+        function findVideoMetadataById(videoId) {
+            if (appState.currentVideoId === videoId && appState.currentVideoDetails) {
+                return appState.currentVideoDetails;
+            }
+            const found = (appState.currentRenderedItems || []).find(item => {
+                const vid = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
+                return vid === videoId;
+            });
+            if (found && found.snippet) {
+                return {
+                    id: videoId,
+                    title: found.snippet.title || `סרטון (${videoId})`,
+                    thumbnail: found.snippet.thumbnails?.high?.url || found.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+                    channel: found.snippet.channelTitle || ''
+                };
+            }
+            return {
+                id: videoId,
+                title: `סרטון (${videoId})`,
+                thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+                channel: ''
+            };
+        }
+
+        async function verifyVideoDownloadability(videoId) {
+            // בדיקה מוקדמת מול YouTube API האם הסרטון קיים, ציבורי וזמין להורדה
+            if (!appState.apiKey) return { ok: true };
+            try {
+                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=status,snippet,contentDetails&id=${encodeURIComponent(videoId)}&key=${appState.apiKey}`);
+                if (!res.ok) return { ok: true };
+                const data = await res.json();
+                if (!data.items || data.items.length === 0) {
+                    return { ok: false, reason: 'הסרטון הוסר, פרטי או לא נמצא ביוטיוב' };
+                }
+                const item = data.items[0];
+                if (item.status?.privacyStatus === 'private') {
+                    return { ok: false, reason: 'סרטון פרטי - חסום להורדה' };
+                }
+                if (item.snippet?.liveBroadcastContent === 'upcoming') {
+                    return { ok: false, reason: 'שידור עתידי שטרם התחיל' };
+                }
+                return {
+                    ok: true,
+                    meta: {
+                        title: item.snippet?.title,
+                        thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url,
+                        channel: item.snippet?.channelTitle
+                    }
+                };
+            } catch (e) {
+                return { ok: true };
+            }
+        }
+
+        function triggerYtDlpProtocol(protocolUrl, recordIds) {
+            let protocolHandled = false;
+            const onBlur = () => { protocolHandled = true; };
+            window.addEventListener('blur', onBlur, { once: true });
+
+            try {
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = protocolUrl;
+                document.body.appendChild(iframe);
+
+                setTimeout(() => {
+                    window.removeEventListener('blur', onBlur);
+                    if (document.body.contains(iframe)) {
+                        document.body.removeChild(iframe);
+                    }
+                    // עדכון סטטוס ההורדה: אם פרוטוקול ytdlp:// הופעל בהצלחה נסמן כהצלחה (עם אפשרות לשינוי ידני בהיסטוריית ההורדות)
+                    recordIds.forEach(rid => {
+                        DownloadHistoryManager.updateStatus(
+                            rid,
+                            'success',
+                            protocolHandled ? 'נשלח לתוכנת ההורדה (yt-dlp) בהצלחה' : 'הפקודה נשלחה ל-yt-dlp (ניתן לעדכן סטטוס ידנית במידת הצורך)'
+                        );
+                    });
+                }, 1800);
+            } catch (err) {
+                window.removeEventListener('blur', onBlur);
+                recordIds.forEach(rid => {
+                    DownloadHistoryManager.updateStatus(rid, 'failed', 'שגיאה בפתיחת פרוטוקול ytdlp:// בדפדפן');
+                });
+            }
+        }
+
+        function getDefaultDownloadQuality() {
+            const allowed = ['1080', '720', '480', 'audio'];
+            const saved = appState.defaultDownloadQuality || localStorage.getItem('yt_default_dl_quality') || '1080';
+            return allowed.includes(saved) ? saved : '1080';
+        }
+
+        function applyDefaultDownloadQualityToUI() {
+            const defQ = getDefaultDownloadQuality();
+            const watchSel = document.getElementById('watchDlQuality');
+            if (watchSel) watchSel.value = defQ;
+            const batchSel = document.getElementById('batchQualitySelect');
+            if (batchSel) batchSel.value = defQ;
+            const cfgSel = document.getElementById('defaultDownloadQualitySelect');
+            if (cfgSel) cfgSel.value = defQ;
+            document.querySelectorAll('select[id^="dl-qual-"]').forEach(sel => {
+                sel.value = defQ;
+            });
+        }
+
+        async function downloadWithYtDlp(videoId) {
+            const defQ = getDefaultDownloadQuality();
+            if (!isValidVideoId(videoId)) {
+                DownloadHistoryManager.addRecord({
+                    id: String(videoId || 'unknown'),
+                    title: 'מזהה סרטון שגוי',
+                    quality: defQ,
+                    status: 'failed',
+                    reason: 'מזהה סרטון לא תקין'
+                });
+                return showToast('מזהה סרטון לא תקין להורדה');
+            }
             const qualitySelect = document.getElementById(`dl-qual-${videoId}`);
             const allowedQualities = ['1080', '720', '480', 'audio'];
-            const quality = (qualitySelect && allowedQualities.includes(qualitySelect.value)) ? qualitySelect.value : '1080';
+            const quality = (qualitySelect && allowedQualities.includes(qualitySelect.value)) ? qualitySelect.value : defQ;
             
+            const meta = findVideoMetadataById(videoId);
+            const recordId = DownloadHistoryManager.addRecord({
+                id: videoId,
+                title: meta.title,
+                thumbnail: meta.thumbnail,
+                channel: meta.channel,
+                quality,
+                status: 'pending',
+                reason: 'בודק זמינות ושולח להורדה...'
+            });
+
+            const check = await verifyVideoDownloadability(videoId);
+            if (!check.ok) {
+                DownloadHistoryManager.updateStatus(recordId, 'failed', check.reason);
+                return showToast(`ההורדה נכשלה: ${check.reason}`);
+            }
+
             let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
             showToast(`מתחיל העברה להורדה (${qualityText})...`);
-            
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = `ytdlp://${videoId}/${quality}`;
-            document.body.appendChild(iframe);
-            
-            setTimeout(() => {
-                if (document.body.contains(iframe)) {
-                    document.body.removeChild(iframe);
-                }
-            }, 2000);
+            triggerYtDlpProtocol(`ytdlp://${videoId}/${quality}`, [recordId]);
         }
 
-        function downloadWatchVideo() {
+        async function downloadWatchVideo() {
             if (!appState.currentVideoId || !isValidVideoId(appState.currentVideoId)) return;
+            const defQ = getDefaultDownloadQuality();
             const allowedQualities = ['1080', '720', '480', 'audio'];
             const rawQuality = document.getElementById('watchDlQuality').value;
-            const quality = allowedQualities.includes(rawQuality) ? rawQuality : '1080';
+            const quality = allowedQualities.includes(rawQuality) ? rawQuality : defQ;
+
+            const meta = findVideoMetadataById(appState.currentVideoId);
+            const recordId = DownloadHistoryManager.addRecord({
+                id: appState.currentVideoId,
+                title: meta.title,
+                thumbnail: meta.thumbnail,
+                channel: meta.channel,
+                quality,
+                status: 'pending',
+                reason: 'בודק זמינות ושולח להורדה...'
+            });
+
+            const check = await verifyVideoDownloadability(appState.currentVideoId);
+            if (!check.ok) {
+                DownloadHistoryManager.updateStatus(recordId, 'failed', check.reason);
+                return showToast(`ההורדה נכשלה: ${check.reason}`);
+            }
+
             let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
             showToast(`מתחיל העברה להורדה (${qualityText})...`);
-            
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = `ytdlp://${appState.currentVideoId}/${quality}`;
-            document.body.appendChild(iframe);
-            
-            setTimeout(() => {
-                if (document.body.contains(iframe)) {
-                    document.body.removeChild(iframe);
-                }
-            }, 2000);
+            triggerYtDlpProtocol(`ytdlp://${appState.currentVideoId}/${quality}`, [recordId]);
         }
 
-        function batchDownloadWithYtDlp() {
+        async function batchDownloadWithYtDlp() {
             if (appState.selectedVideos.size === 0) return;
             
+            const defQ = getDefaultDownloadQuality();
             const qualitySelect = document.getElementById('batchQualitySelect');
             const allowedQualities = ['1080', '720', '480', 'audio'];
-            const quality = (qualitySelect && allowedQualities.includes(qualitySelect.value)) ? qualitySelect.value : '1080';
+            const quality = (qualitySelect && allowedQualities.includes(qualitySelect.value)) ? qualitySelect.value : defQ;
             
             const videos = appState.currentRenderedItems.filter(item => 
                 item.id && (item.id.videoId || typeof item.id === 'string') &&
                 appState.selectedVideos.has(item.id.videoId || item.id)
             );
             
-            const validIds = videos.map(item => item.id.videoId || item.id).filter(isValidVideoId);
+            const validIds = [];
+            const recordIds = [];
+
+            for (const item of videos) {
+                const vid = item.id.videoId || item.id;
+                const meta = findVideoMetadataById(vid);
+                if (!isValidVideoId(vid)) {
+                    DownloadHistoryManager.addRecord({
+                        id: String(vid),
+                        title: meta.title,
+                        thumbnail: meta.thumbnail,
+                        channel: meta.channel,
+                        quality,
+                        status: 'failed',
+                        reason: 'מזהה סרטון לא תקין'
+                    });
+                    continue;
+                }
+                const rid = DownloadHistoryManager.addRecord({
+                    id: vid,
+                    title: meta.title,
+                    thumbnail: meta.thumbnail,
+                    channel: meta.channel,
+                    quality,
+                    status: 'pending',
+                    reason: 'בהורדה מרוכזת...'
+                });
+                validIds.push(vid);
+                recordIds.push(rid);
+            }
+
             if (validIds.length === 0) return showToast('לא נמצאו מזהי סרטונים תקינים');
 
             let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
-            
             showToast(`מעביר ${validIds.length} סרטונים להורדה מרוכזת (${qualityText})...`);
 
             const videoIds = validIds.join('.');
-            
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = `ytdlp://${videoIds}/${quality}`;
-            document.body.appendChild(iframe);
-            
+            triggerYtDlpProtocol(`ytdlp://${videoIds}/${quality}`, recordIds);
             setTimeout(() => {
-                if (document.body.contains(iframe)) {
-                    document.body.removeChild(iframe);
+                if (appState.isSelectionMode) toggleSelectionMode();
+            }, 1000);
+        }
+
+        function loadDownloadHistoryTab(isHistoryNav = false, filterStatus = 'all') {
+            if (appState.isSelectionMode) toggleSelectionMode();
+            setActiveNavItem('navDownloads');
+            appState.searchContext = 'download_history';
+            appState.downloadHistoryFilter = filterStatus;
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.remove('hidden');
+            if (!isHistoryNav) pushHistory({ type: 'download_history' });
+
+            if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
+
+            const allRecords = DownloadHistoryManager.getHistory();
+            const successCount = allRecords.filter(r => r.status === 'success').length;
+            const failedCount = allRecords.filter(r => r.status === 'failed').length;
+            const pendingCount = allRecords.filter(r => r.status === 'pending').length;
+
+            const filtered = filterStatus === 'all'
+                ? allRecords
+                : allRecords.filter(r => r.status === filterStatus);
+
+            const titleEl = document.getElementById('sectionTitle');
+            titleEl.classList.remove('hidden');
+            titleEl.innerHTML = `
+                <div class="flex flex-wrap items-center gap-3">
+                    <span>היסטוריית הורדות (${allRecords.length})</span>
+                    <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+                        <button onclick="loadDownloadHistoryTab(true, 'all')" class="px-3 py-1.5 rounded-full border transition ${filterStatus === 'all' ? 'bg-blue-600 text-white border-blue-600' : ''}" style="${filterStatus !== 'all' ? 'background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);' : ''}">
+                            הכל (${allRecords.length})
+                        </button>
+                        <button onclick="loadDownloadHistoryTab(true, 'success')" class="px-3 py-1.5 rounded-full border transition flex items-center gap-1 ${filterStatus === 'success' ? 'bg-green-600 text-white border-green-600' : ''}" style="${filterStatus !== 'success' ? 'background-color: var(--bg-surface); color: #22c55e; border-color: var(--border-color);' : ''}">
+                            <i class="fas fa-check-circle"></i> הצליחו (${successCount})
+                        </button>
+                        <button onclick="loadDownloadHistoryTab(true, 'failed')" class="px-3 py-1.5 rounded-full border transition flex items-center gap-1 ${filterStatus === 'failed' ? 'bg-red-600 text-white border-red-600' : ''}" style="${filterStatus !== 'failed' ? 'background-color: var(--bg-surface); color: #ef4444; border-color: var(--border-color);' : ''}">
+                            <i class="fas fa-times-circle"></i> נכשלו (${failedCount})
+                        </button>
+                        ${pendingCount > 0 ? `
+                        <button onclick="loadDownloadHistoryTab(true, 'pending')" class="px-3 py-1.5 rounded-full border transition flex items-center gap-1 ${filterStatus === 'pending' ? 'bg-amber-600 text-white border-amber-600' : ''}" style="${filterStatus !== 'pending' ? 'background-color: var(--bg-surface); color: #f59e0b; border-color: var(--border-color);' : ''}">
+                            <i class="fas fa-hourglass-half"></i> בתהליך (${pendingCount})
+                        </button>` : ''}
+                        ${failedCount > 0 ? `
+                        <button onclick="retryAllFailedDownloads()" class="px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 transition flex items-center gap-1" title="נסה להוריד מחדש את כל ההורדות שנכשלו">
+                            <i class="fas fa-redo"></i> נסה שוב נכשלים
+                        </button>` : ''}
+                        ${allRecords.length > 0 ? `
+                        <button onclick="clearDownloadHistoryConfirm()" class="px-3 py-1.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition flex items-center gap-1">
+                            <i class="fas fa-trash-alt"></i> נקה היסטוריה
+                        </button>` : ''}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('pagination').classList.add('hidden');
+            document.getElementById('exportUrlsBtn').classList.remove('hidden');
+
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = '';
+            appState.currentRenderedItems = filtered.map(r => ({
+                id: { kind: 'youtube#video', videoId: r.id },
+                snippet: { title: r.title, channelTitle: r.channel, thumbnails: { high: { url: r.thumbnail } } }
+            }));
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">אין הורדות להצגה בקטגוריה זו.</div>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "video-card group flex flex-col p-4 rounded-2xl border transition";
+                card.style.backgroundColor = "var(--bg-card)";
+                card.style.borderColor = item.status === 'failed' ? 'rgba(239, 68, 68, 0.5)' : (item.status === 'success' ? 'rgba(34, 197, 94, 0.35)' : 'var(--border-color)');
+
+                let statusBadge = '';
+                if (item.status === 'success') {
+                    statusBadge = `<span class="bg-green-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-check-circle"></i> ירד בהצלחה</span>`;
+                } else if (item.status === 'failed') {
+                    statusBadge = `<span class="bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-exclamation-triangle"></i> נכשל</span>`;
+                } else {
+                    statusBadge = `<span class="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-spinner fa-spin"></i> נשלח להורדה</span>`;
                 }
-                toggleSelectionMode(); 
-            }, 2000);
+
+                const qualityLabel = item.quality === 'audio' ? 'MP3 (שמע)' : `${item.quality}p`;
+                const dateStr = new Date(item.timestamp).toLocaleString('he-IL');
+                const safeId = escapeJsString(item.id);
+                const safeTitle = escapeJsString(item.title);
+                const safeThumb = escapeJsString(item.thumbnail);
+                const safeChannel = escapeJsString(item.channel || '');
+                const safeRecId = escapeJsString(item.recordId);
+
+                card.innerHTML = `
+                    <div class="relative mb-3 cursor-pointer" onclick="openPlayer('${safeId}', '${safeTitle}', '${safeThumb}', '${safeChannel}', '')">
+                        <img src="${escapeHtml(item.thumbnail)}" class="w-full aspect-video object-cover rounded-xl" style="background-color: var(--bg-surface);">
+                        <div class="absolute top-2 right-2 z-10">${statusBadge}</div>
+                        <div class="absolute bottom-2 left-2 bg-black/85 text-white text-xs px-2 py-0.5 rounded font-bold">${escapeHtml(qualityLabel)}</div>
+                    </div>
+                    <div class="flex-1 flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-base line-clamp-2 mb-1 cursor-pointer hover:underline" style="color: var(--text-primary);" onclick="openPlayer('${safeId}', '${safeTitle}', '${safeThumb}', '${safeChannel}', '')">${escapeHtml(item.title)}</h3>
+                            <p class="text-xs mb-1" style="color: var(--text-secondary);">${escapeHtml(item.channel || 'YouTube')} • ${escapeHtml(dateStr)}</p>
+                            <p class="text-[11px] px-2.5 py-1 rounded-lg mt-1 inline-block" style="background-color: var(--bg-surface); color: ${item.status === 'failed' ? '#ef4444' : 'var(--text-secondary)'};">
+                                ${escapeHtml(item.reason || (item.status === 'success' ? 'נשלח לתוכנת ההורדה בהצלחה' : 'נכשל'))}
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2 mt-4 pt-3 border-t flex-wrap" style="border-color: var(--border-color);">
+                            <button onclick="retrySingleDownload('${safeRecId}')" class="text-xs px-3 py-1.5 rounded-full font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1 shadow" title="הורד שוב">
+                                <i class="fas fa-redo"></i> הורד שוב
+                            </button>
+                            ${item.status !== 'success' ? `
+                            <button onclick="DownloadHistoryManager.updateStatus('${safeRecId}', 'success', 'סומן ידנית כהורדה שהצליחה')" class="text-xs px-2.5 py-1.5 rounded-full border transition text-green-500 border-green-500/40 hover:bg-green-500/10" title="סמן כהצליח">
+                                <i class="fas fa-check"></i> סמן כהצליח
+                            </button>` : ''}
+                            ${item.status !== 'failed' ? `
+                            <button onclick="DownloadHistoryManager.updateStatus('${safeRecId}', 'failed', 'סומן ידנית כהורדה שנכשלה')" class="text-xs px-2.5 py-1.5 rounded-full border transition text-amber-500 border-amber-500/40 hover:bg-amber-500/10" title="סמן כנכשל">
+                                <i class="fas fa-times"></i> סמן כנכשל
+                            </button>` : ''}
+                            <button onclick="copyLink('${safeId}')" class="text-xs px-2.5 py-1.5 rounded-full border transition" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);" title="העתק קישור">
+                                <i class="fas fa-link"></i>
+                            </button>
+                            <button onclick="DownloadHistoryManager.removeRecord('${safeRecId}')" class="text-xs px-2.5 py-1.5 rounded-full border transition text-red-500 border-red-500/30 hover:bg-red-500/10 mr-auto" title="הסר מההיסטוריה">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function retrySingleDownload(recordId) {
+            const list = DownloadHistoryManager.getHistory();
+            const item = list.find(r => r.recordId === recordId);
+            if (!item) return;
+            DownloadHistoryManager.updateStatus(recordId, 'pending', 'מנסה להוריד שוב...');
+            const check = await verifyVideoDownloadability(item.id);
+            if (!check.ok) {
+                DownloadHistoryManager.updateStatus(recordId, 'failed', check.reason);
+                return showToast(`ההורדה נכשלה: ${check.reason}`);
+            }
+            showToast(`שולח שוב להורדה (${item.title})...`);
+            triggerYtDlpProtocol(`ytdlp://${item.id}/${item.quality || '1080'}`, [recordId]);
+        }
+
+        function retryAllFailedDownloads() {
+            const failed = DownloadHistoryManager.getHistory().filter(r => r.status === 'failed' && isValidVideoId(r.id));
+            if (failed.length === 0) return showToast('אין הורדות שנכשלו לניסיון חוזר');
+            const defQ = getDefaultDownloadQuality();
+            const ids = failed.map(f => f.id).join('.');
+            const rids = failed.map(f => f.recordId);
+            rids.forEach(rid => DownloadHistoryManager.updateStatus(rid, 'pending', 'מנסה שוב בהורדה מרוכזת...'));
+            showToast(`מנסה להוריד מחדש ${failed.length} סרטונים...`);
+            triggerYtDlpProtocol(`ytdlp://${ids}/${defQ}`, rids);
+        }
+
+        async function clearDownloadHistoryConfirm() {
+            const confirmed = await showCustomDialog({
+                title: 'ניקוי היסטוריית הורדות',
+                message: 'האם למחוק את כל היסטוריית ההורדות?',
+                confirmText: 'מחק הכל',
+                cancelText: 'ביטול'
+            });
+            if (confirmed) {
+                DownloadHistoryManager.clearAll();
+                showToast('היסטוריית ההורדות נוקתה');
+            }
         }
 
         async function batchAddToPlaylist() {
@@ -2356,10 +2793,12 @@
                         clientId: localStorage.getItem('yt_client_id')
                     } : {}),
                     maxResults: localStorage.getItem('yt_max_results'), 
+                    defaultDownloadQuality: localStorage.getItem('yt_default_dl_quality'),
                     theme: localStorage.getItem('yt_theme') 
                 },
                 channelVisits: localStorage.getItem('yt_channel_visits'),
-                playlistVisits: localStorage.getItem('yt_playlist_visits')
+                playlistVisits: localStorage.getItem('yt_playlist_visits'),
+                downloadHistory: localStorage.getItem('yt_download_history')
             };
             triggerDownloadBlob(JSON.stringify(data), `yt_backup_${new Date().toISOString().slice(0,10)}.json`);
             showToast('קובץ הגיבוי הורד בהצלחה');
@@ -2380,11 +2819,13 @@
                     if(data.localPlaylistSubs) safeSetLocalStorage('yt_local_playlist_subs', data.localPlaylistSubs);
                     if(data.channelVisits) safeSetLocalStorage('yt_channel_visits', data.channelVisits);
                     if(data.playlistVisits) safeSetLocalStorage('yt_playlist_visits', data.playlistVisits);
+                    if(data.downloadHistory) safeSetLocalStorage('yt_download_history', data.downloadHistory);
                     if(data.settings) {
                         if(data.settings.apiKey) safeSetLocalStorage('yt_api_key', data.settings.apiKey);
                         if(data.settings.geminiApiKey) safeSetLocalStorage('yt_gemini_api_key', data.settings.geminiApiKey);
                         if(data.settings.clientId) safeSetLocalStorage('yt_client_id', data.settings.clientId);
                         if(data.settings.maxResults) safeSetLocalStorage('yt_max_results', data.settings.maxResults);
+                        if(data.settings.defaultDownloadQuality) safeSetLocalStorage('yt_default_dl_quality', data.settings.defaultDownloadQuality);
                         if(data.settings.theme) safeSetLocalStorage('yt_theme', data.settings.theme);
                     }
                     showToast('הנתונים שוחזרו בהצלחה! מרענן...');
@@ -2846,33 +3287,229 @@
         });
 
         returnToVideoBtn.addEventListener('click', () => {
-            if (appState.isFloating) watchView.classList.remove('hidden');
-            else { watchView.classList.add('active'); watchView.classList.remove('hidden'); }
-            returnToVideoBtn.classList.add('hidden'); 
+            const container = watchView.querySelector('.player-container');
+            appState.isFloating = false;
+            watchView.classList.remove('floating-mode', 'hidden');
+            watchView.classList.add('active');
+            resetFloatingContainerSize(container);
+            document.body.style.overflow = 'hidden';
+            returnToVideoBtn.classList.add('hidden');
+            if (ytPlayer && typeof ytPlayer.playVideo === 'function') {
+                try { ytPlayer.playVideo(); } catch (e) {}
+            }
         });
+
+        function resetFloatingContainerSize(container) {
+            const view = document.getElementById('watchView');
+            if (!container) container = view ? view.querySelector('.player-container') : null;
+            if (!container) return;
+
+            // איפוס מלא של כל ה-Inline Styles שנוצרו בעת גרירה או שינוי גודל (resize) של הנגן הממוזער
+            container.style.removeProperty('width');
+            container.style.removeProperty('height');
+            container.style.removeProperty('max-width');
+            container.style.removeProperty('max-height');
+            container.style.removeProperty('min-width');
+            container.style.removeProperty('min-height');
+            container.style.removeProperty('transform');
+            container.style.removeProperty('--floating-w');
+            container.style.removeProperty('--floating-h');
+            container.dataset.tx = '0';
+            container.dataset.ty = '0';
+
+            if (appState.isYouTubeMode) {
+                if (view) view.classList.add('yt-expanded-mode');
+                container.classList.remove('max-w-5xl');
+            } else {
+                if (view) view.classList.remove('yt-expanded-mode');
+                container.classList.add('max-w-5xl');
+            }
+
+            // וידוא שגם ה-iframe הפנימי של יוטיוב מתרחב ל-100% מגודל המיכל הרגיל
+            const playerWrapper = document.getElementById('playerContainerWrapper');
+            if (playerWrapper) {
+                playerWrapper.style.removeProperty('width');
+                playerWrapper.style.removeProperty('height');
+            }
+            const iframeEl = container.querySelector('iframe');
+            if (iframeEl) {
+                iframeEl.style.width = '100%';
+                iframeEl.style.height = '100%';
+            }
+        }
 
         function toggleFloatingMode() {
             const view = document.getElementById('watchView');
             const container = view.querySelector('.player-container');
             appState.isFloating = !appState.isFloating;
             if (appState.isFloating) {
-                view.classList.add('floating-mode');
+                if (container) {
+                    container.style.removeProperty('width');
+                    container.style.removeProperty('height');
+                    container.style.removeProperty('max-width');
+                    container.style.removeProperty('max-height');
+                    container.style.setProperty('--floating-w', '400px');
+                    container.style.setProperty('--floating-h', '225px');
+                }
+                view.classList.add('floating-mode', 'active');
+                view.classList.remove('hidden');
                 document.body.style.overflow = 'auto';
             } else {
-                view.classList.remove('floating-mode');
-                if (container) {
-                    container.style.transform = '';
-                    container.dataset.tx = '0';
-                    container.dataset.ty = '0';
-                }
+                view.classList.remove('floating-mode', 'hidden');
+                view.classList.add('active');
+                resetFloatingContainerSize(container);
                 document.body.style.overflow = 'hidden';
+            }
+        }
+
+        let pipWindowRef = null;
+
+        async function openAlwaysOnTopPlayer() {
+            const videoId = appState.currentVideoId;
+            if (!videoId) return showToast("אין סרטון מתנגן כרגע");
+
+            const view = document.getElementById('watchView');
+            const container = view ? view.querySelector('.player-container') : null;
+            const playerWrapper = document.getElementById('playerContainerWrapper');
+
+            // טריק מתקדם למניעת שגיאה 153 ולציפה מעל כל החלונות במחשב:
+            // במקום ליצור iframe חדש בתוך about:blank (שחוסם את ה-Referrer וגורם לשגיאה 153 ביוטיוב),
+            // אנו מעבירים (adoptNode / appendChild) את הנגן החי הקיים אל החלון הצף של Document Picture-in-Picture,
+            // וכאשר סוגרים את החלון הצף - מחזירים את הנגן למקומו הרגיל בגודל מלא!
+            if ('documentPictureInPicture' in window && playerWrapper) {
+                try {
+                    if (pipWindowRef && !pipWindowRef.closed) {
+                        pipWindowRef.close();
+                    }
+                    const pipWin = await window.documentPictureInPicture.requestWindow({
+                        width: 480,
+                        height: 270
+                    });
+                    pipWindowRef = pipWin;
+
+                    const doc = pipWin.document;
+                    doc.open();
+                    doc.write(`<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>${escapeHtml(appState.currentVideoDetails?.title || 'YouTube Floating Player')}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: Assistant, sans-serif; }
+        #pipMount { width: 100%; height: 100%; position: relative; background: #000; }
+        #pipMount #playerFrame, #pipMount iframe { width: 100% !important; height: 100% !important; border: none !important; display: block !important; position: absolute !important; inset: 0 !important; }
+        .top-bar { position: fixed; top: 0; left: 0; right: 0; padding: 8px 12px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; opacity: 0; transition: opacity 0.2s; z-index: 50; }
+        body:hover .top-bar { opacity: 1; }
+        .btn { background: rgba(37, 99, 235, 0.9); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+        .btn:hover { background: #1d4ed8; }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <button class="btn" id="backToMainBtn">החזר לחלון הרגיל</button>
+    </div>
+    <div id="pipMount" data-frame-id="ytPipFrame"><span id="ytPipFrame" style="display:none;"></span></div>
+</body>
+</html>`);
+                    doc.close();
+
+                    const pipMount = doc.getElementById('pipMount');
+                    const playerFrameEl = document.getElementById('playerFrame');
+                    if (playerFrameEl && pipMount) {
+                        pipMount.appendChild(playerFrameEl);
+                    }
+
+                    const restoreFromPip = () => {
+                        const frameInPip = doc.getElementById('playerFrame');
+                        if (frameInPip && playerWrapper && !playerWrapper.contains(frameInPip)) {
+                            playerWrapper.appendChild(frameInPip);
+                        }
+                        appState.isFloating = false;
+                        if (view) {
+                            view.classList.remove('floating-mode', 'hidden');
+                            view.classList.add('active');
+                        }
+                        resetFloatingContainerSize(container);
+                        document.body.style.overflow = 'hidden';
+                        document.getElementById('return-to-video-btn').classList.add('hidden');
+                        if (ytPlayer && typeof ytPlayer.playVideo === 'function') {
+                            try { ytPlayer.playVideo(); } catch (e) {}
+                        }
+                    };
+
+                    doc.getElementById('backToMainBtn').addEventListener('click', () => {
+                        restoreFromPip();
+                        pipWin.close();
+                    });
+
+                    pipWin.addEventListener('pagehide', () => {
+                        restoreFromPip();
+                    });
+
+                    // בזמן שהנגן צף מעל כל החלונות במחשב, נסתיר את המודאל הכפול ונשאיר אפשרות חזרה
+                    if (view) {
+                        appState.isFloating = false;
+                        view.classList.remove('active', 'floating-mode');
+                        view.classList.add('hidden');
+                    }
+                    resetFloatingContainerSize(container);
+                    document.getElementById('return-to-video-btn').classList.remove('hidden');
+                    document.body.style.overflow = 'auto';
+
+                    if (ytPlayer && typeof ytPlayer.playVideo === 'function') {
+                        setTimeout(() => {
+                            try { ytPlayer.playVideo(); } catch (e) {}
+                        }, 150);
+                    }
+
+                    showToast("הנגן הצף פעיל מעל כל החלונות במחשב!");
+                    return;
+                } catch (err) {
+                    console.warn("Document PiP fallback to popup:", err);
+                }
+            }
+
+            // גיבוי לדפדפנים ללא Document PiP: פתיחת חלון Popup ישיר בכתובת YouTube Embed תקנית (כך שתמיד יש URL של https://www.youtube.com ולא מתקבלת שגיאה 153 לעולם)
+            let currentTime = 0;
+            if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+                try {
+                    currentTime = Math.floor(ytPlayer.getCurrentTime() || 0);
+                    if (typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
+                } catch (e) {}
+            }
+
+            const width = 480;
+            const height = 270;
+            const left = window.screen.availWidth - width - 30;
+            const top = window.screen.availHeight - height - 60;
+            const features = `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no`;
+            const directEmbedUrl = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&rel=0&start=${currentTime}`;
+
+            const popup = window.open(directEmbedUrl, 'YouTubeFloatingPlayer', features);
+            if (popup) {
+                appState.isFloating = false;
+                if (view) {
+                    view.classList.remove('active', 'floating-mode');
+                    view.classList.add('hidden');
+                }
+                resetFloatingContainerSize(container);
+                document.getElementById('return-to-video-btn').classList.remove('hidden');
+                document.body.style.overflow = 'auto';
+                showToast("נפתח חלון נגן צף עצמאי!");
+            } else {
+                showToast("הדפדפן חסם את החלון הקופץ. אנא אפשר חלונות קופצים.");
             }
         }
 
         (function initDraggableFloatingPlayer() {
             let isDragging = false;
+            let isResizing = false;
             let startX = 0, startY = 0, initialTx = 0, initialTy = 0;
+            let startW = 400, startH = 225;
             const controls = document.querySelector('#watchView .floating-controls');
+            const resizeHandle = document.querySelector('#watchView .floating-resize-handle');
             const container = document.querySelector('#watchView .player-container');
             if (!controls || !container) return;
 
@@ -2900,29 +3537,57 @@
             const stopDrag = () => { isDragging = false; };
             controls.addEventListener('pointerup', stopDrag);
             controls.addEventListener('pointercancel', stopDrag);
+
+            if (resizeHandle) {
+                resizeHandle.addEventListener('pointerdown', (e) => {
+                    if (!appState.isFloating) return;
+                    e.stopPropagation();
+                    isResizing = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    const rect = container.getBoundingClientRect();
+                    startW = rect.width;
+                    startH = rect.height;
+                    resizeHandle.setPointerCapture(e.pointerId);
+                });
+
+                resizeHandle.addEventListener('pointermove', (e) => {
+                    if (!isResizing || !appState.isFloating) return;
+                    const newW = Math.max(260, Math.min(window.innerWidth * 0.9, startW + (e.clientX - startX)));
+                    const newH = Math.max(146, Math.min(window.innerHeight * 0.9, startH + (e.clientY - startY)));
+                    container.style.setProperty('--floating-w', `${Math.round(newW)}px`);
+                    container.style.setProperty('--floating-h', `${Math.round(newH)}px`);
+                });
+
+                const stopResize = () => { isResizing = false; };
+                resizeHandle.addEventListener('pointerup', stopResize);
+                resizeHandle.addEventListener('pointercancel', stopResize);
+            }
         })();
 
         function toggleYouTubeMode() {
             appState.isYouTubeMode = !appState.isYouTubeMode;
+            const view = document.getElementById('watchView');
             const container = document.querySelector('#watchView .player-container');
             const upNextSidebar = document.getElementById('upNextSidebar');
             const ytModeBtn = document.getElementById('youtubeModeBtn');
 
             if (appState.isYouTubeMode) {
+                if (view) view.classList.add('yt-expanded-mode');
                 container.classList.remove('max-w-5xl');
-                container.style.maxWidth = '75vw';
-                container.style.width = '75vw';
                 upNextSidebar.classList.remove('hidden');
                 upNextSidebar.classList.add('flex');
                 populateUpNext();
                 if(ytModeBtn) ytModeBtn.setAttribute('title', 'תצוגה רגילה');
             } else {
-                container.style.maxWidth = '';
-                container.style.width = '';
+                if (view) view.classList.remove('yt-expanded-mode');
                 container.classList.add('max-w-5xl');
                 upNextSidebar.classList.add('hidden');
                 upNextSidebar.classList.remove('flex');
                 if(ytModeBtn) ytModeBtn.setAttribute('title', 'תצוגה מוגדלת');
+            }
+            if (!appState.isFloating) {
+                resetFloatingContainerSize(container);
             }
         }
 
@@ -3031,6 +3696,7 @@
             let newGeminiKey = document.getElementById('geminiApiKeyInput').value.trim();
             const newClientId = document.getElementById('clientIdInput').value.trim();
             const newMaxResults = document.getElementById('maxResultsInput').value;
+            const newDefaultDlQual = document.getElementById('defaultDownloadQualitySelect').value || '1080';
             const newTheme = document.getElementById('themeSelect').value;
             
             if (newKey.includes("•") || newKey === "") {
@@ -3046,14 +3712,17 @@
             appState.geminiApiKey = newGeminiKey;
             appState.clientId = newClientId;
             appState.maxResults = newMaxResults ? parseInt(newMaxResults) : 12;
+            appState.defaultDownloadQuality = newDefaultDlQual;
             
             safeSetLocalStorage('yt_api_key', appState.apiKey);
             safeSetLocalStorage('yt_gemini_api_key', appState.geminiApiKey);
             safeSetLocalStorage('yt_client_id', appState.clientId);
             safeSetLocalStorage('yt_max_results', appState.maxResults);
+            safeSetLocalStorage('yt_default_dl_quality', appState.defaultDownloadQuality);
             safeSetLocalStorage('yt_theme', newTheme);
             
             applyTheme(newTheme);
+            applyDefaultDownloadQualityToUI();
             
             document.getElementById('configModal').style.display = 'none';
             
@@ -3080,16 +3749,20 @@
             const savedGeminiKey = localStorage.getItem('yt_gemini_api_key');
             const savedClient = localStorage.getItem('yt_client_id');
             const savedMaxResults = localStorage.getItem('yt_max_results');
+            const savedDefaultDlQual = localStorage.getItem('yt_default_dl_quality') || '1080';
             const storedTheme = localStorage.getItem('yt_theme');
 
             if(savedKey) document.getElementById('apiKeyInput').value = maskApiKey(savedKey);
             if(savedGeminiKey) document.getElementById('geminiApiKeyInput').value = maskApiKey(savedGeminiKey);
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
             if(savedMaxResults) { document.getElementById('maxResultsInput').value = savedMaxResults; appState.maxResults = parseInt(savedMaxResults); }
+            appState.defaultDownloadQuality = savedDefaultDlQual;
             if(storedTheme) document.getElementById('themeSelect').value = storedTheme;
             
+            applyDefaultDownloadQualityToUI();
             loadPlaylistsToSidebar();
             updateIncognitoBtn();
+            DownloadHistoryManager.updateBadge();
 
             if(savedKey) { 
                 appState.apiKey = savedKey; 
@@ -3144,6 +3817,83 @@
             }
         }
 
+        // חילוץ אוניברסלי של כתובות ומזהי סרטונים מכל מבנה נתונים של גוגל/יוטיוב או טקסט
+        function extractVideoUrlsAndIdsFromItems(items) {
+            const extractedUrls = [];
+            const extractedIds = [];
+            const seenIds = new Set();
+
+            function addVideoId(id) {
+                if (typeof id === 'string') {
+                    const clean = id.trim();
+                    if (/^[a-zA-Z0-9_-]{11}$/.test(clean) && !seenIds.has(clean)) {
+                        seenIds.add(clean);
+                        extractedIds.push(clean);
+                        extractedUrls.push(`https://www.youtube.com/watch?v=${clean}`);
+                    }
+                }
+            }
+
+            (items || []).forEach(item => {
+                if (!item) return;
+                // 1. בדיקת שדות מובנים נפוצים ב-API של יוטיוב וגוגל
+                const cd = item.contentDetails || {};
+                const snip = item.snippet || {};
+                const candidates = [
+                    typeof item.id === 'string' ? item.id : null,
+                    item.id?.videoId,
+                    cd.upload?.videoId,
+                    cd.playlistItem?.resourceId?.videoId,
+                    cd.like?.resourceId?.videoId,
+                    cd.favorite?.resourceId?.videoId,
+                    cd.recommendation?.resourceId?.videoId,
+                    cd.social?.resourceId?.videoId,
+                    cd.comment?.resourceId?.videoId,
+                    cd.bulletin?.resourceId?.videoId,
+                    cd.promotedItem?.videoId,
+                    cd.videoId,
+                    snip.resourceId?.videoId
+                ];
+                candidates.forEach(c => { if (c) addVideoId(c); });
+
+                // 2. חילוץ מתוך קישור התמונה הממוזערת (למשל https://i.ytimg.com/vi/VIDEO_ID/...)
+                const thumbs = snip.thumbnails || {};
+                Object.values(thumbs).forEach(t => {
+                    if (t && typeof t.url === 'string') {
+                        const m = t.url.match(/\/(?:vi|vi_webp)\/([a-zA-Z0-9_-]{11})\//);
+                        if (m && m[1]) addVideoId(m[1]);
+                    }
+                });
+
+                // 3. חילוץ מתוך כל כתובת URL של יוטיוב או שדה videoId בגוף האובייקט
+                const rawJson = JSON.stringify(item);
+                const urlMatches = rawJson.matchAll(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/g);
+                for (const match of urlMatches) {
+                    if (match[1]) addVideoId(match[1]);
+                }
+                const propMatches = rawJson.matchAll(/"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/g);
+                for (const match of propMatches) {
+                    if (match[1]) addVideoId(match[1]);
+                }
+            });
+
+            return { urls: extractedUrls, ids: extractedIds };
+        }
+
+        function extractVideoIdsFromUrls(urls) {
+            const ids = [];
+            const seen = new Set();
+            (urls || []).forEach(url => {
+                const m = String(url).match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([a-zA-Z0-9_-]{11})/);
+                const id = m ? m[1] : (isValidVideoId(url) ? url : null);
+                if (id && !seen.has(id)) {
+                    seen.add(id);
+                    ids.push(id);
+                }
+            });
+            return ids;
+        }
+
         async function loadHomePage(isHistoryNav = false) {
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navHome');
@@ -3165,22 +3915,56 @@
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
 
             try {
-                let url = appState.token 
-                    ? `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=${appState.maxResults}&key=${appState.apiKey}`
-                    : `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
-
+                let collectedUrls = [];
                 const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
-                const res = await fetch(url, { headers });
-                const data = await res.json();
-                
-                let videoIds = [];
-                if (appState.token && data.items) {
-                    videoIds = data.items.filter(i => i.contentDetails.upload || i.contentDetails.playlistItem).map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId).filter(Boolean);
-                } else if (data.items) { videoIds = data.items.map(i => i.id); }
 
-                if (videoIds.length > 0) fetchAndRenderVideos(videoIds, true);
-                else { document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים להצגה.</div>`; appState.currentRenderedItems = []; }
-            } catch (err) { console.error(err); }
+                if (appState.token) {
+                    // שלב 1: משיכת פעילויות מהחשבון וחילוץ כתובות הסרטונים
+                    const actUrl = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=50&key=${appState.apiKey}`;
+                    const actRes = await fetch(actUrl, { headers });
+                    const actData = await actRes.json();
+                    if (actData.items) {
+                        const extracted = extractVideoUrlsAndIdsFromItems(actData.items);
+                        collectedUrls.push(...extracted.urls);
+                    }
+
+                    // שלב 2: אם יש מעט תוצאות, השלמה מסרטונים שהמשתמש סימן בלייק בחשבון גוגל
+                    if (collectedUrls.length < appState.maxResults) {
+                        try {
+                            const likedUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&myRating=like&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
+                            const likedRes = await fetch(likedUrl, { headers });
+                            const likedData = await likedRes.json();
+                            if (likedData.items) {
+                                const extractedLikes = extractVideoUrlsAndIdsFromItems(likedData.items);
+                                collectedUrls.push(...extractedLikes.urls);
+                            }
+                        } catch (e) {}
+                    }
+                }
+
+                // שלב 3: אם לא מחוברים או שחשבון הגוגל לא החזיר מספיק כתובות סרטונים, משלימים מסרטונים פופולריים בישראל
+                if (collectedUrls.length === 0) {
+                    const popUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
+                    const popRes = await fetch(popUrl);
+                    const popData = await popRes.json();
+                    if (popData.items) {
+                        const extractedPop = extractVideoUrlsAndIdsFromItems(popData.items);
+                        collectedUrls.push(...extractedPop.urls);
+                    }
+                }
+
+                const finalVideoIds = extractVideoIdsFromUrls(collectedUrls).slice(0, appState.maxResults);
+
+                if (finalVideoIds.length > 0) {
+                    await fetchAndRenderVideos(finalVideoIds, true);
+                } else {
+                    document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים להצגה.</div>`;
+                    appState.currentRenderedItems = [];
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 text-red-500">שגיאה בטעינת דף הבית. בדוק את מפתח ה-API שלך.</div>`;
+            }
         }
 
         async function loadWatchHistory(isHistoryNav = false) {
@@ -3189,28 +3973,111 @@
             setActiveNavItem('navHistory');
             appState.searchContext = 'general';
             document.getElementById('channelHeaderContainer').classList.add('hidden');
-            document.getElementById('internalSearch').classList.add('hidden');
+            document.getElementById('internalSearch').classList.remove('hidden');
             
             if (!isHistoryNav) pushHistory({ type: 'history' });
 
             if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
-            else if (!appState.currentVideoId) document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">טוען פעילות...</div>`;
+            else if (!appState.currentVideoId) document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">מחלץ כתובות סרטונים מפעילות החשבון...</div>`;
             
             document.getElementById('pagination').classList.add('hidden');
             const titleEl = document.getElementById('sectionTitle');
-            titleEl.classList.remove('hidden'); titleEl.innerText = "פעילות אחרונה בחשבון (Google)";
+            titleEl.classList.remove('hidden');
+            titleEl.innerText = "היסטוריית צפייה ופעילות (Google)";
             document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
 
             try {
-                const url = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
-                const res = await fetch(url, { headers: { Authorization: `Bearer ${appState.token}` } });
-                const data = await res.json();
+                const headers = { Authorization: `Bearer ${appState.token}` };
+                let extractedUrls = [];
 
-                const videoIds = (data.items || []).map(i => i.contentDetails.upload?.videoId || i.contentDetails.playlistItem?.resourceId?.videoId || i.contentDetails.like?.resourceId?.videoId).filter(Boolean);
+                // 1. חילוץ כתובות סרטונים מכל סוגי הפעילויות בחשבון Google (Activities)
+                try {
+                    const actUrl = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=50&key=${appState.apiKey}`;
+                    const actRes = await fetch(actUrl, { headers });
+                    const actData = await actRes.json();
+                    if (actData.items && actData.items.length > 0) {
+                        const fromActivities = extractVideoUrlsAndIdsFromItems(actData.items);
+                        extractedUrls.push(...fromActivities.urls);
+                    }
+                } catch (e) { console.warn("Activities fetch warning:", e); }
 
-                if(videoIds.length > 0) fetchAndRenderVideos(videoIds, true);
-                else { document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאה פעילות אחרונה.</div>`; appState.currentRenderedItems = []; }
-            } catch(e) { console.error(e); }
+                // 2. חילוץ כתובות מרשימות מיוחדות של הערוץ בחשבון (כמו היסטוריה אם קיימת או Likes / Favorites)
+                try {
+                    const chUrl = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true&key=${appState.apiKey}`;
+                    const chRes = await fetch(chUrl, { headers });
+                    const chData = await chRes.json();
+                    const related = chData.items?.[0]?.contentDetails?.relatedPlaylists || {};
+                    const playlistIdsToCheck = [related.watchHistory, related.watchLater, related.likes, related.favorites].filter(Boolean);
+
+                    for (const pid of playlistIdsToCheck) {
+                        try {
+                            const plRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${pid}&maxResults=30&key=${appState.apiKey}`, { headers });
+                            const plData = await plRes.json();
+                            if (plData.items) {
+                                const fromPl = extractVideoUrlsAndIdsFromItems(plData.items);
+                                extractedUrls.push(...fromPl.urls);
+                            }
+                        } catch (e) {}
+                    }
+                } catch (e) { console.warn("Channel playlists fetch warning:", e); }
+
+                // 3. חילוץ כתובות מסרטונים שסומנו בלייק בחשבון הגוגל (myRating=like)
+                try {
+                    const likedUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&myRating=like&maxResults=30&key=${appState.apiKey}`;
+                    const likedRes = await fetch(likedUrl, { headers });
+                    const likedData = await likedRes.json();
+                    if (likedData.items && likedData.items.length > 0) {
+                        const fromLiked = extractVideoUrlsAndIdsFromItems(likedData.items);
+                        extractedUrls.push(...fromLiked.urls);
+                    }
+                } catch (e) { console.warn("Liked videos fetch warning:", e); }
+
+                // 3.5. אם עדיין לא נמצאו כתובות (למשל חשבון ללא פעילות פומבית), חילוץ כתובות הסרטונים האחרונים מהמנויים של המשתמש בחשבון הגוגל
+                if (extractedUrls.length === 0) {
+                    try {
+                        const subsRes = await fetch(`https://www.googleapis.com/youtube/v3/subscriptions?part=snippet&mine=true&maxResults=10&key=${appState.apiKey}`, { headers });
+                        const subsData = await subsRes.json();
+                        const subChannelIds = (subsData.items || []).map(s => s.snippet?.resourceId?.channelId).filter(Boolean);
+                        if (subChannelIds.length > 0) {
+                            const chDetailsRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${subChannelIds.join(',')}&key=${appState.apiKey}`);
+                            const chDetailsData = await chDetailsRes.json();
+                            const uploadPlaylists = (chDetailsData.items || []).map(c => c.contentDetails?.relatedPlaylists?.uploads).filter(Boolean);
+                            const plPromises = uploadPlaylists.slice(0, 6).map(pid =>
+                                fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${pid}&maxResults=5&key=${appState.apiKey}`).then(r => r.json()).catch(() => ({}))
+                            );
+                            const plResults = await Promise.all(plPromises);
+                            plResults.forEach(plData => {
+                                if (plData && plData.items) {
+                                    const extractedSub = extractVideoUrlsAndIdsFromItems(plData.items);
+                                    extractedUrls.push(...extractedSub.urls);
+                                }
+                            });
+                        }
+                    } catch (e) { console.warn("Subscriptions fallback warning:", e); }
+                }
+
+                // 4. מיזוג כתובות מההיסטוריה המקומית אם קיימות כדי שהמשתמש תמיד יראה את כל הסרטונים שצפה בהם
+                const localHist = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
+                if (localHist.length > 0) {
+                    localHist.forEach(item => {
+                        if (item && item.id) {
+                            extractedUrls.push(`https://www.youtube.com/watch?v=${item.id}`);
+                        }
+                    });
+                }
+
+                const videoIds = extractVideoIdsFromUrls(extractedUrls);
+
+                if (videoIds.length > 0) {
+                    await fetchAndRenderVideos(videoIds.slice(0, 50), true);
+                } else {
+                    document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו כתובות סרטונים בהיסטוריית החשבון של גוגל.</div>`;
+                    appState.currentRenderedItems = [];
+                }
+            } catch(e) {
+                console.error(e);
+                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 text-red-500">אירעה שגיאה בטעינת היסטוריית גוגל. נסה להתחבר מחדש.</div>`;
+            }
         }
 
         async function performSearch(loadMore, isHistoryNav = false) {
@@ -3314,11 +4181,25 @@
         }
 
         async function fetchAndRenderVideos(ids, clear) {
-            if (!ids.length) return;
+            const cleanIds = extractVideoIdsFromUrls(ids);
+            if (!cleanIds.length) return;
             try {
-                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids.join(',')}&key=${appState.apiKey}`);
-                const data = await res.json();
-                const formatted = data.items.map(item => ({ id: { kind: 'youtube#video', videoId: item.id }, snippet: item.snippet, statistics: item.statistics, contentDetails: item.contentDetails }));
+                let allItems = [];
+                for (let i = 0; i < cleanIds.length; i += 50) {
+                    const chunk = cleanIds.slice(i, i + 50);
+                    const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${chunk.join(',')}&key=${appState.apiKey}`);
+                    const data = await res.json();
+                    if (data.items) {
+                        allItems.push(...data.items);
+                    }
+                }
+                const formatted = allItems.map(item => ({
+                    id: { kind: 'youtube#video', videoId: item.id },
+                    videoUrl: `https://www.youtube.com/watch?v=${item.id}`,
+                    snippet: item.snippet,
+                    statistics: item.statistics,
+                    contentDetails: item.contentDetails
+                }));
                 renderResults(formatted, clear);
             } catch (e) { console.error(e); }
         }
@@ -3705,10 +4586,10 @@
 
                                 <div class="flex items-center gap-2 px-3 py-1.5 rounded-full transition w-fit border" onclick="event.stopPropagation();" style="background-color: var(--bg-surface); border-color: var(--border-color);">
                                     <select id="dl-qual-${videoId}" class="bg-transparent text-[10px] outline-none cursor-pointer" style="color: var(--text-secondary);">
-                                        <option value="1080" style="background-color: var(--bg-surface);">1080p</option>
-                                        <option value="720" style="background-color: var(--bg-surface);">720p</option>
-                                        <option value="480" style="background-color: var(--bg-surface);">480p</option>
-                                        <option value="audio" style="background-color: var(--bg-surface);">שמע (MP3)</option>
+                                        <option value="1080" ${getDefaultDownloadQuality() === '1080' ? 'selected' : ''} style="background-color: var(--bg-surface);">1080p</option>
+                                        <option value="720" ${getDefaultDownloadQuality() === '720' ? 'selected' : ''} style="background-color: var(--bg-surface);">720p</option>
+                                        <option value="480" ${getDefaultDownloadQuality() === '480' ? 'selected' : ''} style="background-color: var(--bg-surface);">480p</option>
+                                        <option value="audio" ${getDefaultDownloadQuality() === 'audio' ? 'selected' : ''} style="background-color: var(--bg-surface);">שמע (MP3)</option>
                                     </select>
                                     <div class="w-px h-3" style="background-color: var(--border-light);"></div>
                                     <button onclick="downloadWithYtDlp('${videoId}')" class="transition flex items-center gap-1" style="color: #3b82f6;" title="הורד עכשיו">
@@ -3878,6 +4759,8 @@
             
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('fullTitle').innerText = title;
+            const watchDlSel = document.getElementById('watchDlQuality');
+            if (watchDlSel) watchDlSel.value = getDefaultDownloadQuality();
             
             appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
             updateLikeButtonUI(LocalLikesManager.isLiked(id, 'videos'));
@@ -3905,18 +4788,25 @@
                 playerParent.innerHTML = '<div id="playerFrame" class="w-full h-full absolute inset-0"></div>';
             }
 
+            const playerVarsConfig = { 
+                'autoplay': 1, 
+                'enablejsapi': 1, 
+                'rel': 0, 
+                'start': startSeconds,
+                'fs': 1,           
+                'disablekb': 0     
+            };
+            if (window.location.origin && window.location.origin.startsWith('http')) {
+                playerVarsConfig.origin = window.location.origin;
+                playerVarsConfig.widget_referrer = window.location.href;
+            }
+
             ytPlayer = new YT.Player('playerFrame', {
                 height: '100%',
                 width: '100%',
                 videoId: id,
-                playerVars: { 
-                    'autoplay': 1, 
-                    'enablejsapi': 1, 
-                    'rel': 0, 
-                    'start': startSeconds,
-                    'fs': 1,           
-                    'disablekb': 0     
-                },
+                host: 'https://www.youtube.com',
+                playerVars: playerVarsConfig,
                 events: { 
                     'onStateChange': onPlayerStateChange,
                     'onReady': function(event) {
@@ -3970,8 +4860,14 @@
             
             if (appState.isYouTubeMode) populateUpNext();
             
+            if (!appState.isFloating) {
+                const container = view.querySelector('.player-container');
+                resetFloatingContainerSize(container);
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = 'auto';
+            }
             view.classList.add('active'); view.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
         }
 
         function closePlayer() {
@@ -3992,8 +4888,12 @@
                 playerParent.innerHTML = '<div id="playerFrame" class="w-full h-full absolute inset-0"></div>';
             }
             
-            document.getElementById('watchView').classList.remove('active');
-            document.getElementById('watchView').classList.add('hidden');
+            const view = document.getElementById('watchView');
+            const container = view.querySelector('.player-container');
+            appState.isFloating = false;
+            view.classList.remove('active', 'floating-mode');
+            view.classList.add('hidden');
+            resetFloatingContainerSize(container);
             document.body.style.overflow = 'auto'; 
             appState.currentVideoId = null; appState.isVideoPaused = false;
             document.getElementById('global-pause-btn').classList.add('hidden'); document.getElementById('return-to-video-btn').classList.add('hidden');
