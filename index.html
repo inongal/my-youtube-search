@@ -1839,10 +1839,14 @@
         }
 
         const DownloadHistoryManager = {
+            dirHandle: null,
+            fileNamesCache: new Set(),
+            lastSyncSource: null,
             getHistory: () => JSON.parse(localStorage.getItem('yt_download_history') || '[]'),
             saveHistory: (list) => {
                 safeSetLocalStorage('yt_download_history', JSON.stringify(list));
                 DownloadHistoryManager.updateBadge();
+            checkUrlForDownloaderCallback();
             },
             updateBadge: () => {
                 const list = DownloadHistoryManager.getHistory();
@@ -1887,6 +1891,233 @@
                     }
                 }
             },
+            updateStatusByVideoId: (videoId, status, reason = '') => {
+                const list = DownloadHistoryManager.getHistory();
+                let changed = false;
+                list.forEach(r => {
+                    if (r.id === videoId && (r.status !== status || (reason && r.reason !== reason))) {
+                        r.status = status;
+                        if (reason) r.reason = reason;
+                        changed = true;
+                    }
+                });
+                if (changed) {
+                    DownloadHistoryManager.saveHistory(list);
+                    if (appState.searchContext === 'download_history') {
+                        loadDownloadHistoryTab(true, appState.downloadHistoryFilter || 'all');
+                    }
+                }
+                return changed;
+            },
+            applyExternalReport: (reportData, sourceLabel = 'תוכנת ההורדה') => {
+                if (!reportData) return 0;
+                let updatedCount = 0;
+                const list = DownloadHistoryManager.getHistory();
+
+                // תמיכה במבנה אובייקט או מערך מתוכנת ההורדה (כגון yt_dlp_status.json או שרת מקומי)
+                const entries = Array.isArray(reportData)
+                    ? reportData
+                    : (reportData.downloads || reportData.items || Object.entries(reportData).map(([k, v]) => (typeof v === 'object' ? { id: k, ...v } : { id: k, status: v })));
+
+                entries.forEach(entry => {
+                    if (!entry) return;
+                    const vid = entry.id || entry.videoId || entry.video_id;
+                    if (!vid) return;
+                    const rawStatus = String(entry.status || entry.state || '').toLowerCase();
+                    let normStatus = null;
+                    if (['success', 'completed', 'done', 'finished', 'ok', 'true', '0'].includes(rawStatus) || entry.exitCode === 0) {
+                        normStatus = 'success';
+                    } else if (['failed', 'error', 'err', 'false', '1'].includes(rawStatus) || (typeof entry.exitCode === 'number' && entry.exitCode !== 0)) {
+                        normStatus = 'failed';
+                    } else if (['downloading', 'pending', 'running', 'queued'].includes(rawStatus)) {
+                        normStatus = 'pending';
+                    }
+                    if (!normStatus) return;
+
+                    const reasonText = entry.reason || entry.message || entry.error ||
+                        (normStatus === 'success'
+                            ? `אומת מול ${sourceLabel}: הקובץ ירד בהצלחה${entry.filename ? ' (' + entry.filename + ')' : ''}`
+                            : (normStatus === 'failed' ? `דיווח מ-${sourceLabel}: ההורדה נכשלה` : `מתבצעת הורדה ב-${sourceLabel}...`));
+
+                    list.forEach(r => {
+                        if (r.id === vid && (r.status !== normStatus || r.reason !== reasonText)) {
+                            r.status = normStatus;
+                            r.reason = reasonText;
+                            updatedCount++;
+                        }
+                    });
+                });
+
+                if (updatedCount > 0) {
+                    DownloadHistoryManager.lastSyncSource = sourceLabel;
+                    DownloadHistoryManager.saveHistory(list);
+                    if (appState.searchContext === 'download_history') {
+                        loadDownloadHistoryTab(true, appState.downloadHistoryFilter || 'all');
+                    }
+                }
+                return updatedCount;
+            },
+            pollLocalStatusBridge: async () => {
+                // 1. אם המשתמש חיבר את תיקיית ההורדות של yt-dlp דרך File System Access API - נסרוק אותה אוטומטית
+                if (DownloadHistoryManager.dirHandle) {
+                    await DownloadHistoryManager.scanConnectedFolder(true);
+                }
+                // 2. בדיקה מול שרת מקומי של תוכנת ההורדה אם פעיל (למשל http://127.0.0.1:9876/status)
+                const bridgeUrl = localStorage.getItem('yt_dl_bridge_url') || 'http://127.0.0.1:9876/status';
+                if (window.location.protocol.startsWith('http') || window.location.protocol === 'file:') {
+                    try {
+                        const controller = new AbortController();
+                        const timer = setTimeout(() => controller.abort(), 1200);
+                        const res = await fetch(bridgeUrl, { signal: controller.signal, cache: 'no-store' });
+                        clearTimeout(timer);
+                        if (res.ok) {
+                            const data = await res.json();
+                            DownloadHistoryManager.applyExternalReport(data, 'שרת תוכנת ההורדה');
+                        }
+                    } catch (e) {}
+                }
+            },
+            connectDownloadFolder: async () => {
+                if (!('showDirectoryPicker' in window)) {
+                    showToast('הדפדפן לא תומך בבחירת תיקייה ישירה - ניתן לבחור קובץ ארכיון/סטטוס של yt-dlp');
+                    document.getElementById('ytDlpStatusFileInput')?.click();
+                    return;
+                }
+                try {
+                    const handle = await window.showDirectoryPicker({ mode: 'read' });
+                    DownloadHistoryManager.dirHandle = handle;
+                    const updated = await DownloadHistoryManager.scanConnectedFolder(false);
+                    showToast(`תיקיית ההורדות חוברה! אומתו ${updated} הורדות מול הקבצים בתיקייה.`);
+                } catch (e) {
+                    if (e.name !== 'AbortError') {
+                        showToast('לא ניתן היה לגשת לתיקייה');
+                    }
+                }
+            },
+            scanConnectedFolder: async (silent = false) => {
+                if (!DownloadHistoryManager.dirHandle) return 0;
+                let updatedCount = 0;
+                try {
+                    const filesList = [];
+                    for await (const entry of DownloadHistoryManager.dirHandle.values()) {
+                        if (entry.kind === 'file') {
+                            filesList.push(entry.name);
+                            // אם קיים בתיקייה קובץ סטטוס או קובץ ארכיון של yt-dlp נקרא אותו ישירות
+                            if (entry.name === 'yt_dlp_status.json' || entry.name === 'download_status.json') {
+                                try {
+                                    const fileObj = await entry.getFile();
+                                    const text = await fileObj.text();
+                                    const json = JSON.parse(text);
+                                    updatedCount += DownloadHistoryManager.applyExternalReport(json, 'קובץ סטטוס בתיקייה');
+                                } catch (e) {}
+                            } else if (entry.name === 'archive.txt' || entry.name === 'ytdlp_archive.txt' || entry.name === 'history.txt') {
+                                try {
+                                    const fileObj = await entry.getFile();
+                                    const text = await fileObj.text();
+                                    updatedCount += DownloadHistoryManager.parseArchiveText(text, 'קובץ ארכיון yt-dlp');
+                                } catch (e) {}
+                            }
+                        }
+                    }
+
+                    const list = DownloadHistoryManager.getHistory();
+                    const now = Date.now();
+                    list.forEach(r => {
+                        const cleanTitle = (r.title || '').replace(/[\\/:*?"<>|]/g, '').trim().toLowerCase();
+                        // בדיקה אם קיים קובץ חלקי (.part / .ytdl) שמעיד שההורדה עדיין רצה או נתקעה
+                        const partFile = filesList.find(fn => fn.includes(r.id) && (fn.endsWith('.part') || fn.endsWith('.ytdl')));
+                        // בדיקה אם הקובץ הסופי קיים בתיקייה (לפי מזהה הסרטון או כותרת הסרטון)
+                        const completedFile = filesList.find(fn => {
+                            if (fn.endsWith('.part') || fn.endsWith('.ytdl') || fn.endsWith('.json') || fn.endsWith('.txt')) return false;
+                            if (fn.includes(r.id)) return true;
+                            if (cleanTitle.length >= 5 && fn.toLowerCase().includes(cleanTitle.slice(0, 22))) return true;
+                            return false;
+                        });
+
+                        if (completedFile) {
+                            if (r.status !== 'success' || !r.reason.includes('אומת בתיקיית ההורדות')) {
+                                r.status = 'success';
+                                r.reason = `אומת בתיקיית ההורדות: ירד בהצלחה (${completedFile})`;
+                                updatedCount++;
+                            }
+                        } else if (partFile) {
+                            const ageSec = (now - new Date(r.timestamp).getTime()) / 1000;
+                            if (ageSec > 180) {
+                                if (r.status !== 'failed') {
+                                    r.status = 'failed';
+                                    r.reason = `נמצא קובץ הורדה קטוע בתיקייה (${partFile}) - ההורדה הופסקה באמצע`;
+                                    updatedCount++;
+                                }
+                            } else if (r.status !== 'pending') {
+                                r.status = 'pending';
+                                r.reason = `יורד כעת בתיקייה (${partFile})...`;
+                                updatedCount++;
+                            }
+                        } else if (r.status === 'pending') {
+                            const ageSec = (now - new Date(r.timestamp).getTime()) / 1000;
+                            if (ageSec > 45) {
+                                r.status = 'failed';
+                                r.reason = 'אומת בתיקיית ההורדות: הקובץ לא נוצר בתיקייה (ההורדה נכשלה)';
+                                updatedCount++;
+                            }
+                        }
+                    });
+
+                    if (updatedCount > 0 || !silent) {
+                        DownloadHistoryManager.lastSyncSource = 'תיקיית ההורדות המקומית';
+                        DownloadHistoryManager.saveHistory(list);
+                        if (appState.searchContext === 'download_history') {
+                            loadDownloadHistoryTab(true, appState.downloadHistoryFilter || 'all');
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Folder scan warning:", e);
+                }
+                return updatedCount;
+            },
+            parseArchiveText: (text, sourceLabel = 'קובץ ארכיון yt-dlp') => {
+                if (!text) return 0;
+                const lines = text.split(/\r?\n/);
+                const entries = [];
+                lines.forEach(line => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return;
+                    // תמיכה בפורמט --download-archive של yt-dlp: "youtube VIDEO_ID" או שורות סטטוס "VIDEO_ID SUCCESS/FAILED"
+                    const mArchive = trimmed.match(/^youtube\s+([a-zA-Z0-9_-]{11})/i);
+                    if (mArchive) {
+                        entries.push({ id: mArchive[1], status: 'success', reason: `אומת מול ${sourceLabel}: ירד בהצלחה` });
+                        return;
+                    }
+                    const mStatus = trimmed.match(/([a-zA-Z0-9_-]{11}).*?(success|completed|ok|failed|error)/i);
+                    if (mStatus) {
+                        const isOk = /success|completed|ok/i.test(mStatus[2]);
+                        entries.push({
+                            id: mStatus[1],
+                            status: isOk ? 'success' : 'failed',
+                            reason: isOk ? `אומת מול ${sourceLabel}: ירד בהצלחה` : `דיווח מ-${sourceLabel}: ההורדה נכשלה`
+                        });
+                    }
+                });
+                return DownloadHistoryManager.applyExternalReport(entries, sourceLabel);
+            },
+            importStatusFile: (inputEl) => {
+                const file = inputEl.files && inputEl.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const content = String(e.target.result || '');
+                    let count = 0;
+                    try {
+                        const json = JSON.parse(content);
+                        count = DownloadHistoryManager.applyExternalReport(json, file.name);
+                    } catch (err) {
+                        count = DownloadHistoryManager.parseArchiveText(content, file.name);
+                    }
+                    showToast(count > 0 ? `עודכנו ${count} רשומות מתוך ${file.name}!` : `הקובץ נסרק (לא נמצאו שינויים חדשים).`);
+                    inputEl.value = '';
+                };
+                reader.readAsText(file);
+            },
             removeRecord: (recordId) => {
                 let list = DownloadHistoryManager.getHistory();
                 list = list.filter(r => r.recordId !== recordId);
@@ -1903,6 +2134,36 @@
                 }
             }
         };
+
+        // האזנה אוטומטית לדיווחי אמת מתוכנת ההורדה (דרך URL parameters, postMessage, או סנכרון תיקייה/שרת מקומי)
+        window.addEventListener('message', (event) => {
+            if (event.data && (event.data.type === 'ytdlp_status' || event.data.ytdlp)) {
+                DownloadHistoryManager.applyExternalReport(event.data.payload || event.data, 'תוכנת ההורדה');
+            }
+        });
+
+        function checkUrlForDownloaderCallback() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+                const dlStatus = params.get('dl_status') || hashParams.get('dl_status');
+                const dlId = params.get('dl_id') || hashParams.get('dl_id');
+                const dlMsg = params.get('dl_msg') || hashParams.get('dl_msg') || '';
+                if (dlStatus && dlId) {
+                    const ids = dlId.split('.');
+                    const entries = ids.map(id => ({ id, status: dlStatus, reason: dlMsg }));
+                    DownloadHistoryManager.applyExternalReport(entries, 'דיווח ישיר מתוכנת ההורדה');
+                    showToast(dlStatus === 'success' ? 'תוכנת ההורדה דיווחה: ההורדה הושלמה בהצלחה!' : 'תוכנת ההורדה דיווחה: ההורדה נכשלה');
+                }
+            } catch (e) {}
+        }
+
+        setInterval(() => {
+            const hasPending = DownloadHistoryManager.getHistory().some(r => r.status === 'pending');
+            if (hasPending || appState.searchContext === 'download_history') {
+                DownloadHistoryManager.pollLocalStatusBridge();
+            }
+        }, 4000);
 
         function findVideoMetadataById(videoId) {
             if (appState.currentVideoId === videoId && appState.currentVideoDetails) {
@@ -1969,20 +2230,42 @@
                 iframe.src = protocolUrl;
                 document.body.appendChild(iframe);
 
-                setTimeout(() => {
+                setTimeout(async () => {
                     window.removeEventListener('blur', onBlur);
                     if (document.body.contains(iframe)) {
                         document.body.removeChild(iframe);
                     }
-                    // עדכון סטטוס ההורדה: אם פרוטוקול ytdlp:// הופעל בהצלחה נסמן כהצלחה (עם אפשרות לשינוי ידני בהיסטוריית ההורדות)
+
+                    // ניסיון אימות מיידי מול תיקיית ההורדות או השרת המקומי של תוכנת ההורדה
+                    await DownloadHistoryManager.pollLocalStatusBridge();
+
                     recordIds.forEach(rid => {
-                        DownloadHistoryManager.updateStatus(
-                            rid,
-                            'success',
-                            protocolHandled ? 'נשלח לתוכנת ההורדה (yt-dlp) בהצלחה' : 'הפקודה נשלחה ל-yt-dlp (ניתן לעדכן סטטוס ידנית במידת הצורך)'
-                        );
+                        const currentRec = DownloadHistoryManager.getHistory().find(r => r.recordId === rid);
+                        if (!currentRec || currentRec.status !== 'pending') return;
+
+                        if (DownloadHistoryManager.dirHandle) {
+                            // אם תיקיית ההורדות מחוברת, נשאיר במצב "בתהליך" עד שהקובץ יופיע בתיקייה (או ייכשל אם לא יופיע)
+                            DownloadHistoryManager.updateStatus(
+                                rid,
+                                'pending',
+                                'ממתין לסיום ההורדה ואימות הקובץ בתיקיית ההורדות...'
+                            );
+                        } else if (protocolHandled) {
+                            DownloadHistoryManager.updateStatus(
+                                rid,
+                                'success',
+                                'תוכנת ההורדה נפתחה וקיבלה את הפקודה (חבר תיקיית הורדות לאימות קובץ מלא)'
+                            );
+                        } else {
+                            // אם החלון לא איבד פוקוס וגם אין גשר/תיקייה שמאשרים קבלה - תוכנת ההורדה לא הגיבה לפרוטוקול ytdlp://
+                            DownloadHistoryManager.updateStatus(
+                                rid,
+                                'failed',
+                                'לא התקבל אישור מתוכנת ההורדה (ytdlp:// לא הגיב או שההורדה לא בוצעה)'
+                            );
+                        }
                     });
-                }, 1800);
+                }, 2200);
             } catch (err) {
                 window.removeEventListener('blur', onBlur);
                 recordIds.forEach(rid => {
@@ -2176,6 +2459,16 @@
                         <button onclick="retryAllFailedDownloads()" class="px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 transition flex items-center gap-1" title="נסה להוריד מחדש את כל ההורדות שנכשלו">
                             <i class="fas fa-redo"></i> נסה שוב נכשלים
                         </button>` : ''}
+                        <button onclick="DownloadHistoryManager.connectDownloadFolder()" class="px-3 py-1.5 rounded-full bg-cyan-600/20 text-cyan-400 border border-cyan-500/40 hover:bg-cyan-600/30 transition flex items-center gap-1.5" title="חבר את תיקיית ההורדות במחשב כדי שהאתר יבדוק אוטומטית אילו קבצים באמת ירדו ואילו נכשלו">
+                            <i class="fas fa-folder-open"></i> ${DownloadHistoryManager.dirHandle ? 'סנכרן תיקיית הורדות עכשיו' : 'חבר תיקיית הורדות לאימות'}
+                        </button>
+                        <label class="px-3 py-1.5 rounded-full bg-purple-600/20 text-purple-400 border border-purple-500/40 hover:bg-purple-600/30 transition flex items-center gap-1.5 cursor-pointer" title="טען קובץ ארכיון (--download-archive) או קובץ סטטוס JSON מתוכנת ההורדה">
+                            <i class="fas fa-file-import"></i> טען דו"ח מתוכנת ההורדה
+                            <input type="file" id="ytDlpStatusFileInput" onchange="DownloadHistoryManager.importStatusFile(this)" class="hidden" accept=".json,.txt,.log">
+                        </label>
+                        <button onclick="showYtDlpIntegrationGuide()" class="px-3 py-1.5 rounded-full border transition flex items-center gap-1" style="background-color: var(--bg-surface); color: var(--text-secondary); border-color: var(--border-color);" title="איך לחבר את סקריפט ההורדה לדיווח אוטומטי מלא">
+                            <i class="fas fa-plug text-blue-400"></i> הגדרת דיווח אוטומטי מ-yt-dlp
+                        </button>
                         ${allRecords.length > 0 ? `
                         <button onclick="clearDownloadHistoryConfirm()" class="px-3 py-1.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition flex items-center gap-1">
                             <i class="fas fa-trash-alt"></i> נקה היסטוריה
@@ -2297,6 +2590,15 @@
                 DownloadHistoryManager.clearAll();
                 showToast('היסטוריית ההורדות נוקתה');
             }
+        }
+
+        async function showYtDlpIntegrationGuide() {
+            await showCustomDialog({
+                title: 'חיבור דו-כיווני לתוכנת ההורדה (yt-dlp)',
+                message: 'המערכת תומכת ב-3 דרכים לקבלת אישור אמת מתוכנת ההורדה:\n1. חיבור תיקיית ההורדות ("חבר תיקיית הורדות לאימות"): הדפדפן סורק בזמן אמת את תיקיית היעד ובודק האם קובץ הווידאו/MP3 נוצר או נתקע כ-.part.\n2. קובץ ארכיון (--download-archive archive.txt) או yt_dlp_status.json בתיקיית ההורדות נקראים אוטומטית.\n3. שרת מקומי בכתובת http://127.0.0.1:9876/status שמחזיר JSON עם סטטוס כל מזהה סרטון.',
+                confirmText: 'הבנתי',
+                cancelText: 'סגור'
+            });
         }
 
         async function batchAddToPlaylist() {
