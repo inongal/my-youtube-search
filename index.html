@@ -2270,50 +2270,54 @@
             }
         }
 
-function triggerYtDlpProtocol(protocolUrl, recordIds) {
-    try {
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = protocolUrl;
-        document.body.appendChild(iframe);
+        function triggerYtDlpProtocol(protocolUrl, recordIds) {
+            let protocolHandled = false;
+            const onBlur = () => { protocolHandled = true; };
+            window.addEventListener('blur', onBlur, { once: true });
 
-        // משאירים את המצב ב-"מתחיל הורדה" ומאפשרים לסקריפט ברקע לעלות ולשדר לפורט 9876
-        recordIds.forEach(rid => {
-            DownloadHistoryManager.updateStatus(
-                rid,
-                'pending',
-                'מפעיל את תוכנת ההורדה ברקע וממתין לנתונים...',
-                { subState: 'starting' }
-            );
-        });
+            try {
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = protocolUrl;
+                document.body.appendChild(iframe);
 
-        setTimeout(() => {
-            if (document.body.contains(iframe)) {
-                document.body.removeChild(iframe);
+                setTimeout(async () => {
+                    window.removeEventListener('blur', onBlur);
+                    if (document.body.contains(iframe)) {
+                        document.body.removeChild(iframe);
+                    }
+
+                    // ניסיון אימות מיידי מול תיקיית ההורדות או השרת המקומי של תוכנת ההורדה
+                    await DownloadHistoryManager.pollLocalStatusBridge();
+
+                    recordIds.forEach(rid => {
+                        const currentRec = DownloadHistoryManager.getHistory().find(r => r.recordId === rid);
+                        if (!currentRec || currentRec.status !== 'pending') return;
+
+                        if (protocolHandled) {
+                            // הוודאות מגיעה אך ורק מתוכנת ההורדה עצמה (פורט 9876) בזמן אמת
+                            DownloadHistoryManager.updateStatus(
+                                rid,
+                                'pending',
+                                'תוכנת ההורדה הופעלה - ממתין לשידור אחוזים וצפי סיום...',
+                                { subState: 'starting' }
+                            );
+                        } else {
+                            DownloadHistoryManager.updateStatus(
+                                rid,
+                                'failed',
+                                'לא ירד: תוכנת ההורדה (ytdlp-handler.bat) לא נפתחה או לא מוגדרת במחשב'
+                            );
+                        }
+                    });
+                }, 2200);
+            } catch (err) {
+                window.removeEventListener('blur', onBlur);
+                recordIds.forEach(rid => {
+                    DownloadHistoryManager.updateStatus(rid, 'failed', 'שגיאה בפתיחת פרוטוקול ytdlp:// בדפדפן');
+                });
             }
-            DownloadHistoryManager.pollLocalStatusBridge();
-        }, 1500);
-
-        // רק אם אחרי 15 שניות לא התקבל שום אות חיים מפורט 9876, נציג הודעת שגיאה
-        setTimeout(async () => {
-            await DownloadHistoryManager.pollLocalStatusBridge();
-            recordIds.forEach(rid => {
-                const currentRec = DownloadHistoryManager.getHistory().find(r => r.recordId === rid);
-                if (currentRec && currentRec.status === 'pending' && currentRec.subState === 'starting' && !currentRec.percent) {
-                    DownloadHistoryManager.updateStatus(
-                        rid,
-                        'failed',
-                        'לא התקבלה תגובה מתוכנת ההורדה (ודא שהקבצים בתיקייה C:\\download from youtube)'
-                    );
-                }
-            });
-        }, 15000);
-    } catch (err) {
-        recordIds.forEach(rid => {
-            DownloadHistoryManager.updateStatus(rid, 'failed', 'שגיאה בפתיחת פרוטוקול ytdlp:// בדפדפן');
-        });
-    }
-}
+        }
 
         function getDefaultDownloadQuality() {
             const allowed = ['1080', '720', '480', 'audio'];
