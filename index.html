@@ -433,6 +433,29 @@
         </main>
     </div>
 
+    <!-- חלונית מעקב הורדות קטנטנה בצד שמאל של המסך -->
+    <div id="miniDownloadPopup" class="fixed left-6 z-[490] w-80 max-w-[90vw] rounded-2xl border shadow-2xl overflow-hidden hidden transition-all duration-300" style="bottom: 92px; background-color: var(--bg-card); border-color: var(--border-color);">
+        <div class="px-3.5 py-2.5 flex items-center justify-between border-b" style="background-color: var(--bg-surface); border-color: var(--border-color);">
+            <div class="flex items-center gap-2">
+                <i id="miniDlHeaderIcon" class="fas fa-download text-cyan-400 text-sm animate-bounce"></i>
+                <span class="font-bold text-xs" style="color: var(--text-primary);">מצב הורדה חיה</span>
+                <span id="miniDlCountBadge" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">1</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="loadDownloadHistoryTab()" class="text-[11px] text-blue-400 hover:underline font-semibold" title="פתח היסטוריית הורדות">היסטוריה</button>
+                <button onclick="hideMiniDownloadPopup(true)" class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/20 transition" style="color: var(--text-secondary);" title="הסתר חלונית הורדה">
+                    <i class="fas fa-chevron-down text-xs"></i>
+                </button>
+            </div>
+        </div>
+        <div id="miniDownloadPopupBody" class="p-3 max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-2.5"></div>
+    </div>
+
+    <button id="miniDownloadRestorePill" onclick="hideMiniDownloadPopup(false)" class="fixed left-6 z-[490] px-3 py-1.5 rounded-full border shadow-lg hidden items-center gap-2 text-xs font-bold transition hover:scale-105" style="bottom: 92px; background-color: var(--bg-card); border-color: #06b6d4; color: var(--text-primary);" title="הצג חלונית התקדמות הורדה">
+        <i class="fas fa-spinner fa-spin text-cyan-400"></i>
+        <span id="miniDlPillText">0%</span>
+    </button>
+
     <button id="igBotBtn" onclick="toggleIgBot()" class="fixed left-6 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] z-[500] hover:scale-110 transition-all duration-300 bg-gradient-to-tr from-blue-600 to-cyan-400 border border-white/20" style="bottom: 24px;" title="I.G. Bot - חיפוש AI חכם">
         <i class="fas fa-robot text-2xl drop-shadow-md"></i>
     </button>
@@ -655,6 +678,13 @@
                             <option value="audio">שמע בלבד (MP3)</option>
                         </select>
                     </div>
+                </div>
+                <div class="flex items-center justify-between p-3 rounded-xl border" style="background-color: var(--bg-input); border-color: var(--border-color);">
+                    <div>
+                        <div class="text-xs font-bold" style="color: var(--text-primary);">חלונית מעקב הורדה קופצת בצד שמאל</div>
+                        <div class="text-[11px]" style="color: var(--text-muted);">הצגת אחוזים, צפי סיום וסטטוס חי מתוכנת ההורדה</div>
+                    </div>
+                    <input type="checkbox" id="showDownloadPopupCheckbox" checked class="w-5 h-5 accent-blue-600 cursor-pointer">
                 </div>
                 
                 <div class="mt-4 border-t pt-4" style="border-color: var(--border-color);">
@@ -879,6 +909,8 @@
             currentRenderedItems: [],
             maxResults: 12,
             defaultDownloadQuality: localStorage.getItem('yt_default_dl_quality') || '1080',
+            showDownloadPopup: localStorage.getItem('yt_show_dl_popup') !== 'false',
+            miniDownloadMinimized: false,
             isListView: false,
             isSelectionMode: false,
             selectedVideos: new Set(),
@@ -1839,14 +1871,13 @@
         }
 
         const DownloadHistoryManager = {
-            dirHandle: null,
-            fileNamesCache: new Set(),
             lastSyncSource: null,
+            autoHideTimer: null,
             getHistory: () => JSON.parse(localStorage.getItem('yt_download_history') || '[]'),
             saveHistory: (list) => {
                 safeSetLocalStorage('yt_download_history', JSON.stringify(list));
                 DownloadHistoryManager.updateBadge();
-            checkUrlForDownloaderCallback();
+                DownloadHistoryManager.renderMiniPopup();
             },
             updateBadge: () => {
                 const list = DownloadHistoryManager.getHistory();
@@ -1859,8 +1890,20 @@
                     badge.classList.add('hidden');
                 }
             },
-            addRecord: ({ id, title, thumbnail, channel, quality, status = 'pending', reason = '' }) => {
+            addRecord: ({ id, title, thumbnail, channel, quality, status = 'pending', reason = '', percent = 0, eta = '--:--', speed = '' }) => {
                 const list = DownloadHistoryManager.getHistory();
+                // אם כבר קיימת רשומה פעילה לאותו סרטון נעדכן אותה במקום לשכפל
+                const existingIdx = list.findIndex(r => r.id === id && r.status === 'pending');
+                if (existingIdx > -1) {
+                    list[existingIdx].quality = quality || list[existingIdx].quality;
+                    list[existingIdx].reason = reason || list[existingIdx].reason;
+                    list[existingIdx].percent = percent;
+                    list[existingIdx].eta = eta;
+                    list[existingIdx].speed = speed;
+                    list[existingIdx].timestamp = new Date().toISOString();
+                    DownloadHistoryManager.saveHistory(list);
+                    return list[existingIdx].recordId;
+                }
                 const recordId = 'dl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
                 const record = {
                     recordId,
@@ -1870,51 +1913,41 @@
                     thumbnail: thumbnail || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
                     channel: channel || '',
                     quality: quality || '1080',
-                    status, // 'success' | 'failed' | 'pending'
+                    status, // 'pending' | 'success' | 'failed' | 'netfree'
+                    subState: 'waiting', // 'waiting' | 'starting' | 'downloading'
+                    percent: Number(percent) || 0,
+                    eta: eta || '--:--',
+                    speed: speed || '',
                     reason,
                     timestamp: new Date().toISOString()
                 };
                 list.unshift(record);
                 if (list.length > 500) list.length = 500;
+                appState.miniDownloadMinimized = false;
                 DownloadHistoryManager.saveHistory(list);
                 return recordId;
             },
-            updateStatus: (recordId, status, reason = '') => {
+            updateStatus: (recordId, status, reason = '', extra = {}) => {
                 const list = DownloadHistoryManager.getHistory();
                 const idx = list.findIndex(r => r.recordId === recordId);
                 if (idx > -1) {
                     list[idx].status = status;
                     if (reason !== undefined) list[idx].reason = reason;
+                    if (extra.percent !== undefined) list[idx].percent = Number(extra.percent) || 0;
+                    if (extra.eta !== undefined) list[idx].eta = extra.eta;
+                    if (extra.speed !== undefined) list[idx].speed = extra.speed;
+                    if (extra.subState !== undefined) list[idx].subState = extra.subState;
                     DownloadHistoryManager.saveHistory(list);
                     if (appState.searchContext === 'download_history') {
                         loadDownloadHistoryTab(true, appState.downloadHistoryFilter || 'all');
                     }
                 }
-            },
-            updateStatusByVideoId: (videoId, status, reason = '') => {
-                const list = DownloadHistoryManager.getHistory();
-                let changed = false;
-                list.forEach(r => {
-                    if (r.id === videoId && (r.status !== status || (reason && r.reason !== reason))) {
-                        r.status = status;
-                        if (reason) r.reason = reason;
-                        changed = true;
-                    }
-                });
-                if (changed) {
-                    DownloadHistoryManager.saveHistory(list);
-                    if (appState.searchContext === 'download_history') {
-                        loadDownloadHistoryTab(true, appState.downloadHistoryFilter || 'all');
-                    }
-                }
-                return changed;
             },
             applyExternalReport: (reportData, sourceLabel = 'תוכנת ההורדה') => {
                 if (!reportData) return 0;
                 let updatedCount = 0;
                 const list = DownloadHistoryManager.getHistory();
 
-                // תמיכה במבנה אובייקט או מערך מתוכנת ההורדה (כגון yt_dlp_status.json או שרת מקומי בפורט 9876)
                 const entries = Array.isArray(reportData)
                     ? reportData
                     : (reportData.downloads || reportData.items || Object.entries(reportData).map(([k, v]) => (typeof v === 'object' ? { id: k, ...v } : { id: k, status: v })));
@@ -1925,16 +1958,24 @@
                     if (!vid) return;
                     const rawStatus = String(entry.status || entry.state || '').toLowerCase();
                     const rawReason = String(entry.reason || entry.message || entry.error || '');
+                    const pct = entry.percent !== undefined ? Math.min(100, Math.max(0, Number(entry.percent) || 0)) : undefined;
+                    const eta = entry.eta !== undefined ? String(entry.eta) : undefined;
+                    const speed = entry.speed !== undefined ? String(entry.speed) : undefined;
 
                     let normStatus = null;
+                    let subState = 'waiting';
                     if (rawStatus === 'netfree' || /netfree|418|נטפרי/i.test(rawReason) || /netfree|418/i.test(rawStatus)) {
                         normStatus = 'netfree';
+                        subState = 'done';
                     } else if (['success', 'completed', 'done', 'finished', 'ok', 'true', '0'].includes(rawStatus) || entry.exitCode === 0) {
                         normStatus = 'success';
+                        subState = 'done';
                     } else if (['failed', 'error', 'err', 'false', '1'].includes(rawStatus) || (typeof entry.exitCode === 'number' && entry.exitCode !== 0)) {
                         normStatus = 'failed';
-                    } else if (['downloading', 'pending', 'running', 'queued'].includes(rawStatus)) {
+                        subState = 'done';
+                    } else if (['starting', 'downloading', 'merging', 'pending', 'running', 'queued'].includes(rawStatus)) {
                         normStatus = 'pending';
+                        subState = rawStatus === 'starting' ? 'starting' : 'downloading';
                     }
                     if (!normStatus) return;
 
@@ -1942,16 +1983,24 @@
                         (normStatus === 'netfree'
                             ? 'חסום בנטפרי (HTTP Error 418: Blocked by NetFree)'
                             : (normStatus === 'success'
-                                ? `ירד בהצלחה (אומת מול ${sourceLabel})`
-                                : (normStatus === 'failed' ? `לא ירד: דיווח שגיאה מ-${sourceLabel}` : `מוריד כעת ב-${sourceLabel}...`)));
+                                ? `ירד בהצלחה (אומת מתוכנת ההורדה)`
+                                : (normStatus === 'failed' ? `לא ירד: דיווח שגיאה מתוכנת ההורדה` : `מוריד כעת בתוכנת ההורדה...`)));
 
                     let matched = false;
                     list.forEach(r => {
                         if (r.id === vid) {
                             matched = true;
-                            if (r.status !== normStatus || r.reason !== reasonText) {
+                            const finalPct = normStatus === 'success' ? 100 : (pct !== undefined ? pct : (r.percent || 0));
+                            const finalEta = normStatus === 'success' ? '00:00' : (eta !== undefined ? eta : (r.eta || '--:--'));
+                            const finalSpd = speed !== undefined ? speed : (r.speed || '');
+
+                            if (r.status !== normStatus || r.reason !== reasonText || r.percent !== finalPct || r.eta !== finalEta || r.subState !== subState) {
                                 r.status = normStatus;
+                                r.subState = subState;
                                 r.reason = reasonText;
+                                r.percent = finalPct;
+                                r.eta = finalEta;
+                                r.speed = finalSpd;
                                 if (entry.quality) r.quality = entry.quality;
                                 updatedCount++;
                             }
@@ -1969,6 +2018,10 @@
                             channel: entry.channel || meta.channel || '',
                             quality: entry.quality || getDefaultDownloadQuality(),
                             status: normStatus,
+                            subState,
+                            percent: normStatus === 'success' ? 100 : (pct || 0),
+                            eta: eta || '--:--',
+                            speed: speed || '',
                             reason: reasonText,
                             timestamp: entry.updatedAt || new Date().toISOString()
                         });
@@ -1986,165 +2039,145 @@
                 return updatedCount;
             },
             pollLocalStatusBridge: async () => {
-                // 1. אם המשתמש חיבר את תיקיית ההורדות של yt-dlp דרך File System Access API - נסרוק אותה אוטומטית
-                if (DownloadHistoryManager.dirHandle) {
-                    await DownloadHistoryManager.scanConnectedFolder(true);
-                }
-                // 2. בדיקה מול שרת מקומי של תוכנת ההורדה אם פעיל (למשל http://127.0.0.1:9876/status)
-                const bridgeUrl = localStorage.getItem('yt_dl_bridge_url') || 'http://127.0.0.1:9876/status';
-                if (window.location.protocol.startsWith('http') || window.location.protocol === 'file:') {
-                    try {
-                        const controller = new AbortController();
-                        const timer = setTimeout(() => controller.abort(), 1200);
-                        const res = await fetch(bridgeUrl, { signal: controller.signal, cache: 'no-store' });
-                        clearTimeout(timer);
-                        if (res.ok) {
-                            const data = await res.json();
-                            DownloadHistoryManager.applyExternalReport(data, 'שרת תוכנת ההורדה');
+                // קבלת נתונים אך ורק מתוכנת ההורדה (דרך שרת השידור המקומי בפורט 9876 ב-Fetch או ב-JSONP לעבודה חלקה גם מ-file://)
+                const bridgeBase = localStorage.getItem('yt_dl_bridge_url') || 'http://127.0.0.1:9876/status';
+                let fetchedOk = false;
+                try {
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), 900);
+                    const res = await fetch(`${bridgeBase}?t=${Date.now()}`, { signal: controller.signal, cache: 'no-store' });
+                    clearTimeout(timer);
+                    if (res.ok) {
+                        const rawText = await res.text();
+                        if (rawText && rawText.trim()) {
+                            fetchedOk = true;
+                            try {
+                                const data = JSON.parse(rawText);
+                                DownloadHistoryManager.applyExternalReport(data, 'תוכנת ההורדה');
+                            } catch (e) {}
                         }
+                    }
+                } catch (e) {}
+
+                // גיבוי JSONP אוטומטי אם הדפדפן חוסם Fetch מקובץ מקומי file:// אל localhost
+                if (!fetchedOk) {
+                    try {
+                        const oldScript = document.getElementById('ytdlpLiveJsonpScript');
+                        if (oldScript) oldScript.remove();
+                        const s = document.createElement('script');
+                        s.id = 'ytdlpLiveJsonpScript';
+                        s.src = `http://127.0.0.1:9876/status?callback=__onYtDlpStatusUpdate&t=${Date.now()}`;
+                        s.async = true;
+                        s.onerror = () => { s.remove(); };
+                        s.onload = () => { setTimeout(() => s.remove(), 200); };
+                        document.body.appendChild(s);
                     } catch (e) {}
                 }
             },
-            connectDownloadFolder: async () => {
-                if (!('showDirectoryPicker' in window)) {
-                    showToast('הדפדפן לא תומך בבחירת תיקייה ישירה - ניתן לבחור קובץ ארכיון/סטטוס של yt-dlp');
-                    document.getElementById('ytDlpStatusFileInput')?.click();
+            renderMiniPopup: () => {
+                const popup = document.getElementById('miniDownloadPopup');
+                const pill = document.getElementById('miniDownloadRestorePill');
+                const body = document.getElementById('miniDownloadPopupBody');
+                const countBadge = document.getElementById('miniDlCountBadge');
+                const pillText = document.getElementById('miniDlPillText');
+                const headerIcon = document.getElementById('miniDlHeaderIcon');
+                if (!popup || !pill || !body) return;
+
+                // אם המשתמש ביטל את החלונית בהגדרות - נסתיר הכל
+                if (!appState.showDownloadPopup) {
+                    popup.classList.add('hidden');
+                    pill.classList.add('hidden');
+                    pill.classList.remove('flex');
                     return;
                 }
-                try {
-                    const handle = await window.showDirectoryPicker({ mode: 'read' });
-                    DownloadHistoryManager.dirHandle = handle;
-                    const updated = await DownloadHistoryManager.scanConnectedFolder(false);
-                    showToast(`תיקיית ההורדות חוברה! אומתו ${updated} הורדות מול הקבצים בתיקייה.`);
-                } catch (e) {
-                    if (e.name !== 'AbortError') {
-                        showToast('לא ניתן היה לגשת לתיקייה');
+
+                const list = DownloadHistoryManager.getHistory();
+                const now = Date.now();
+                // מציגים בחלונית הקטנה הורדות פעילות או הורדות שהסתיימו ב-18 השניות האחרונות
+                const recentOrActive = list.filter(r => {
+                    if (r.status === 'pending') return true;
+                    const ageSec = (now - new Date(r.timestamp).getTime()) / 1000;
+                    return ageSec <= 18;
+                }).slice(0, 4);
+
+                if (recentOrActive.length === 0) {
+                    popup.classList.add('hidden');
+                    pill.classList.add('hidden');
+                    pill.classList.remove('flex');
+                    return;
+                }
+
+                const activeItems = recentOrActive.filter(r => r.status === 'pending');
+                if (countBadge) countBadge.innerText = String(recentOrActive.length);
+
+                if (headerIcon) {
+                    if (activeItems.length > 0) {
+                        headerIcon.className = 'fas fa-sync-alt fa-spin text-cyan-400 text-xs';
+                    } else {
+                        headerIcon.className = 'fas fa-check-circle text-green-400 text-xs';
                     }
                 }
-            },
-            scanConnectedFolder: async (silent = false) => {
-                if (!DownloadHistoryManager.dirHandle) return 0;
-                let updatedCount = 0;
-                try {
-                    const filesList = [];
-                    for await (const entry of DownloadHistoryManager.dirHandle.values()) {
-                        if (entry.kind === 'file') {
-                            filesList.push(entry.name);
-                            // אם קיים בתיקייה קובץ סטטוס או קובץ ארכיון של yt-dlp נקרא אותו ישירות
-                            if (entry.name === 'yt_dlp_status.json' || entry.name === 'download_status.json') {
-                                try {
-                                    const fileObj = await entry.getFile();
-                                    const text = await fileObj.text();
-                                    const json = JSON.parse(text);
-                                    updatedCount += DownloadHistoryManager.applyExternalReport(json, 'קובץ סטטוס בתיקייה');
-                                } catch (e) {}
-                            } else if (entry.name === 'archive.txt' || entry.name === 'ytdlp_archive.txt' || entry.name === 'history.txt') {
-                                try {
-                                    const fileObj = await entry.getFile();
-                                    const text = await fileObj.text();
-                                    updatedCount += DownloadHistoryManager.parseArchiveText(text, 'קובץ ארכיון yt-dlp');
-                                } catch (e) {}
-                            }
-                        }
+
+                if (appState.miniDownloadMinimized) {
+                    popup.classList.add('hidden');
+                    pill.classList.remove('hidden');
+                    pill.classList.add('flex');
+                    if (activeItems.length > 0) {
+                        const avgPct = Math.round(activeItems.reduce((acc, item) => acc + (Number(item.percent) || 0), 0) / activeItems.length);
+                        const firstEta = activeItems[0].eta && activeItems[0].eta !== '--:--' ? ` • ${activeItems[0].eta}` : '';
+                        pillText.innerText = `מוריד ${avgPct}%${firstEta}`;
+                    } else {
+                        pillText.innerText = 'ההורדה הסתיימה';
                     }
-
-                    const list = DownloadHistoryManager.getHistory();
-                    const now = Date.now();
-                    list.forEach(r => {
-                        const cleanTitle = (r.title || '').replace(/[\\/:*?"<>|]/g, '').trim().toLowerCase();
-                        // בדיקה אם קיים קובץ חלקי (.part / .ytdl) שמעיד שההורדה עדיין רצה או נתקעה
-                        const partFile = filesList.find(fn => fn.includes(r.id) && (fn.endsWith('.part') || fn.endsWith('.ytdl')));
-                        // בדיקה אם הקובץ הסופי קיים בתיקייה (לפי מזהה הסרטון או כותרת הסרטון)
-                        const completedFile = filesList.find(fn => {
-                            if (fn.endsWith('.part') || fn.endsWith('.ytdl') || fn.endsWith('.json') || fn.endsWith('.txt')) return false;
-                            if (fn.includes(r.id)) return true;
-                            if (cleanTitle.length >= 5 && fn.toLowerCase().includes(cleanTitle.slice(0, 22))) return true;
-                            return false;
-                        });
-
-                        if (completedFile) {
-                            if (r.status !== 'success' || !r.reason.includes('אומת בתיקיית ההורדות')) {
-                                r.status = 'success';
-                                r.reason = `אומת בתיקיית ההורדות: ירד בהצלחה (${completedFile})`;
-                                updatedCount++;
-                            }
-                        } else if (partFile) {
-                            const ageSec = (now - new Date(r.timestamp).getTime()) / 1000;
-                            if (ageSec > 180) {
-                                if (r.status !== 'failed') {
-                                    r.status = 'failed';
-                                    r.reason = `נמצא קובץ הורדה קטוע בתיקייה (${partFile}) - ההורדה הופסקה באמצע`;
-                                    updatedCount++;
-                                }
-                            } else if (r.status !== 'pending') {
-                                r.status = 'pending';
-                                r.reason = `יורד כעת בתיקייה (${partFile})...`;
-                                updatedCount++;
-                            }
-                        } else if (r.status === 'pending') {
-                            const ageSec = (now - new Date(r.timestamp).getTime()) / 1000;
-                            if (ageSec > 45) {
-                                r.status = 'failed';
-                                r.reason = 'אומת בתיקיית ההורדות: הקובץ לא נוצר בתיקייה (ההורדה נכשלה)';
-                                updatedCount++;
-                            }
-                        }
-                    });
-
-                    if (updatedCount > 0 || !silent) {
-                        DownloadHistoryManager.lastSyncSource = 'תיקיית ההורדות המקומית';
-                        DownloadHistoryManager.saveHistory(list);
-                        if (appState.searchContext === 'download_history') {
-                            loadDownloadHistoryTab(true, appState.downloadHistoryFilter || 'all');
-                        }
-                    }
-                } catch (e) {
-                    console.warn("Folder scan warning:", e);
+                    return;
                 }
-                return updatedCount;
-            },
-            parseArchiveText: (text, sourceLabel = 'קובץ ארכיון yt-dlp') => {
-                if (!text) return 0;
-                const lines = text.split(/\r?\n/);
-                const entries = [];
-                lines.forEach(line => {
-                    const trimmed = line.trim();
-                    if (!trimmed) return;
-                    // תמיכה בפורמט --download-archive של yt-dlp: "youtube VIDEO_ID" או שורות סטטוס "VIDEO_ID SUCCESS/FAILED"
-                    const mArchive = trimmed.match(/^youtube\s+([a-zA-Z0-9_-]{11})/i);
-                    if (mArchive) {
-                        entries.push({ id: mArchive[1], status: 'success', reason: `אומת מול ${sourceLabel}: ירד בהצלחה` });
-                        return;
+
+                pill.classList.add('hidden');
+                pill.classList.remove('flex');
+                popup.classList.remove('hidden');
+
+                body.innerHTML = recentOrActive.map(item => {
+                    const pct = Math.min(100, Math.max(0, Number(item.percent) || 0));
+                    const isStarting = item.status === 'pending' && (!pct || item.subState === 'starting');
+                    let statusTag = '';
+                    let barColor = 'bg-cyan-500';
+                    if (item.status === 'success') {
+                        statusTag = '<span class="text-[10px] font-bold text-green-400">ירד (100%)</span>';
+                        barColor = 'bg-green-500';
+                    } else if (item.status === 'netfree') {
+                        statusTag = '<span class="text-[10px] font-bold text-orange-400">חסום בנטפרי</span>';
+                        barColor = 'bg-orange-500';
+                    } else if (item.status === 'failed') {
+                        statusTag = '<span class="text-[10px] font-bold text-red-400">לא ירד</span>';
+                        barColor = 'bg-red-500';
+                    } else if (isStarting) {
+                        statusTag = '<span class="text-[10px] font-bold text-amber-400">מתחיל הורדה...</span>';
+                        barColor = 'bg-amber-500';
+                    } else {
+                        statusTag = `<span class="text-[10px] font-bold text-cyan-400">${pct.toFixed(1)}%</span>`;
+                        barColor = 'bg-cyan-500';
                     }
-                    const mStatus = trimmed.match(/([a-zA-Z0-9_-]{11}).*?(success|completed|ok|failed|error)/i);
-                    if (mStatus) {
-                        const isOk = /success|completed|ok/i.test(mStatus[2]);
-                        entries.push({
-                            id: mStatus[1],
-                            status: isOk ? 'success' : 'failed',
-                            reason: isOk ? `אומת מול ${sourceLabel}: ירד בהצלחה` : `דיווח מ-${sourceLabel}: ההורדה נכשלה`
-                        });
-                    }
-                });
-                return DownloadHistoryManager.applyExternalReport(entries, sourceLabel);
-            },
-            importStatusFile: (inputEl) => {
-                const file = inputEl.files && inputEl.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const content = String(e.target.result || '');
-                    let count = 0;
-                    try {
-                        const json = JSON.parse(content);
-                        count = DownloadHistoryManager.applyExternalReport(json, file.name);
-                    } catch (err) {
-                        count = DownloadHistoryManager.parseArchiveText(content, file.name);
-                    }
-                    showToast(count > 0 ? `עודכנו ${count} רשומות מתוך ${file.name}!` : `הקובץ נסרק (לא נמצאו שינויים חדשים).`);
-                    inputEl.value = '';
-                };
-                reader.readAsText(file);
+
+                    const etaLine = item.status === 'pending'
+                        ? `צפי סיום: ${escapeHtml(item.eta || 'מחשב...')}${item.speed ? ' • ' + escapeHtml(item.speed) : ''}`
+                        : (item.status === 'success' ? 'ההורדה הושלמה בהצלחה' : escapeHtml(item.reason || ''));
+
+                    return `
+                        <div class="p-2 rounded-xl border text-right" style="background-color: var(--bg-surface); border-color: var(--border-color);">
+                            <div class="flex items-center justify-between gap-2 mb-1">
+                                <span class="text-xs font-bold truncate flex-1" style="color: var(--text-primary);" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>
+                                ${statusTag}
+                            </div>
+                            <div class="w-full h-2 rounded-full bg-black/40 overflow-hidden mb-1">
+                                <div class="h-full ${barColor} transition-all duration-300" style="width: ${item.status === 'success' ? 100 : (isStarting ? 8 : pct)}%;"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-[10px]" style="color: var(--text-secondary);">
+                                <span class="truncate">${etaLine}</span>
+                                <span class="font-bold ml-1">${item.quality === 'audio' ? 'MP3' : escapeHtml(item.quality + 'p')}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
             },
             removeRecord: (recordId) => {
                 let list = DownloadHistoryManager.getHistory();
@@ -2157,45 +2190,31 @@
             clearAll: () => {
                 safeSetLocalStorage('yt_download_history', '[]');
                 DownloadHistoryManager.updateBadge();
+                DownloadHistoryManager.renderMiniPopup();
                 if (appState.searchContext === 'download_history') {
                     loadDownloadHistoryTab(true, 'all');
                 }
             }
         };
 
-        // האזנה אוטומטית לדיווחי אמת מתוכנת ההורדה (דרך URL parameters, postMessage, או סנכרון תיקייה/שרת מקומי)
-        window.addEventListener('message', (event) => {
-            if (event.data && (event.data.type === 'ytdlp_status' || event.data.ytdlp)) {
-                DownloadHistoryManager.applyExternalReport(event.data.payload || event.data, 'תוכנת ההורדה');
-            }
-        });
-
-        function checkUrlForDownloaderCallback() {
-            try {
-                const params = new URLSearchParams(window.location.search);
-                const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-                const dlStatus = params.get('dl_status') || hashParams.get('dl_status');
-                const dlId = params.get('dl_id') || hashParams.get('dl_id');
-                const dlMsg = params.get('dl_msg') || hashParams.get('dl_msg') || '';
-                if (dlStatus && dlId) {
-                    const ids = dlId.split('.');
-                    const entries = ids.map(id => ({ id, status: dlStatus, reason: dlMsg }));
-                    DownloadHistoryManager.applyExternalReport(entries, 'דיווח ישיר מתוכנת ההורדה');
-                    showToast(dlStatus === 'success' ? 'תוכנת ההורדה דיווחה: ההורדה הושלמה בהצלחה!' : 'תוכנת ההורדה דיווחה: ההורדה נכשלה');
-                }
-            } catch (e) {}
+        function hideMiniDownloadPopup(minimize) {
+            appState.miniDownloadMinimized = Boolean(minimize);
+            DownloadHistoryManager.renderMiniPopup();
         }
 
         window.__onYtDlpStatusUpdate = function(data) {
-            DownloadHistoryManager.applyExternalReport(data, 'תוכנת ההורדה (ytdlp-handler)');
+            DownloadHistoryManager.applyExternalReport(data, 'תוכנת ההורדה');
         };
 
+        // דגימה מהירה מתוכנת ההורדה בזמן אמת (כל שנייה כשיש הורדה פעילה)
         setInterval(() => {
-            const hasPending = DownloadHistoryManager.getHistory().some(r => r.status === 'pending');
+            const list = DownloadHistoryManager.getHistory();
+            const hasPending = list.some(r => r.status === 'pending');
             if (hasPending || appState.searchContext === 'download_history') {
                 DownloadHistoryManager.pollLocalStatusBridge();
             }
-        }, 2500);
+            DownloadHistoryManager.renderMiniPopup();
+        }, 1000);
 
         function findVideoMetadataById(videoId) {
             if (appState.currentVideoId === videoId && appState.currentVideoDetails) {
@@ -2275,12 +2294,13 @@
                         const currentRec = DownloadHistoryManager.getHistory().find(r => r.recordId === rid);
                         if (!currentRec || currentRec.status !== 'pending') return;
 
-                        if (protocolHandled || DownloadHistoryManager.dirHandle) {
-                            // הוודאות מגיעה מתוכנת ההורדה עצמה (פורט 9876 / yt_dlp_status.json): ממתינים לדיווח אמת מתוכנת ההורדה
+                        if (protocolHandled) {
+                            // הוודאות מגיעה אך ורק מתוכנת ההורדה עצמה (פורט 9876) בזמן אמת
                             DownloadHistoryManager.updateStatus(
                                 rid,
                                 'pending',
-                                'נשלח לתוכנת ההורדה - ממתין לאישור מתוכנת ההורדה (ירד / חסום בנטפרי / לא ירד)...'
+                                'תוכנת ההורדה הופעלה - ממתין לשידור אחוזים וצפי סיום...',
+                                { subState: 'starting' }
                             );
                         } else {
                             DownloadHistoryManager.updateStatus(
@@ -2487,16 +2507,9 @@
                         </div>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
-                        <button onclick="DownloadHistoryManager.pollLocalStatusBridge().then(() => showToast('בוצע סנכרון מול תוכנת ההורדה'))" class="px-3 py-1.5 rounded-full bg-blue-600/20 text-blue-400 border border-blue-500/40 hover:bg-blue-600/30 transition flex items-center gap-1.5" title="בדוק עכשיו מול תוכנת ההורדה (פורט 9876 / תיקיית הורדות)">
-                            <i class="fas fa-sync-alt"></i> בדוק סטטוס מתוכנת ההורדה
+                        <button onclick="DownloadHistoryManager.pollLocalStatusBridge().then(() => showToast('בוצע סנכרון חי מול תוכנת ההורדה'))" class="px-3 py-1.5 rounded-full bg-cyan-600/20 text-cyan-400 border border-cyan-500/40 hover:bg-cyan-600/30 transition flex items-center gap-1.5" title="קבל עדכון חי מתוכנת ההורדה">
+                            <i class="fas fa-satellite-dish"></i> רענן מתוכנת ההורדה
                         </button>
-                        <button onclick="DownloadHistoryManager.connectDownloadFolder()" class="px-3 py-1.5 rounded-full bg-cyan-600/20 text-cyan-400 border border-cyan-500/40 hover:bg-cyan-600/30 transition flex items-center gap-1.5" title="חבר את תיקיית Video במחשב כדי לקרוא את yt_dlp_status.json ואת הקבצים שירדו">
-                            <i class="fas fa-folder-open"></i> ${DownloadHistoryManager.dirHandle ? 'סנכרן תיקיית הורדות' : 'חבר תיקיית הורדות (Video)'}
-                        </button>
-                        <label class="px-3 py-1.5 rounded-full bg-purple-600/20 text-purple-400 border border-purple-500/40 hover:bg-purple-600/30 transition flex items-center gap-1.5 cursor-pointer" title="טען קובץ yt_dlp_status.json מתוך תיקיית ההורדות">
-                            <i class="fas fa-file-import"></i> טען yt_dlp_status.json
-                            <input type="file" id="ytDlpStatusFileInput" onchange="DownloadHistoryManager.importStatusFile(this)" class="hidden" accept=".json,.txt,.log">
-                        </label>
                         ${failedCount > 0 ? `
                         <button onclick="retryAllFailedDownloads()" class="px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 transition flex items-center gap-1" title="נסה להוריד מחדש את כל ההורדות שלא ירדו">
                             <i class="fas fa-redo"></i> נסה שוב לא ירדו
@@ -2560,9 +2573,18 @@
                     <div class="flex-1 flex flex-col justify-between">
                         <div>
                             <h3 class="font-bold text-base line-clamp-2 mb-1 cursor-pointer hover:underline" style="color: var(--text-primary);" onclick="openPlayer('${safeId}', '${safeTitle}', '${safeThumb}', '${safeChannel}', '')">${escapeHtml(item.title)}</h3>
-                            <p class="text-xs mb-1" style="color: var(--text-secondary);">${escapeHtml(item.channel || 'YouTube')} • ${escapeHtml(dateStr)}</p>
+                            <p class="text-xs mb-2" style="color: var(--text-secondary);">${escapeHtml(item.channel || 'YouTube')} • ${escapeHtml(dateStr)}</p>
+                            <div class="mb-2">
+                                <div class="flex justify-between text-xs font-bold mb-1" style="color: var(--text-primary);">
+                                    <span>${item.status === 'success' ? '100% הושלם' : (item.status === 'pending' ? `${Number(item.percent || 0).toFixed(1)}% ירד` : (item.status === 'netfree' ? 'נחסם בנטפרי' : 'נעצר / לא ירד'))}</span>
+                                    <span>${item.status === 'pending' ? `צפי סיום: ${escapeHtml(item.eta || 'מחשב...')}${item.speed ? ' (' + escapeHtml(item.speed) + ')' : ''}` : (item.status === 'success' ? 'ירד בהצלחה' : '')}</span>
+                                </div>
+                                <div class="w-full h-2.5 rounded-full bg-black/40 overflow-hidden">
+                                    <div class="h-full transition-all duration-300 ${item.status === 'success' ? 'bg-green-500' : (item.status === 'netfree' ? 'bg-orange-500' : (item.status === 'failed' ? 'bg-red-500' : 'bg-cyan-500'))}" style="width: ${item.status === 'success' ? 100 : Math.min(100, Math.max(0, Number(item.percent) || 0))}%;"></div>
+                                </div>
+                            </div>
                             <p class="text-[11px] px-2.5 py-1 rounded-lg mt-1 inline-block" style="background-color: var(--bg-surface); color: ${item.status === 'netfree' ? '#f97316' : (item.status === 'failed' ? '#ef4444' : 'var(--text-secondary)')};">
-                                ${escapeHtml(item.reason || (item.status === 'success' ? 'ירד בהצלחה' : (item.status === 'netfree' ? 'חסום בנטפרי (HTTP 418)' : 'לא ירד')))}
+                                ${escapeHtml(item.reason || (item.status === 'success' ? 'ירד בהצלחה (אומת מתוכנת ההורדה)' : (item.status === 'netfree' ? 'חסום בנטפרי (HTTP 418)' : 'לא ירד')))}
                             </p>
                         </div>
                         <div class="flex items-center gap-2 mt-4 pt-3 border-t flex-wrap" style="border-color: var(--border-color);">
@@ -4039,6 +4061,7 @@
             const newClientId = document.getElementById('clientIdInput').value.trim();
             const newMaxResults = document.getElementById('maxResultsInput').value;
             const newDefaultDlQual = document.getElementById('defaultDownloadQualitySelect').value || '1080';
+            const newShowDlPopup = document.getElementById('showDownloadPopupCheckbox').checked;
             const newTheme = document.getElementById('themeSelect').value;
             
             if (newKey.includes("•") || newKey === "") {
@@ -4055,12 +4078,15 @@
             appState.clientId = newClientId;
             appState.maxResults = newMaxResults ? parseInt(newMaxResults) : 12;
             appState.defaultDownloadQuality = newDefaultDlQual;
+            appState.showDownloadPopup = newShowDlPopup;
             
             safeSetLocalStorage('yt_api_key', appState.apiKey);
             safeSetLocalStorage('yt_gemini_api_key', appState.geminiApiKey);
             safeSetLocalStorage('yt_client_id', appState.clientId);
             safeSetLocalStorage('yt_max_results', appState.maxResults);
             safeSetLocalStorage('yt_default_dl_quality', appState.defaultDownloadQuality);
+            safeSetLocalStorage('yt_show_dl_popup', String(appState.showDownloadPopup));
+            DownloadHistoryManager.renderMiniPopup();
             safeSetLocalStorage('yt_theme', newTheme);
             
             applyTheme(newTheme);
@@ -4092,6 +4118,7 @@
             const savedClient = localStorage.getItem('yt_client_id');
             const savedMaxResults = localStorage.getItem('yt_max_results');
             const savedDefaultDlQual = localStorage.getItem('yt_default_dl_quality') || '1080';
+            const savedShowDlPopup = localStorage.getItem('yt_show_dl_popup') !== 'false';
             const storedTheme = localStorage.getItem('yt_theme');
 
             if(savedKey) document.getElementById('apiKeyInput').value = maskApiKey(savedKey);
@@ -4099,6 +4126,9 @@
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
             if(savedMaxResults) { document.getElementById('maxResultsInput').value = savedMaxResults; appState.maxResults = parseInt(savedMaxResults); }
             appState.defaultDownloadQuality = savedDefaultDlQual;
+            appState.showDownloadPopup = savedShowDlPopup;
+            const dlPopupCb = document.getElementById('showDownloadPopupCheckbox');
+            if (dlPopupCb) dlPopupCb.checked = savedShowDlPopup;
             if(storedTheme) document.getElementById('themeSelect').value = storedTheme;
             
             applyDefaultDownloadQualityToUI();
