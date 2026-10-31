@@ -1914,7 +1914,7 @@
                 let updatedCount = 0;
                 const list = DownloadHistoryManager.getHistory();
 
-                // תמיכה במבנה אובייקט או מערך מתוכנת ההורדה (כגון yt_dlp_status.json או שרת מקומי)
+                // תמיכה במבנה אובייקט או מערך מתוכנת ההורדה (כגון yt_dlp_status.json או שרת מקומי בפורט 9876)
                 const entries = Array.isArray(reportData)
                     ? reportData
                     : (reportData.downloads || reportData.items || Object.entries(reportData).map(([k, v]) => (typeof v === 'object' ? { id: k, ...v } : { id: k, status: v })));
@@ -1924,8 +1924,12 @@
                     const vid = entry.id || entry.videoId || entry.video_id;
                     if (!vid) return;
                     const rawStatus = String(entry.status || entry.state || '').toLowerCase();
+                    const rawReason = String(entry.reason || entry.message || entry.error || '');
+
                     let normStatus = null;
-                    if (['success', 'completed', 'done', 'finished', 'ok', 'true', '0'].includes(rawStatus) || entry.exitCode === 0) {
+                    if (rawStatus === 'netfree' || /netfree|418|נטפרי/i.test(rawReason) || /netfree|418/i.test(rawStatus)) {
+                        normStatus = 'netfree';
+                    } else if (['success', 'completed', 'done', 'finished', 'ok', 'true', '0'].includes(rawStatus) || entry.exitCode === 0) {
                         normStatus = 'success';
                     } else if (['failed', 'error', 'err', 'false', '1'].includes(rawStatus) || (typeof entry.exitCode === 'number' && entry.exitCode !== 0)) {
                         normStatus = 'failed';
@@ -1934,18 +1938,42 @@
                     }
                     if (!normStatus) return;
 
-                    const reasonText = entry.reason || entry.message || entry.error ||
-                        (normStatus === 'success'
-                            ? `אומת מול ${sourceLabel}: הקובץ ירד בהצלחה${entry.filename ? ' (' + entry.filename + ')' : ''}`
-                            : (normStatus === 'failed' ? `דיווח מ-${sourceLabel}: ההורדה נכשלה` : `מתבצעת הורדה ב-${sourceLabel}...`));
+                    const reasonText = rawReason ||
+                        (normStatus === 'netfree'
+                            ? 'חסום בנטפרי (HTTP Error 418: Blocked by NetFree)'
+                            : (normStatus === 'success'
+                                ? `ירד בהצלחה (אומת מול ${sourceLabel})`
+                                : (normStatus === 'failed' ? `לא ירד: דיווח שגיאה מ-${sourceLabel}` : `מוריד כעת ב-${sourceLabel}...`)));
 
+                    let matched = false;
                     list.forEach(r => {
-                        if (r.id === vid && (r.status !== normStatus || r.reason !== reasonText)) {
-                            r.status = normStatus;
-                            r.reason = reasonText;
-                            updatedCount++;
+                        if (r.id === vid) {
+                            matched = true;
+                            if (r.status !== normStatus || r.reason !== reasonText) {
+                                r.status = normStatus;
+                                r.reason = reasonText;
+                                if (entry.quality) r.quality = entry.quality;
+                                updatedCount++;
+                            }
                         }
                     });
+
+                    if (!matched && isValidVideoId(vid)) {
+                        const meta = findVideoMetadataById(vid);
+                        list.unshift({
+                            recordId: 'dl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                            id: vid,
+                            url: `https://www.youtube.com/watch?v=${vid}`,
+                            title: entry.title || meta.title || `סרטון (${vid})`,
+                            thumbnail: entry.thumbnail || meta.thumbnail || `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+                            channel: entry.channel || meta.channel || '',
+                            quality: entry.quality || getDefaultDownloadQuality(),
+                            status: normStatus,
+                            reason: reasonText,
+                            timestamp: entry.updatedAt || new Date().toISOString()
+                        });
+                        updatedCount++;
+                    }
                 });
 
                 if (updatedCount > 0) {
@@ -2158,12 +2186,16 @@
             } catch (e) {}
         }
 
+        window.__onYtDlpStatusUpdate = function(data) {
+            DownloadHistoryManager.applyExternalReport(data, 'תוכנת ההורדה (ytdlp-handler)');
+        };
+
         setInterval(() => {
             const hasPending = DownloadHistoryManager.getHistory().some(r => r.status === 'pending');
             if (hasPending || appState.searchContext === 'download_history') {
                 DownloadHistoryManager.pollLocalStatusBridge();
             }
-        }, 4000);
+        }, 2500);
 
         function findVideoMetadataById(videoId) {
             if (appState.currentVideoId === videoId && appState.currentVideoDetails) {
@@ -2243,25 +2275,18 @@
                         const currentRec = DownloadHistoryManager.getHistory().find(r => r.recordId === rid);
                         if (!currentRec || currentRec.status !== 'pending') return;
 
-                        if (DownloadHistoryManager.dirHandle) {
-                            // אם תיקיית ההורדות מחוברת, נשאיר במצב "בתהליך" עד שהקובץ יופיע בתיקייה (או ייכשל אם לא יופיע)
+                        if (protocolHandled || DownloadHistoryManager.dirHandle) {
+                            // הוודאות מגיעה מתוכנת ההורדה עצמה (פורט 9876 / yt_dlp_status.json): ממתינים לדיווח אמת מתוכנת ההורדה
                             DownloadHistoryManager.updateStatus(
                                 rid,
                                 'pending',
-                                'ממתין לסיום ההורדה ואימות הקובץ בתיקיית ההורדות...'
-                            );
-                        } else if (protocolHandled) {
-                            DownloadHistoryManager.updateStatus(
-                                rid,
-                                'success',
-                                'תוכנת ההורדה נפתחה וקיבלה את הפקודה (חבר תיקיית הורדות לאימות קובץ מלא)'
+                                'נשלח לתוכנת ההורדה - ממתין לאישור מתוכנת ההורדה (ירד / חסום בנטפרי / לא ירד)...'
                             );
                         } else {
-                            // אם החלון לא איבד פוקוס וגם אין גשר/תיקייה שמאשרים קבלה - תוכנת ההורדה לא הגיבה לפרוטוקול ytdlp://
                             DownloadHistoryManager.updateStatus(
                                 rid,
                                 'failed',
-                                'לא התקבל אישור מתוכנת ההורדה (ytdlp:// לא הגיב או שההורדה לא בוצעה)'
+                                'לא ירד: תוכנת ההורדה (ytdlp-handler.bat) לא נפתחה או לא מוגדרת במחשב'
                             );
                         }
                     });
@@ -2430,6 +2455,7 @@
             const allRecords = DownloadHistoryManager.getHistory();
             const successCount = allRecords.filter(r => r.status === 'success').length;
             const failedCount = allRecords.filter(r => r.status === 'failed').length;
+            const netfreeCount = allRecords.filter(r => r.status === 'netfree').length;
             const pendingCount = allRecords.filter(r => r.status === 'pending').length;
 
             const filtered = filterStatus === 'all'
@@ -2439,36 +2465,42 @@
             const titleEl = document.getElementById('sectionTitle');
             titleEl.classList.remove('hidden');
             titleEl.innerHTML = `
-                <div class="flex flex-wrap items-center gap-3">
-                    <span>היסטוריית הורדות (${allRecords.length})</span>
+                <div class="flex flex-col gap-3">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span>היסטוריית הורדות (${allRecords.length})</span>
+                        <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+                            <button onclick="loadDownloadHistoryTab(true, 'all')" class="px-3.5 py-1.5 rounded-full border transition ${filterStatus === 'all' ? 'bg-blue-600 text-white border-blue-600' : ''}" style="${filterStatus !== 'all' ? 'background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);' : ''}">
+                                הכל (${allRecords.length})
+                            </button>
+                            <button onclick="loadDownloadHistoryTab(true, 'success')" class="px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${filterStatus === 'success' ? 'bg-green-600 text-white border-green-600' : ''}" style="${filterStatus !== 'success' ? 'background-color: var(--bg-surface); color: #22c55e; border-color: var(--border-color);' : ''}">
+                                <i class="fas fa-check-circle"></i> ירד בהצלחה (${successCount})
+                            </button>
+                            <button onclick="loadDownloadHistoryTab(true, 'failed')" class="px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${filterStatus === 'failed' ? 'bg-red-600 text-white border-red-600' : ''}" style="${filterStatus !== 'failed' ? 'background-color: var(--bg-surface); color: #ef4444; border-color: var(--border-color);' : ''}">
+                                <i class="fas fa-times-circle"></i> לא ירד (${failedCount})
+                            </button>
+                            <button onclick="loadDownloadHistoryTab(true, 'netfree')" class="px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${filterStatus === 'netfree' ? 'bg-orange-600 text-white border-orange-600' : ''}" style="${filterStatus !== 'netfree' ? 'background-color: var(--bg-surface); color: #f97316; border-color: var(--border-color);' : ''}">
+                                <i class="fas fa-shield-alt"></i> חסימה בנטפרי (${netfreeCount})
+                            </button>
+                            <button onclick="loadDownloadHistoryTab(true, 'pending')" class="px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${filterStatus === 'pending' ? 'bg-amber-600 text-white border-amber-600' : ''}" style="${filterStatus !== 'pending' ? 'background-color: var(--bg-surface); color: #f59e0b; border-color: var(--border-color);' : ''}">
+                                <i class="fas fa-hourglass-half"></i> בתהליך (${pendingCount})
+                            </button>
+                        </div>
+                    </div>
                     <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
-                        <button onclick="loadDownloadHistoryTab(true, 'all')" class="px-3 py-1.5 rounded-full border transition ${filterStatus === 'all' ? 'bg-blue-600 text-white border-blue-600' : ''}" style="${filterStatus !== 'all' ? 'background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);' : ''}">
-                            הכל (${allRecords.length})
+                        <button onclick="DownloadHistoryManager.pollLocalStatusBridge().then(() => showToast('בוצע סנכרון מול תוכנת ההורדה'))" class="px-3 py-1.5 rounded-full bg-blue-600/20 text-blue-400 border border-blue-500/40 hover:bg-blue-600/30 transition flex items-center gap-1.5" title="בדוק עכשיו מול תוכנת ההורדה (פורט 9876 / תיקיית הורדות)">
+                            <i class="fas fa-sync-alt"></i> בדוק סטטוס מתוכנת ההורדה
                         </button>
-                        <button onclick="loadDownloadHistoryTab(true, 'success')" class="px-3 py-1.5 rounded-full border transition flex items-center gap-1 ${filterStatus === 'success' ? 'bg-green-600 text-white border-green-600' : ''}" style="${filterStatus !== 'success' ? 'background-color: var(--bg-surface); color: #22c55e; border-color: var(--border-color);' : ''}">
-                            <i class="fas fa-check-circle"></i> הצליחו (${successCount})
+                        <button onclick="DownloadHistoryManager.connectDownloadFolder()" class="px-3 py-1.5 rounded-full bg-cyan-600/20 text-cyan-400 border border-cyan-500/40 hover:bg-cyan-600/30 transition flex items-center gap-1.5" title="חבר את תיקיית Video במחשב כדי לקרוא את yt_dlp_status.json ואת הקבצים שירדו">
+                            <i class="fas fa-folder-open"></i> ${DownloadHistoryManager.dirHandle ? 'סנכרן תיקיית הורדות' : 'חבר תיקיית הורדות (Video)'}
                         </button>
-                        <button onclick="loadDownloadHistoryTab(true, 'failed')" class="px-3 py-1.5 rounded-full border transition flex items-center gap-1 ${filterStatus === 'failed' ? 'bg-red-600 text-white border-red-600' : ''}" style="${filterStatus !== 'failed' ? 'background-color: var(--bg-surface); color: #ef4444; border-color: var(--border-color);' : ''}">
-                            <i class="fas fa-times-circle"></i> נכשלו (${failedCount})
-                        </button>
-                        ${pendingCount > 0 ? `
-                        <button onclick="loadDownloadHistoryTab(true, 'pending')" class="px-3 py-1.5 rounded-full border transition flex items-center gap-1 ${filterStatus === 'pending' ? 'bg-amber-600 text-white border-amber-600' : ''}" style="${filterStatus !== 'pending' ? 'background-color: var(--bg-surface); color: #f59e0b; border-color: var(--border-color);' : ''}">
-                            <i class="fas fa-hourglass-half"></i> בתהליך (${pendingCount})
-                        </button>` : ''}
-                        ${failedCount > 0 ? `
-                        <button onclick="retryAllFailedDownloads()" class="px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 transition flex items-center gap-1" title="נסה להוריד מחדש את כל ההורדות שנכשלו">
-                            <i class="fas fa-redo"></i> נסה שוב נכשלים
-                        </button>` : ''}
-                        <button onclick="DownloadHistoryManager.connectDownloadFolder()" class="px-3 py-1.5 rounded-full bg-cyan-600/20 text-cyan-400 border border-cyan-500/40 hover:bg-cyan-600/30 transition flex items-center gap-1.5" title="חבר את תיקיית ההורדות במחשב כדי שהאתר יבדוק אוטומטית אילו קבצים באמת ירדו ואילו נכשלו">
-                            <i class="fas fa-folder-open"></i> ${DownloadHistoryManager.dirHandle ? 'סנכרן תיקיית הורדות עכשיו' : 'חבר תיקיית הורדות לאימות'}
-                        </button>
-                        <label class="px-3 py-1.5 rounded-full bg-purple-600/20 text-purple-400 border border-purple-500/40 hover:bg-purple-600/30 transition flex items-center gap-1.5 cursor-pointer" title="טען קובץ ארכיון (--download-archive) או קובץ סטטוס JSON מתוכנת ההורדה">
-                            <i class="fas fa-file-import"></i> טען דו"ח מתוכנת ההורדה
+                        <label class="px-3 py-1.5 rounded-full bg-purple-600/20 text-purple-400 border border-purple-500/40 hover:bg-purple-600/30 transition flex items-center gap-1.5 cursor-pointer" title="טען קובץ yt_dlp_status.json מתוך תיקיית ההורדות">
+                            <i class="fas fa-file-import"></i> טען yt_dlp_status.json
                             <input type="file" id="ytDlpStatusFileInput" onchange="DownloadHistoryManager.importStatusFile(this)" class="hidden" accept=".json,.txt,.log">
                         </label>
-                        <button onclick="showYtDlpIntegrationGuide()" class="px-3 py-1.5 rounded-full border transition flex items-center gap-1" style="background-color: var(--bg-surface); color: var(--text-secondary); border-color: var(--border-color);" title="איך לחבר את סקריפט ההורדה לדיווח אוטומטי מלא">
-                            <i class="fas fa-plug text-blue-400"></i> הגדרת דיווח אוטומטי מ-yt-dlp
-                        </button>
+                        ${failedCount > 0 ? `
+                        <button onclick="retryAllFailedDownloads()" class="px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 transition flex items-center gap-1" title="נסה להוריד מחדש את כל ההורדות שלא ירדו">
+                            <i class="fas fa-redo"></i> נסה שוב לא ירדו
+                        </button>` : ''}
                         ${allRecords.length > 0 ? `
                         <button onclick="clearDownloadHistoryConfirm()" class="px-3 py-1.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition flex items-center gap-1">
                             <i class="fas fa-trash-alt"></i> נקה היסטוריה
@@ -2496,15 +2528,19 @@
                 const card = document.createElement('div');
                 card.className = "video-card group flex flex-col p-4 rounded-2xl border transition";
                 card.style.backgroundColor = "var(--bg-card)";
-                card.style.borderColor = item.status === 'failed' ? 'rgba(239, 68, 68, 0.5)' : (item.status === 'success' ? 'rgba(34, 197, 94, 0.35)' : 'var(--border-color)');
+                card.style.borderColor = item.status === 'netfree'
+                    ? 'rgba(249, 115, 22, 0.6)'
+                    : (item.status === 'failed' ? 'rgba(239, 68, 68, 0.5)' : (item.status === 'success' ? 'rgba(34, 197, 94, 0.35)' : 'var(--border-color)'));
 
                 let statusBadge = '';
                 if (item.status === 'success') {
                     statusBadge = `<span class="bg-green-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-check-circle"></i> ירד בהצלחה</span>`;
+                } else if (item.status === 'netfree') {
+                    statusBadge = `<span class="bg-orange-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-shield-alt"></i> חסום בנטפרי</span>`;
                 } else if (item.status === 'failed') {
-                    statusBadge = `<span class="bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-exclamation-triangle"></i> נכשל</span>`;
+                    statusBadge = `<span class="bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-times-circle"></i> לא ירד</span>`;
                 } else {
-                    statusBadge = `<span class="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-spinner fa-spin"></i> נשלח להורדה</span>`;
+                    statusBadge = `<span class="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-spinner fa-spin"></i> בתהליך הורדה</span>`;
                 }
 
                 const qualityLabel = item.quality === 'audio' ? 'MP3 (שמע)' : `${item.quality}p`;
@@ -2525,8 +2561,8 @@
                         <div>
                             <h3 class="font-bold text-base line-clamp-2 mb-1 cursor-pointer hover:underline" style="color: var(--text-primary);" onclick="openPlayer('${safeId}', '${safeTitle}', '${safeThumb}', '${safeChannel}', '')">${escapeHtml(item.title)}</h3>
                             <p class="text-xs mb-1" style="color: var(--text-secondary);">${escapeHtml(item.channel || 'YouTube')} • ${escapeHtml(dateStr)}</p>
-                            <p class="text-[11px] px-2.5 py-1 rounded-lg mt-1 inline-block" style="background-color: var(--bg-surface); color: ${item.status === 'failed' ? '#ef4444' : 'var(--text-secondary)'};">
-                                ${escapeHtml(item.reason || (item.status === 'success' ? 'נשלח לתוכנת ההורדה בהצלחה' : 'נכשל'))}
+                            <p class="text-[11px] px-2.5 py-1 rounded-lg mt-1 inline-block" style="background-color: var(--bg-surface); color: ${item.status === 'netfree' ? '#f97316' : (item.status === 'failed' ? '#ef4444' : 'var(--text-secondary)')};">
+                                ${escapeHtml(item.reason || (item.status === 'success' ? 'ירד בהצלחה' : (item.status === 'netfree' ? 'חסום בנטפרי (HTTP 418)' : 'לא ירד')))}
                             </p>
                         </div>
                         <div class="flex items-center gap-2 mt-4 pt-3 border-t flex-wrap" style="border-color: var(--border-color);">
@@ -2534,12 +2570,16 @@
                                 <i class="fas fa-redo"></i> הורד שוב
                             </button>
                             ${item.status !== 'success' ? `
-                            <button onclick="DownloadHistoryManager.updateStatus('${safeRecId}', 'success', 'סומן ידנית כהורדה שהצליחה')" class="text-xs px-2.5 py-1.5 rounded-full border transition text-green-500 border-green-500/40 hover:bg-green-500/10" title="סמן כהצליח">
-                                <i class="fas fa-check"></i> סמן כהצליח
+                            <button onclick="DownloadHistoryManager.updateStatus('${safeRecId}', 'success', 'ירד בהצלחה')" class="text-xs px-2.5 py-1.5 rounded-full border transition text-green-500 border-green-500/40 hover:bg-green-500/10" title="העבר לירד בהצלחה">
+                                <i class="fas fa-check"></i> ירד
                             </button>` : ''}
                             ${item.status !== 'failed' ? `
-                            <button onclick="DownloadHistoryManager.updateStatus('${safeRecId}', 'failed', 'סומן ידנית כהורדה שנכשלה')" class="text-xs px-2.5 py-1.5 rounded-full border transition text-amber-500 border-amber-500/40 hover:bg-amber-500/10" title="סמן כנכשל">
-                                <i class="fas fa-times"></i> סמן כנכשל
+                            <button onclick="DownloadHistoryManager.updateStatus('${safeRecId}', 'failed', 'לא ירד')" class="text-xs px-2.5 py-1.5 rounded-full border transition text-red-500 border-red-500/40 hover:bg-red-500/10" title="העבר ללא ירד">
+                                <i class="fas fa-times"></i> לא ירד
+                            </button>` : ''}
+                            ${item.status !== 'netfree' ? `
+                            <button onclick="DownloadHistoryManager.updateStatus('${safeRecId}', 'netfree', 'חסום בנטפרי (HTTP Error 418: Blocked by NetFree)')" class="text-xs px-2.5 py-1.5 rounded-full border transition text-orange-500 border-orange-500/40 hover:bg-orange-500/10" title="העבר לחסימה בנטפרי">
+                                <i class="fas fa-shield-alt"></i> נטפרי
                             </button>` : ''}
                             <button onclick="copyLink('${safeId}')" class="text-xs px-2.5 py-1.5 rounded-full border transition" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);" title="העתק קישור">
                                 <i class="fas fa-link"></i>
