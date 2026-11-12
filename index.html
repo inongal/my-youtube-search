@@ -139,15 +139,15 @@
             width: var(--floating-w, 400px); height: var(--floating-h, 225px); 
             min-width: 260px; min-height: 146px;
             max-width: 90vw; max-height: 90vh;
-            resize: both; 
+            resize: none; 
             overflow: hidden; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid var(--border-color); pointer-events: auto; display: block; position: relative; background: var(--bg-main); 
         }
         #watchView.floating-mode .player-info-section, #watchView.floating-mode .player-header, #upNextSidebar { display: none !important; }
         #watchView.floating-mode #watchMainContent, #watchView.floating-mode #watchVideoArea { height: 100% !important; overflow: hidden !important; }
         #watchView.floating-mode .aspect-video { width: 100%; height: 100%; position: absolute; inset: 0; padding: 0; margin: 0; }
         .floating-controls, .floating-resize-handle { display: none; }
-        #watchView.floating-mode .floating-controls { display: flex; position: absolute; top: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); z-index: 30; opacity: 0; transition: opacity 0.2s ease; justify-content: flex-end; gap: 8px; cursor: move; pointer-events: auto; }
-        #watchView.floating-mode .floating-resize-handle { display: flex; position: absolute; bottom: 0; right: 0; width: 22px; height: 22px; z-index: 35; cursor: nwse-resize; align-items: flex-end; justify-content: flex-end; padding: 3px; color: rgba(255,255,255,0.7); background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.7) 50%); opacity: 0; transition: opacity 0.2s ease; pointer-events: auto; }
+        #watchView.floating-mode .floating-controls { display: flex; position: absolute; top: 0; left: 0; right: 32px; padding: 8px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); z-index: 30; opacity: 0; transition: opacity 0.2s ease; justify-content: flex-end; gap: 8px; cursor: move; pointer-events: auto; }
+        #watchView.floating-mode .floating-resize-handle { display: flex; position: absolute; top: 0; right: 0; width: 26px; height: 26px; z-index: 40; cursor: nesw-resize; align-items: flex-start; justify-content: flex-end; padding: 4px; color: rgba(255,255,255,0.95); background: linear-gradient(225deg, rgba(59,130,246,0.85) 50%, transparent 50%); border-bottom-left-radius: 8px; opacity: 0; transition: opacity 0.2s ease; pointer-events: auto; }
         #watchView.floating-mode .player-container:hover .floating-controls,
         #watchView.floating-mode .player-container:hover .floating-resize-handle { opacity: 1; }
 
@@ -401,7 +401,10 @@
                     <h2 id="sectionTitle" class="text-2xl font-bold hidden" style="color: var(--text-primary);">מומלצים</h2>
                     <input type="text" id="internalSearch" oninput="filterLocalItems(this.value)" placeholder="חיפוש מהיר ברשימה..." class="hidden rounded-lg px-3 py-1.5 outline-none transition text-sm mr-4 border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <button id="unwatchedOnlyBtn" onclick="toggleUnwatchedOnly()" class="px-4 py-2 rounded-lg text-sm font-bold border transition flex items-center gap-2" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);" title="הצג סרטונים שלא נצפו בלבד">
+                        <i id="unwatchedOnlyIcon" class="fas fa-eye-slash text-gray-400"></i> <span class="hidden sm:inline" id="unwatchedOnlyText">הצג לא נצפו בלבד</span>
+                    </button>
                     <button onclick="toggleViewMode()" class="w-10 h-10 rounded-lg text-sm flex items-center justify-center border transition" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);" title="שנה תצוגה (רשת/רשימה)">
                         <i id="viewToggleIcon" class="fas fa-list"></i>
                     </button>
@@ -533,8 +536,8 @@
                     <i class="fas fa-times text-xs"></i>
                 </button>
             </div>
-            <div class="floating-resize-handle" title="גרור לשינוי גודל הנגן הממוזער">
-                <i class="fas fa-caret-right text-[10px] transform rotate-45"></i>
+            <div class="floating-resize-handle" title="גרור בפינה הימנית-עליונה לשינוי גודל הנגן הממוזער">
+                <i class="fas fa-expand-alt text-[10px]"></i>
             </div>
 
             <div class="player-header p-4 flex justify-between items-center border-b" style="border-color: var(--border-color);">
@@ -611,7 +614,18 @@
                         </div>
                         
                         <div class="p-5 rounded-2xl" style="background-color: var(--bg-surface);">
-                            <p id="modalStats" class="text-sm font-bold mb-3" style="color: var(--text-primary);"></p>
+                            <div id="modalChannelBar" class="flex items-center gap-3 mb-3 pb-3 border-b hidden" style="border-color: var(--border-color);">
+                                <div id="modalChannelAvatarWrap" class="w-10 h-10 rounded-full overflow-hidden border flex items-center justify-center cursor-pointer flex-shrink-0" style="background-color: var(--bg-card); border-color: var(--border-color);">
+                                    <img id="modalChannelAvatarImg" src="" data-channel-avatar-id="" data-video-avatar-id="" class="w-full h-full object-cover hidden" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');">
+                                    <div class="w-full h-full flex items-center justify-center">
+                                        <i class="fas fa-user text-xs opacity-40" style="color: var(--text-primary);"></i>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span id="modalChannelTitle" class="font-bold text-sm cursor-pointer hover:underline" style="color: var(--text-primary);"></span>
+                                    <span id="modalStats" class="text-xs font-semibold mt-0.5" style="color: var(--text-secondary);"></span>
+                                </div>
+                            </div>
                             
                             <div id="descContainer" class="relative bg-black/5 p-3 rounded-xl border border-transparent transition-colors">
                                 <div id="modalDesc" class="text-sm whitespace-pre-wrap leading-relaxed desc-collapsed" style="color: var(--text-secondary);"></div>
@@ -639,8 +653,8 @@
         </div>
     </div>
 
-    <div id="configModal" class="fixed inset-0 z-[300] flex items-center justify-center p-4">
-        <div class="p-8 rounded-3xl w-full max-w-md border shadow-2xl" style="background-color: var(--bg-card); border-color: var(--border-color);">
+    <div id="configModal" class="fixed inset-0 z-[300] flex items-center justify-center p-4 overflow-y-auto custom-scrollbar">
+        <div class="p-6 sm:p-8 rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar border shadow-2xl my-auto" style="background-color: var(--bg-card); border-color: var(--border-color);">
             <h2 class="text-2xl font-bold mb-2 text-center" style="color: var(--text-primary);">הגדרות מערכת</h2>
             <p class="text-xs text-center mb-6" style="color: var(--text-muted);">ניהול מפתחות, נתונים ועיצוב</p>
             <div class="space-y-5 text-right">
@@ -678,6 +692,43 @@
                             <option value="audio">שמע בלבד (MP3)</option>
                         </select>
                     </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">מספר חיבורים להורדה (כמו IDM: 1-32)</label>
+                    <select id="defaultDownloadConnectionsSelect" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                            <option value="1">1 חיבור (רגיל)</option>
+                            <option value="2">2 חיבורים</option>
+                            <option value="3">3 חיבורים</option>
+                            <option value="4">4 חיבורים</option>
+                            <option value="5">5 חיבורים</option>
+                            <option value="6">6 חיבורים</option>
+                            <option value="7">7 חיבורים</option>
+                            <option value="8" selected>8 חיבורים (מומלץ IDM)</option>
+                            <option value="9">9 חיבורים</option>
+                            <option value="10">10 חיבורים</option>
+                            <option value="11">11 חיבורים</option>
+                            <option value="12">12 חיבורים</option>
+                            <option value="13">13 חיבורים</option>
+                            <option value="14">14 חיבורים</option>
+                            <option value="15">15 חיבורים</option>
+                            <option value="16">16 חיבורים (מומלץ IDM)</option>
+                            <option value="17">17 חיבורים</option>
+                            <option value="18">18 חיבורים</option>
+                            <option value="19">19 חיבורים</option>
+                            <option value="20">20 חיבורים</option>
+                            <option value="21">21 חיבורים</option>
+                            <option value="22">22 חיבורים</option>
+                            <option value="23">23 חיבורים</option>
+                            <option value="24">24 חיבורים</option>
+                            <option value="25">25 חיבורים</option>
+                            <option value="26">26 חיבורים</option>
+                            <option value="27">27 חיבורים</option>
+                            <option value="28">28 חיבורים</option>
+                            <option value="29">29 חיבורים</option>
+                            <option value="30">30 חיבורים</option>
+                            <option value="31">31 חיבורים</option>
+                            <option value="32">32 חיבורים (מקסימום IDM)</option>
+                    </select>
                 </div>
                 <div class="flex items-center justify-between p-3 rounded-xl border" style="background-color: var(--bg-input); border-color: var(--border-color);">
                     <div>
@@ -909,8 +960,12 @@
             currentRenderedItems: [],
             maxResults: 12,
             defaultDownloadQuality: localStorage.getItem('yt_default_dl_quality') || '1080',
+            defaultDownloadConnections: parseInt(localStorage.getItem('yt_default_dl_connections') || '8', 10) || 8,
             showDownloadPopup: localStorage.getItem('yt_show_dl_popup') !== 'false',
             miniDownloadMinimized: false,
+            homeFilter: 'all',
+            lastKnownPlaybackTime: 0,
+            unwatchedOnly: localStorage.getItem('yt_unwatched_only') === 'true',
             isListView: false,
             isSelectionMode: false,
             selectedVideos: new Set(),
@@ -923,43 +978,96 @@
 
         let ytPlayer = null;
 
-        // זיכרון מטמון לתמונות פרופיל של ערוצים ולכמויות סרטונים בפלייליסטים
+        // זיכרון מטמון לתמונות פרופיל של ערוצים, מיפוי סרטון->ערוץ, וכמויות סרטונים בפלייליסטים
         let channelAvatarsCache = JSON.parse(localStorage.getItem('yt_channel_avatars') || '{}');
+        let videoChannelMap = JSON.parse(localStorage.getItem('yt_video_channel_map') || '{}');
         let playlistCountsCache = JSON.parse(localStorage.getItem('yt_playlist_counts') || '{}');
 
-        async function loadMissingChannelAvatars(channelIds) {
-            if (!appState.apiKey) return;
-            const missing = [...new Set(channelIds)].filter(id => id && !channelAvatarsCache[id]);
-            if (missing.length === 0) return;
-
-            for (let i = 0; i < missing.length; i += 50) {
-                const chunk = missing.slice(i, i + 50).join(',');
-                try {
-                    const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${chunk}&key=${appState.apiKey}`);
-                    const data = await res.json();
-                    if (data.items) {
-                        data.items.forEach(c => {
-                            const url = c.snippet?.thumbnails?.default?.url || c.snippet?.thumbnails?.medium?.url;
-                            if (url) channelAvatarsCache[c.id] = url;
-                        });
-                    }
-                } catch (e) {
-                    console.error("שגיאה בטעינת תמונות ערוץ:", e);
+        function applyAvatarsToDom() {
+            document.querySelectorAll('img[data-channel-avatar-id], img[data-video-avatar-id]').forEach(img => {
+                let cId = img.getAttribute('data-channel-avatar-id') || '';
+                const vId = img.getAttribute('data-video-avatar-id') || '';
+                if (!cId && vId && videoChannelMap[vId]?.channelId) {
+                    cId = videoChannelMap[vId].channelId;
+                    img.setAttribute('data-channel-avatar-id', cId);
                 }
-            }
-
-            try {
-                localStorage.setItem('yt_channel_avatars', JSON.stringify(channelAvatarsCache));
-            } catch (e) {}
-
-            document.querySelectorAll('img[data-channel-avatar-id]').forEach(img => {
-                const cId = img.getAttribute('data-channel-avatar-id');
-                if (channelAvatarsCache[cId]) {
+                if (cId && channelAvatarsCache[cId]) {
                     img.src = channelAvatarsCache[cId];
                     img.classList.remove('hidden');
                     if (img.nextElementSibling) img.nextElementSibling.classList.add('hidden');
                 }
             });
+            document.querySelectorAll('[data-video-channel-click]').forEach(el => {
+                const vId = el.getAttribute('data-video-channel-click');
+                const cId = el.getAttribute('data-channel-id') || (vId && videoChannelMap[vId]?.channelId) || '';
+                if (cId) {
+                    el.setAttribute('data-channel-id', cId);
+                }
+            });
+        }
+
+        async function loadMissingChannelAvatars(channelIds) {
+            if (!appState.apiKey) {
+                applyAvatarsToDom();
+                return;
+            }
+            const missing = [...new Set(channelIds)].filter(id => id && !channelAvatarsCache[id]);
+            if (missing.length > 0) {
+                for (let i = 0; i < missing.length; i += 50) {
+                    const chunk = missing.slice(i, i + 50).join(',');
+                    try {
+                        const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${chunk}&key=${appState.apiKey}`);
+                        const data = await res.json();
+                        if (data.items) {
+                            data.items.forEach(c => {
+                                const url = c.snippet?.thumbnails?.default?.url || c.snippet?.thumbnails?.medium?.url;
+                                if (url) channelAvatarsCache[c.id] = url;
+                            });
+                        }
+                    } catch (e) {
+                        console.error("שגיאה בטעינת תמונות ערוץ:", e);
+                    }
+                }
+                safeSetLocalStorage('yt_channel_avatars', JSON.stringify(channelAvatarsCache));
+            }
+            applyAvatarsToDom();
+        }
+
+        async function resolveMissingVideoChannelAvatars(videoIds) {
+            applyAvatarsToDom();
+            if (!appState.apiKey) return;
+            const cleanVidIds = [...new Set((videoIds || []).filter(id => isValidVideoId(id)))];
+            const missingVidIds = cleanVidIds.filter(vid => !videoChannelMap[vid]?.channelId);
+
+            if (missingVidIds.length > 0) {
+                for (let i = 0; i < missingVidIds.length; i += 50) {
+                    const chunk = missingVidIds.slice(i, i + 50).join(',');
+                    try {
+                        const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${chunk}&key=${appState.apiKey}`);
+                        const data = await res.json();
+                        if (data.items) {
+                            data.items.forEach(v => {
+                                if (v.id && v.snippet?.channelId) {
+                                    videoChannelMap[v.id] = {
+                                        channelId: v.snippet.channelId,
+                                        channelTitle: v.snippet.channelTitle || ''
+                                    };
+                                }
+                            });
+                        }
+                    } catch (e) {}
+                }
+                safeSetLocalStorage('yt_video_channel_map', JSON.stringify(videoChannelMap));
+            }
+
+            const allChannelIds = cleanVidIds
+                .map(vid => videoChannelMap[vid]?.channelId)
+                .filter(Boolean);
+            if (allChannelIds.length > 0) {
+                await loadMissingChannelAvatars(allChannelIds);
+            } else {
+                applyAvatarsToDom();
+            }
         }
 
         async function loadMissingPlaylistDetails(playlistIds) {
@@ -1194,16 +1302,24 @@
         })();
 
         setInterval(() => {
-            if (appState.isIncognitoMode) return; 
-            if (ytPlayer && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1 && appState.currentVideoId && appState.currentVideoDetails) {
-                let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
-                positions[appState.currentVideoId] = {
-                    time: ytPlayer.getCurrentTime(),
-                    details: appState.currentVideoDetails
-                };
-                localStorage.setItem('yt_resume_positions', JSON.stringify(positions));
+            if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function' && appState.currentVideoId) {
+                try {
+                    const curT = ytPlayer.getCurrentTime();
+                    if (typeof curT === 'number' && curT > 0) {
+                        appState.lastKnownPlaybackTime = curT;
+                    }
+                    if (!appState.isIncognitoMode && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1 && appState.currentVideoDetails) {
+                        let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+                        positions[appState.currentVideoId] = {
+                            time: curT,
+                            updatedAt: Date.now(),
+                            details: appState.currentVideoDetails
+                        };
+                        safeSetLocalStorage('yt_resume_positions', JSON.stringify(positions));
+                    }
+                } catch (e) {}
             }
-        }, 5000);
+        }, 2000);
 
         function showToast(message) {
             const toast = document.getElementById('toast'); 
@@ -1351,7 +1467,9 @@
         }
 
         function refreshCurrentView() {
-            if (appState.searchContext === 'local_history') {
+            if (appState.searchContext === 'general') {
+                loadHomePage(true, appState.homeFilter || 'all');
+            } else if (appState.searchContext === 'local_history') {
                 loadLocalHistory(true);
             } else if (appState.searchContext === 'local_resume') {
                 loadResumeTab(true);
@@ -1532,22 +1650,64 @@
             return `${m}:${s.toString().padStart(2, '0')}`;
         }
 
-        function filterLocalItems(text) {
-            const query = text.toLowerCase();
+        function updateUnwatchedOnlyBtnUI() {
+            const btn = document.getElementById('unwatchedOnlyBtn');
+            const icon = document.getElementById('unwatchedOnlyIcon');
+            const textEl = document.getElementById('unwatchedOnlyText');
+            if (!btn || !icon || !textEl) return;
+            if (appState.unwatchedOnly) {
+                btn.style.borderColor = '#3b82f6';
+                btn.style.color = '#3b82f6';
+                btn.style.backgroundColor = 'rgba(59, 130, 246, 0.12)';
+                icon.className = 'fas fa-eye-slash text-blue-500';
+                textEl.innerText = 'מוצגים: לא נצפו בלבד';
+            } else {
+                btn.style.borderColor = 'var(--border-light)';
+                btn.style.color = 'var(--text-primary)';
+                btn.style.backgroundColor = 'var(--bg-surface)';
+                icon.className = 'fas fa-eye-slash text-gray-400';
+                textEl.innerText = 'הצג לא נצפו בלבד';
+            }
+        }
+
+        function toggleUnwatchedOnly() {
+            appState.unwatchedOnly = !appState.unwatchedOnly;
+            safeSetLocalStorage('yt_unwatched_only', String(appState.unwatchedOnly));
+            updateUnwatchedOnlyBtnUI();
+            applyContentFilters();
+            showToast(appState.unwatchedOnly ? "מציג סרטונים שלא נצפו בלבד" : "מציג את כל הסרטונים");
+        }
+
+        function applyContentFilters() {
+            const searchEl = document.getElementById('internalSearch');
+            const query = (searchEl && !searchEl.classList.contains('hidden')) ? searchEl.value.toLowerCase().trim() : '';
+            const localHistory = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
+            const watchedIds = new Set(localHistory.map(h => h.id));
+
             document.querySelectorAll('#resultsGrid .video-card').forEach(card => {
-                const title = card.querySelector('h3').innerText.toLowerCase();
+                const h3 = card.querySelector('h3');
+                const title = h3 ? h3.innerText.toLowerCase() : '';
                 const textElements = card.querySelectorAll('p, span');
                 let foundInText = false;
                 textElements.forEach(el => {
                     if (el.innerText.toLowerCase().includes(query)) foundInText = true;
                 });
-                
-                if (title.includes(query) || foundInText) {
+                const matchesSearch = !query || title.includes(query) || foundInText;
+
+                const vidId = card.getAttribute('data-video-id');
+                const isWatched = vidId ? watchedIds.has(vidId) : false;
+                const matchesUnwatched = !appState.unwatchedOnly || !vidId || !isWatched;
+
+                if (matchesSearch && matchesUnwatched) {
                     card.style.display = '';
                 } else {
                     card.style.display = 'none';
                 }
             });
+        }
+
+        function filterLocalItems(text) {
+            applyContentFilters();
         }
 
         function downloadUrls() {
@@ -1870,6 +2030,13 @@
             updateBatchActionBar();
         }
 
+        function getDefaultDownloadConnections() {
+            const raw = parseInt(appState.defaultDownloadConnections || localStorage.getItem('yt_default_dl_connections') || '8', 10);
+            if (isNaN(raw) || raw < 1) return 8;
+            if (raw > 32) return 32;
+            return raw;
+        }
+
         const DownloadHistoryManager = {
             lastSyncSource: null,
             autoHideTimer: null,
@@ -1890,12 +2057,37 @@
                     badge.classList.add('hidden');
                 }
             },
-            addRecord: ({ id, title, thumbnail, channel, quality, status = 'pending', reason = '', percent = 0, eta = '--:--', speed = '' }) => {
+            notifyBridgeCommand: (queryParam) => {
+                const bridgeBase = localStorage.getItem('yt_dl_bridge_url') || 'http://127.0.0.1:9876/status';
+                try {
+                    const cmdUrl = `${bridgeBase}?${queryParam}&t=${Date.now()}`;
+                    fetch(cmdUrl, { cache: 'no-store' }).catch(() => {});
+                } catch (e) {}
+                try {
+                    const s = document.createElement('script');
+                    s.src = `${bridgeBase}?${queryParam}&callback=__onYtDlpStatusUpdate&t=${Date.now()}`;
+                    s.async = true;
+                    s.onerror = () => { s.remove(); };
+                    s.onload = () => { setTimeout(() => s.remove(), 200); };
+                    document.body.appendChild(s);
+                } catch (e) {}
+            },
+            addRecord: ({ id, title, thumbnail, channel, channelId, quality, connections, status = 'pending', reason = '', percent = 0, eta = '--:--', speed = '' }) => {
+                try {
+                    const delMap = JSON.parse(localStorage.getItem('yt_dl_deleted_ids') || '{}');
+                    if (delMap[id]) {
+                        delete delMap[id];
+                        safeSetLocalStorage('yt_dl_deleted_ids', JSON.stringify(delMap));
+                    }
+                } catch (e) {}
+
+                const connCount = Math.min(32, Math.max(1, parseInt(connections, 10) || getDefaultDownloadConnections()));
                 const list = DownloadHistoryManager.getHistory();
-                // אם כבר קיימת רשומה פעילה לאותו סרטון נעדכן אותה במקום לשכפל
                 const existingIdx = list.findIndex(r => r.id === id && r.status === 'pending');
                 if (existingIdx > -1) {
                     list[existingIdx].quality = quality || list[existingIdx].quality;
+                    list[existingIdx].connections = connCount;
+                    if (channelId) list[existingIdx].channelId = channelId;
                     list[existingIdx].reason = reason || list[existingIdx].reason;
                     list[existingIdx].percent = percent;
                     list[existingIdx].eta = eta;
@@ -1912,9 +2104,11 @@
                     title: title || `סרטון (${id})`,
                     thumbnail: thumbnail || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
                     channel: channel || '',
+                    channelId: channelId || videoChannelMap[id]?.channelId || '',
                     quality: quality || '1080',
-                    status, // 'pending' | 'success' | 'failed' | 'netfree'
-                    subState: 'waiting', // 'waiting' | 'starting' | 'downloading'
+                    connections: connCount,
+                    status,
+                    subState: 'waiting',
                     percent: Number(percent) || 0,
                     eta: eta || '--:--',
                     speed: speed || '',
@@ -1937,6 +2131,7 @@
                     if (extra.eta !== undefined) list[idx].eta = extra.eta;
                     if (extra.speed !== undefined) list[idx].speed = extra.speed;
                     if (extra.subState !== undefined) list[idx].subState = extra.subState;
+                    if (extra.connections !== undefined) list[idx].connections = Number(extra.connections) || list[idx].connections;
                     DownloadHistoryManager.saveHistory(list);
                     if (appState.searchContext === 'download_history') {
                         loadDownloadHistoryTab(true, appState.downloadHistoryFilter || 'all');
@@ -1947,6 +2142,11 @@
                 if (!reportData) return 0;
                 let updatedCount = 0;
                 const list = DownloadHistoryManager.getHistory();
+                const clearedAt = Number(localStorage.getItem('yt_dl_cleared_at') || 0);
+                let deletedMap = {};
+                try {
+                    deletedMap = JSON.parse(localStorage.getItem('yt_dl_deleted_ids') || '{}');
+                } catch (e) {}
 
                 const entries = Array.isArray(reportData)
                     ? reportData
@@ -1956,11 +2156,21 @@
                     if (!entry) return;
                     const vid = entry.id || entry.videoId || entry.video_id;
                     if (!vid) return;
+
+                    const entryUpdatedMs = entry.updatedAt ? (new Date(entry.updatedAt).getTime() || 0) : 0;
+                    if (clearedAt > 0 && entryUpdatedMs > 0 && entryUpdatedMs <= clearedAt) {
+                        return;
+                    }
+                    if (deletedMap[vid] && (!entryUpdatedMs || entryUpdatedMs <= deletedMap[vid])) {
+                        return;
+                    }
+
                     const rawStatus = String(entry.status || entry.state || '').toLowerCase();
                     const rawReason = String(entry.reason || entry.message || entry.error || '');
                     const pct = entry.percent !== undefined ? Math.min(100, Math.max(0, Number(entry.percent) || 0)) : undefined;
                     const eta = entry.eta !== undefined ? String(entry.eta) : undefined;
                     const speed = entry.speed !== undefined ? String(entry.speed) : undefined;
+                    const entryConn = entry.connections ? Math.min(32, Math.max(1, parseInt(entry.connections, 10))) : undefined;
 
                     let normStatus = null;
                     let subState = 'waiting';
@@ -1993,21 +2203,23 @@
                             const finalPct = normStatus === 'success' ? 100 : (pct !== undefined ? pct : (r.percent || 0));
                             const finalEta = normStatus === 'success' ? '00:00' : (eta !== undefined ? eta : (r.eta || '--:--'));
                             const finalSpd = speed !== undefined ? speed : (r.speed || '');
+                            const finalConn = entryConn || r.connections || getDefaultDownloadConnections();
 
-                            if (r.status !== normStatus || r.reason !== reasonText || r.percent !== finalPct || r.eta !== finalEta || r.subState !== subState) {
+                            if (r.status !== normStatus || r.reason !== reasonText || r.percent !== finalPct || r.eta !== finalEta || r.subState !== subState || r.connections !== finalConn) {
                                 r.status = normStatus;
                                 r.subState = subState;
                                 r.reason = reasonText;
                                 r.percent = finalPct;
                                 r.eta = finalEta;
                                 r.speed = finalSpd;
+                                r.connections = finalConn;
                                 if (entry.quality) r.quality = entry.quality;
                                 updatedCount++;
                             }
                         }
                     });
 
-                    if (!matched && isValidVideoId(vid)) {
+                    if (!matched && isValidVideoId(vid) && (normStatus === 'pending' || (entryUpdatedMs > clearedAt && !deletedMap[vid]))) {
                         const meta = findVideoMetadataById(vid);
                         list.unshift({
                             recordId: 'dl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
@@ -2016,7 +2228,9 @@
                             title: entry.title || meta.title || `סרטון (${vid})`,
                             thumbnail: entry.thumbnail || meta.thumbnail || `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
                             channel: entry.channel || meta.channel || '',
+                            channelId: meta.channelId || videoChannelMap[vid]?.channelId || '',
                             quality: entry.quality || getDefaultDownloadQuality(),
+                            connections: entryConn || getDefaultDownloadConnections(),
                             status: normStatus,
                             subState,
                             percent: normStatus === 'success' ? 100 : (pct || 0),
@@ -2039,13 +2253,13 @@
                 return updatedCount;
             },
             pollLocalStatusBridge: async () => {
-                // קבלת נתונים אך ורק מתוכנת ההורדה (דרך שרת השידור המקומי בפורט 9876 ב-Fetch או ב-JSONP לעבודה חלקה גם מ-file://)
                 const bridgeBase = localStorage.getItem('yt_dl_bridge_url') || 'http://127.0.0.1:9876/status';
                 let fetchedOk = false;
                 try {
                     const controller = new AbortController();
                     const timer = setTimeout(() => controller.abort(), 900);
-                    const res = await fetch(`${bridgeBase}?t=${Date.now()}`, { signal: controller.signal, cache: 'no-store' });
+                    const pollUrl = `${bridgeBase}?t=${Date.now()}`;
+                    const res = await fetch(pollUrl, { signal: controller.signal, cache: 'no-store' });
                     clearTimeout(timer);
                     if (res.ok) {
                         const rawText = await res.text();
@@ -2059,7 +2273,6 @@
                     }
                 } catch (e) {}
 
-                // גיבוי JSONP אוטומטי אם הדפדפן חוסם Fetch מקובץ מקומי file:// אל localhost
                 if (!fetchedOk) {
                     try {
                         const oldScript = document.getElementById('ytdlpLiveJsonpScript');
@@ -2083,7 +2296,6 @@
                 const headerIcon = document.getElementById('miniDlHeaderIcon');
                 if (!popup || !pill || !body) return;
 
-                // אם המשתמש ביטל את החלונית בהגדרות - נסתיר הכל
                 if (!appState.showDownloadPopup) {
                     popup.classList.add('hidden');
                     pill.classList.add('hidden');
@@ -2093,7 +2305,6 @@
 
                 const list = DownloadHistoryManager.getHistory();
                 const now = Date.now();
-                // מציגים בחלונית הקטנה הורדות פעילות או הורדות שהסתיימו ב-18 השניות האחרונות
                 const recentOrActive = list.filter(r => {
                     if (r.status === 'pending') return true;
                     const ageSec = (now - new Date(r.timestamp).getTime()) / 1000;
@@ -2139,6 +2350,8 @@
                 body.innerHTML = recentOrActive.map(item => {
                     const pct = Math.min(100, Math.max(0, Number(item.percent) || 0));
                     const isStarting = item.status === 'pending' && (!pct || item.subState === 'starting');
+                    const connCount = item.connections || getDefaultDownloadConnections();
+                    const connText = connCount === 1 ? 'חיבור 1' : `${connCount} חיבורים`;
                     let statusTag = '';
                     let barColor = 'bg-cyan-500';
                     if (item.status === 'success') {
@@ -2171,9 +2384,10 @@
                             <div class="w-full h-2 rounded-full bg-black/40 overflow-hidden mb-1">
                                 <div class="h-full ${barColor} transition-all duration-300" style="width: ${item.status === 'success' ? 100 : (isStarting ? 8 : pct)}%;"></div>
                             </div>
-                            <div class="flex items-center justify-between text-[10px]" style="color: var(--text-secondary);">
-                                <span class="truncate">${etaLine}</span>
-                                <span class="font-bold ml-1">${item.quality === 'audio' ? 'MP3' : escapeHtml(item.quality + 'p')}</span>
+                            <div class="flex items-center justify-between text-[10px] gap-1" style="color: var(--text-secondary);">
+                                <span class="truncate flex-1">${etaLine}</span>
+                                <span class="px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 font-bold whitespace-nowrap" title="מספר חיבורים פעילים"><i class="fas fa-bolt ml-0.5"></i>${escapeHtml(connText)}</span>
+                                <span class="font-bold whitespace-nowrap">${item.quality === 'audio' ? 'MP3' : escapeHtml(item.quality + 'p')}</span>
                             </div>
                         </div>
                     `;
@@ -2181,6 +2395,15 @@
             },
             removeRecord: (recordId) => {
                 let list = DownloadHistoryManager.getHistory();
+                const target = list.find(r => r.recordId === recordId);
+                if (target && target.id) {
+                    try {
+                        const delMap = JSON.parse(localStorage.getItem('yt_dl_deleted_ids') || '{}');
+                        delMap[target.id] = Date.now();
+                        safeSetLocalStorage('yt_dl_deleted_ids', JSON.stringify(delMap));
+                    } catch (e) {}
+                    DownloadHistoryManager.notifyBridgeCommand(`remove=${encodeURIComponent(target.id)}`);
+                }
                 list = list.filter(r => r.recordId !== recordId);
                 DownloadHistoryManager.saveHistory(list);
                 if (appState.searchContext === 'download_history') {
@@ -2188,7 +2411,10 @@
                 }
             },
             clearAll: () => {
+                safeSetLocalStorage('yt_dl_cleared_at', String(Date.now()));
+                safeSetLocalStorage('yt_dl_deleted_ids', '{}');
                 safeSetLocalStorage('yt_download_history', '[]');
+                DownloadHistoryManager.notifyBridgeCommand('clear=1');
                 DownloadHistoryManager.updateBadge();
                 DownloadHistoryManager.renderMiniPopup();
                 if (appState.searchContext === 'download_history') {
@@ -2206,7 +2432,6 @@
             DownloadHistoryManager.applyExternalReport(data, 'תוכנת ההורדה');
         };
 
-        // דגימה מהירה מתוכנת ההורדה בזמן אמת (כל שנייה כשיש הורדה פעילה)
         setInterval(() => {
             const list = DownloadHistoryManager.getHistory();
             const hasPending = list.some(r => r.status === 'pending');
@@ -2229,19 +2454,20 @@
                     id: videoId,
                     title: found.snippet.title || `סרטון (${videoId})`,
                     thumbnail: found.snippet.thumbnails?.high?.url || found.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-                    channel: found.snippet.channelTitle || ''
+                    channel: found.snippet.channelTitle || '',
+                    channelId: found.snippet.channelId || videoChannelMap[videoId]?.channelId || ''
                 };
             }
             return {
                 id: videoId,
                 title: `סרטון (${videoId})`,
                 thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-                channel: ''
+                channel: videoChannelMap[videoId]?.channelTitle || '',
+                channelId: videoChannelMap[videoId]?.channelId || ''
             };
         }
 
         async function verifyVideoDownloadability(videoId) {
-            // בדיקה מוקדמת מול YouTube API האם הסרטון קיים, ציבורי וזמין להורדה
             if (!appState.apiKey) return { ok: true };
             try {
                 const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=status,snippet,contentDetails&id=${encodeURIComponent(videoId)}&key=${appState.apiKey}`);
@@ -2262,7 +2488,8 @@
                     meta: {
                         title: item.snippet?.title,
                         thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url,
-                        channel: item.snippet?.channelTitle
+                        channel: item.snippet?.channelTitle,
+                        channelId: item.snippet?.channelId
                     }
                 };
             } catch (e) {
@@ -2287,7 +2514,6 @@
                         document.body.removeChild(iframe);
                     }
 
-                    // ניסיון אימות מיידי מול תיקיית ההורדות או השרת המקומי של תוכנת ההורדה
                     await DownloadHistoryManager.pollLocalStatusBridge();
 
                     recordIds.forEach(rid => {
@@ -2295,11 +2521,13 @@
                         if (!currentRec || currentRec.status !== 'pending') return;
 
                         if (protocolHandled) {
-                            // הוודאות מגיעה אך ורק מתוכנת ההורדה עצמה (פורט 9876) בזמן אמת
+                            const connLabel = (currentRec.connections || getDefaultDownloadConnections()) === 1
+                                ? 'חיבור 1'
+                                : `${currentRec.connections || getDefaultDownloadConnections()} חיבורים`;
                             DownloadHistoryManager.updateStatus(
                                 rid,
                                 'pending',
-                                'תוכנת ההורדה הופעלה - ממתין לשידור אחוזים וצפי סיום...',
+                                `תוכנת ההורדה הופעלה (${connLabel}) - ממתין לשידור אחוזים וצפי סיום...`,
                                 { subState: 'starting' }
                             );
                         } else {
@@ -2327,12 +2555,15 @@
 
         function applyDefaultDownloadQualityToUI() {
             const defQ = getDefaultDownloadQuality();
+            const defC = String(getDefaultDownloadConnections());
             const watchSel = document.getElementById('watchDlQuality');
             if (watchSel) watchSel.value = defQ;
             const batchSel = document.getElementById('batchQualitySelect');
             if (batchSel) batchSel.value = defQ;
             const cfgSel = document.getElementById('defaultDownloadQualitySelect');
             if (cfgSel) cfgSel.value = defQ;
+            const cfgConnSel = document.getElementById('defaultDownloadConnectionsSelect');
+            if (cfgConnSel) cfgConnSel.value = defC;
             document.querySelectorAll('select[id^="dl-qual-"]').forEach(sel => {
                 sel.value = defQ;
             });
@@ -2340,11 +2571,13 @@
 
         async function downloadWithYtDlp(videoId) {
             const defQ = getDefaultDownloadQuality();
+            const connections = getDefaultDownloadConnections();
             if (!isValidVideoId(videoId)) {
                 DownloadHistoryManager.addRecord({
                     id: String(videoId || 'unknown'),
                     title: 'מזהה סרטון שגוי',
                     quality: defQ,
+                    connections,
                     status: 'failed',
                     reason: 'מזהה סרטון לא תקין'
                 });
@@ -2353,6 +2586,7 @@
             const qualitySelect = document.getElementById(`dl-qual-${videoId}`);
             const allowedQualities = ['1080', '720', '480', 'audio'];
             const quality = (qualitySelect && allowedQualities.includes(qualitySelect.value)) ? qualitySelect.value : defQ;
+            const connText = connections === 1 ? 'חיבור 1' : `${connections} חיבורים`;
             
             const meta = findVideoMetadataById(videoId);
             const recordId = DownloadHistoryManager.addRecord({
@@ -2360,9 +2594,11 @@
                 title: meta.title,
                 thumbnail: meta.thumbnail,
                 channel: meta.channel,
+                channelId: meta.channelId,
                 quality,
+                connections,
                 status: 'pending',
-                reason: 'בודק זמינות ושולח להורדה...'
+                reason: `בודק זמינות ושולח להורדה (${connText})...`
             });
 
             const check = await verifyVideoDownloadability(videoId);
@@ -2372,16 +2608,18 @@
             }
 
             let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
-            showToast(`מתחיל העברה להורדה (${qualityText})...`);
-            triggerYtDlpProtocol(`ytdlp://${videoId}/${quality}`, [recordId]);
+            showToast(`מתחיל העברה להורדה (${qualityText} • ${connText})...`);
+            triggerYtDlpProtocol(`ytdlp://${videoId}/${quality}/${connections}`, [recordId]);
         }
 
         async function downloadWatchVideo() {
             if (!appState.currentVideoId || !isValidVideoId(appState.currentVideoId)) return;
             const defQ = getDefaultDownloadQuality();
+            const connections = getDefaultDownloadConnections();
             const allowedQualities = ['1080', '720', '480', 'audio'];
             const rawQuality = document.getElementById('watchDlQuality').value;
             const quality = allowedQualities.includes(rawQuality) ? rawQuality : defQ;
+            const connText = connections === 1 ? 'חיבור 1' : `${connections} חיבורים`;
 
             const meta = findVideoMetadataById(appState.currentVideoId);
             const recordId = DownloadHistoryManager.addRecord({
@@ -2389,9 +2627,11 @@
                 title: meta.title,
                 thumbnail: meta.thumbnail,
                 channel: meta.channel,
+                channelId: meta.channelId,
                 quality,
+                connections,
                 status: 'pending',
-                reason: 'בודק זמינות ושולח להורדה...'
+                reason: `בודק זמינות ושולח להורדה (${connText})...`
             });
 
             const check = await verifyVideoDownloadability(appState.currentVideoId);
@@ -2401,17 +2641,19 @@
             }
 
             let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
-            showToast(`מתחיל העברה להורדה (${qualityText})...`);
-            triggerYtDlpProtocol(`ytdlp://${appState.currentVideoId}/${quality}`, [recordId]);
+            showToast(`מתחיל העברה להורדה (${qualityText} • ${connText})...`);
+            triggerYtDlpProtocol(`ytdlp://${appState.currentVideoId}/${quality}/${connections}`, [recordId]);
         }
 
         async function batchDownloadWithYtDlp() {
             if (appState.selectedVideos.size === 0) return;
             
             const defQ = getDefaultDownloadQuality();
+            const connections = getDefaultDownloadConnections();
             const qualitySelect = document.getElementById('batchQualitySelect');
             const allowedQualities = ['1080', '720', '480', 'audio'];
             const quality = (qualitySelect && allowedQualities.includes(qualitySelect.value)) ? qualitySelect.value : defQ;
+            const connText = connections === 1 ? 'חיבור 1' : `${connections} חיבורים`;
             
             const videos = appState.currentRenderedItems.filter(item => 
                 item.id && (item.id.videoId || typeof item.id === 'string') &&
@@ -2430,7 +2672,9 @@
                         title: meta.title,
                         thumbnail: meta.thumbnail,
                         channel: meta.channel,
+                        channelId: meta.channelId,
                         quality,
+                        connections,
                         status: 'failed',
                         reason: 'מזהה סרטון לא תקין'
                     });
@@ -2441,9 +2685,11 @@
                     title: meta.title,
                     thumbnail: meta.thumbnail,
                     channel: meta.channel,
+                    channelId: meta.channelId,
                     quality,
+                    connections,
                     status: 'pending',
-                    reason: 'בהורדה מרוכזת...'
+                    reason: `בהורדה מרוכזת (${connText})...`
                 });
                 validIds.push(vid);
                 recordIds.push(rid);
@@ -2452,10 +2698,10 @@
             if (validIds.length === 0) return showToast('לא נמצאו מזהי סרטונים תקינים');
 
             let qualityText = quality === 'audio' ? 'שמע (MP3)' : quality + 'p';
-            showToast(`מעביר ${validIds.length} סרטונים להורדה מרוכזת (${qualityText})...`);
+            showToast(`מעביר ${validIds.length} סרטונים להורדה מרוכזת (${qualityText} • ${connText})...`);
 
             const videoIds = validIds.join('.');
-            triggerYtDlpProtocol(`ytdlp://${videoIds}/${quality}`, recordIds);
+            triggerYtDlpProtocol(`ytdlp://${videoIds}/${quality}/${connections}`, recordIds);
             setTimeout(() => {
                 if (appState.isSelectionMode) toggleSelectionMode();
             }, 1000);
@@ -2529,7 +2775,7 @@
             grid.innerHTML = '';
             appState.currentRenderedItems = filtered.map(r => ({
                 id: { kind: 'youtube#video', videoId: r.id },
-                snippet: { title: r.title, channelTitle: r.channel, thumbnails: { high: { url: r.thumbnail } } }
+                snippet: { title: r.title, channelTitle: r.channel, channelId: r.channelId || videoChannelMap[r.id]?.channelId || '', thumbnails: { high: { url: r.thumbnail } } }
             }));
 
             if (filtered.length === 0) {
@@ -2540,6 +2786,7 @@
             filtered.forEach(item => {
                 const card = document.createElement('div');
                 card.className = "video-card group flex flex-col p-4 rounded-2xl border transition";
+                card.setAttribute('data-video-id', item.id);
                 card.style.backgroundColor = "var(--bg-card)";
                 card.style.borderColor = item.status === 'netfree'
                     ? 'rgba(249, 115, 22, 0.6)'
@@ -2557,23 +2804,44 @@
                 }
 
                 const qualityLabel = item.quality === 'audio' ? 'MP3 (שמע)' : `${item.quality}p`;
+                const connCount = item.connections || getDefaultDownloadConnections();
+                const connLabel = connCount === 1 ? 'חיבור 1' : `${connCount} חיבורים`;
                 const dateStr = new Date(item.timestamp).toLocaleString('he-IL');
                 const safeId = escapeJsString(item.id);
                 const safeTitle = escapeJsString(item.title);
                 const safeThumb = escapeJsString(item.thumbnail);
                 const safeChannel = escapeJsString(item.channel || '');
                 const safeRecId = escapeJsString(item.recordId);
+                const resolvedChId = item.channelId || videoChannelMap[item.id]?.channelId || '';
+                const chAvatarUrl = resolvedChId && channelAvatarsCache[resolvedChId] ? channelAvatarsCache[resolvedChId] : '';
 
                 card.innerHTML = `
                     <div class="relative mb-3 cursor-pointer" onclick="openPlayer('${safeId}', '${safeTitle}', '${safeThumb}', '${safeChannel}', '')">
                         <img src="${escapeHtml(item.thumbnail)}" class="w-full aspect-video object-cover rounded-xl" style="background-color: var(--bg-surface);">
                         <div class="absolute top-2 right-2 z-10">${statusBadge}</div>
-                        <div class="absolute bottom-2 left-2 bg-black/85 text-white text-xs px-2 py-0.5 rounded font-bold">${escapeHtml(qualityLabel)}</div>
+                        <div class="absolute bottom-2 left-2 bg-black/85 text-white text-xs px-2 py-0.5 rounded font-bold flex items-center gap-1.5">
+                            <span>${escapeHtml(qualityLabel)}</span>
+                            <span class="text-cyan-400">• <i class="fas fa-bolt"></i> ${escapeHtml(connLabel)}</span>
+                        </div>
                     </div>
                     <div class="flex-1 flex flex-col justify-between">
                         <div>
-                            <h3 class="font-bold text-base line-clamp-2 mb-1 cursor-pointer hover:underline" style="color: var(--text-primary);" onclick="openPlayer('${safeId}', '${safeTitle}', '${safeThumb}', '${safeChannel}', '')">${escapeHtml(item.title)}</h3>
-                            <p class="text-xs mb-2" style="color: var(--text-secondary);">${escapeHtml(item.channel || 'YouTube')} • ${escapeHtml(dateStr)}</p>
+                            <div class="flex items-start gap-2.5 mb-2">
+                                <div class="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden border flex items-center justify-center relative cursor-pointer hover:opacity-80 transition mt-0.5"
+                                     style="background-color: var(--bg-surface); border-color: var(--border-color);"
+                                     data-video-channel-click="${escapeHtml(item.id)}"
+                                     data-channel-id="${escapeHtml(resolvedChId)}"
+                                     onclick="event.stopPropagation(); const cid = this.getAttribute('data-channel-id') || (videoChannelMap['${safeId}'] && videoChannelMap['${safeId}'].channelId); if(cid) loadChannelVideos(cid, false, false, 'all');">
+                                    <img src="${escapeHtml(chAvatarUrl)}" data-channel-avatar-id="${escapeHtml(resolvedChId)}" data-video-avatar-id="${escapeHtml(item.id)}" class="w-full h-full object-cover ${chAvatarUrl ? '' : 'hidden'}" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');">
+                                    <div class="w-full h-full flex items-center justify-center ${chAvatarUrl ? 'hidden' : ''}">
+                                        <i class="fas fa-user text-xs opacity-40" style="color: var(--text-primary);"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <h3 class="font-bold text-base line-clamp-2 mb-0.5 cursor-pointer hover:underline" style="color: var(--text-primary);" onclick="openPlayer('${safeId}', '${safeTitle}', '${safeThumb}', '${safeChannel}', '')">${escapeHtml(item.title)}</h3>
+                                    <p class="text-xs truncate" style="color: var(--text-secondary);">${escapeHtml(item.channel || 'YouTube')} • ${escapeHtml(dateStr)} • <span class="text-blue-400 font-semibold">${escapeHtml(connLabel)}</span></p>
+                                </div>
+                            </div>
                             <div class="mb-2">
                                 <div class="flex justify-between text-xs font-bold mb-1" style="color: var(--text-primary);">
                                     <span>${item.status === 'success' ? '100% הושלם' : (item.status === 'pending' ? `${Number(item.percent || 0).toFixed(1)}% ירד` : (item.status === 'netfree' ? 'נחסם בנטפרי' : 'נעצר / לא ירד'))}</span>
@@ -2584,7 +2852,7 @@
                                 </div>
                             </div>
                             <p class="text-[11px] px-2.5 py-1 rounded-lg mt-1 inline-block" style="background-color: var(--bg-surface); color: ${item.status === 'netfree' ? '#f97316' : (item.status === 'failed' ? '#ef4444' : 'var(--text-secondary)')};">
-                                ${escapeHtml(item.reason || (item.status === 'success' ? 'ירד בהצלחה (אומת מתוכנת ההורדה)' : (item.status === 'netfree' ? 'חסום בנטפרי (HTTP 418)' : 'לא ירד')))}
+                                ${escapeHtml(item.reason || (item.status === 'success' ? `ירד בהצלחה (${connLabel})` : (item.status === 'netfree' ? 'חסום בנטפרי (HTTP 418)' : 'לא ירד')))}
                             </p>
                         </div>
                         <div class="flex items-center gap-2 mt-4 pt-3 border-t flex-wrap" style="border-color: var(--border-color);">
@@ -2614,31 +2882,43 @@
                 `;
                 grid.appendChild(card);
             });
+
+            resolveMissingVideoChannelAvatars(filtered.map(f => f.id));
+            applyContentFilters();
         }
 
         async function retrySingleDownload(recordId) {
             const list = DownloadHistoryManager.getHistory();
             const item = list.find(r => r.recordId === recordId);
             if (!item) return;
-            DownloadHistoryManager.updateStatus(recordId, 'pending', 'מנסה להוריד שוב...');
+            const conn = getDefaultDownloadConnections();
+            const connText = conn === 1 ? 'חיבור 1' : `${conn} חיבורים`;
+            try {
+                const delMap = JSON.parse(localStorage.getItem('yt_dl_deleted_ids') || '{}');
+                delete delMap[item.id];
+                safeSetLocalStorage('yt_dl_deleted_ids', JSON.stringify(delMap));
+            } catch (e) {}
+            DownloadHistoryManager.updateStatus(recordId, 'pending', `מנסה להוריד שוב (${connText})...`, { connections: conn });
             const check = await verifyVideoDownloadability(item.id);
             if (!check.ok) {
                 DownloadHistoryManager.updateStatus(recordId, 'failed', check.reason);
                 return showToast(`ההורדה נכשלה: ${check.reason}`);
             }
-            showToast(`שולח שוב להורדה (${item.title})...`);
-            triggerYtDlpProtocol(`ytdlp://${item.id}/${item.quality || '1080'}`, [recordId]);
+            showToast(`שולח שוב להורדה (${item.title} • ${connText})...`);
+            triggerYtDlpProtocol(`ytdlp://${item.id}/${item.quality || '1080'}/${conn}`, [recordId]);
         }
 
         function retryAllFailedDownloads() {
             const failed = DownloadHistoryManager.getHistory().filter(r => r.status === 'failed' && isValidVideoId(r.id));
             if (failed.length === 0) return showToast('אין הורדות שנכשלו לניסיון חוזר');
             const defQ = getDefaultDownloadQuality();
+            const defC = getDefaultDownloadConnections();
+            const connText = defC === 1 ? 'חיבור 1' : `${defC} חיבורים`;
             const ids = failed.map(f => f.id).join('.');
             const rids = failed.map(f => f.recordId);
-            rids.forEach(rid => DownloadHistoryManager.updateStatus(rid, 'pending', 'מנסה שוב בהורדה מרוכזת...'));
-            showToast(`מנסה להוריד מחדש ${failed.length} סרטונים...`);
-            triggerYtDlpProtocol(`ytdlp://${ids}/${defQ}`, rids);
+            rids.forEach(rid => DownloadHistoryManager.updateStatus(rid, 'pending', `מנסה שוב בהורדה מרוכזת (${connText})...`, { connections: defC }));
+            showToast(`מנסה להוריד מחדש ${failed.length} סרטונים (${connText})...`);
+            triggerYtDlpProtocol(`ytdlp://${ids}/${defQ}/${defC}`, rids);
         }
 
         async function clearDownloadHistoryConfirm() {
@@ -3630,7 +3910,9 @@
                     delete positions[id];
                     safeSetLocalStorage('yt_resume_positions', JSON.stringify(positions));
                     if (appState.searchContext === 'local_resume') {
-                        loadResumeTab(true); 
+                        loadResumeTab(true);
+                    } else if (appState.searchContext === 'general') {
+                        loadHomePage(true, appState.homeFilter || 'all');
                     }
                 }
             }
@@ -3650,7 +3932,118 @@
             }
         });
 
+        let pipWindowRef = null;
+        let popupWindowRef = null;
+        let activeExternalTimer = null;
+        let activeExternalRestoreFn = null;
+
+        function getCurrentPlaybackSeconds(videoId) {
+            if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+                try {
+                    const t = ytPlayer.getCurrentTime();
+                    if (typeof t === 'number' && t > 0) {
+                        appState.lastKnownPlaybackTime = t;
+                        return Math.floor(t);
+                    }
+                } catch (e) {}
+            }
+            if (appState.lastKnownPlaybackTime > 0) {
+                return Math.floor(appState.lastKnownPlaybackTime);
+            }
+            const targetId = videoId || appState.currentVideoId;
+            if (targetId) {
+                try {
+                    const positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+                    if (positions[targetId] && positions[targetId].time > 0) {
+                        return Math.floor(positions[targetId].time);
+                    }
+                } catch (e) {}
+            }
+            return 0;
+        }
+
+        function savePlaybackTimeToResume(videoId, seconds) {
+            if (!videoId || typeof seconds !== 'number' || seconds < 0) return;
+            appState.lastKnownPlaybackTime = seconds;
+            if (appState.isIncognitoMode) return;
+            try {
+                const positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+                positions[videoId] = {
+                    time: seconds,
+                    updatedAt: Date.now(),
+                    details: appState.currentVideoDetails || positions[videoId]?.details || findVideoMetadataById(videoId)
+                };
+                safeSetLocalStorage('yt_resume_positions', JSON.stringify(positions));
+            } catch (e) {}
+        }
+
+        function mountMainYoutubePlayer(videoId, startSeconds = 0) {
+            if (!videoId) return;
+            const cleanStart = Math.max(0, Math.floor(Number(startSeconds) || 0));
+            appState.lastKnownPlaybackTime = cleanStart;
+
+            if (ytPlayer) {
+                try {
+                    if (typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+                    if (typeof ytPlayer.destroy === 'function') ytPlayer.destroy();
+                } catch (e) {}
+                ytPlayer = null;
+            }
+
+            let playerParent = document.getElementById('playerContainerWrapper');
+            if (!playerParent) {
+                playerParent = document.querySelector('.aspect-video');
+                if (playerParent) playerParent.id = 'playerContainerWrapper';
+            }
+            if (playerParent) {
+                playerParent.innerHTML = '<div id="playerFrame" class="w-full h-full absolute inset-0"></div>';
+            }
+
+            const playerVarsConfig = {
+                'autoplay': 1,
+                'enablejsapi': 1,
+                'rel': 0,
+                'start': cleanStart,
+                'fs': 1,
+                'disablekb': 0
+            };
+            if (window.location.origin && window.location.origin.startsWith('http')) {
+                playerVarsConfig.origin = window.location.origin;
+                playerVarsConfig.widget_referrer = window.location.href;
+            }
+
+            ytPlayer = new YT.Player('playerFrame', {
+                height: '100%',
+                width: '100%',
+                videoId: videoId,
+                host: 'https://www.youtube.com',
+                playerVars: playerVarsConfig,
+                events: {
+                    'onStateChange': onPlayerStateChange,
+                    'onReady': function(event) {
+                        const iframe = event.target.getIframe();
+                        if (iframe) {
+                            iframe.setAttribute('allowfullscreen', 'true');
+                            iframe.focus();
+                        }
+                        if (cleanStart > 0) {
+                            try {
+                                event.target.seekTo(cleanStart, true);
+                                event.target.playVideo();
+                            } catch (e) {}
+                        }
+                    }
+                }
+            });
+        }
+
         returnToVideoBtn.addEventListener('click', () => {
+            if (typeof activeExternalRestoreFn === 'function') {
+                const fn = activeExternalRestoreFn;
+                activeExternalRestoreFn = null;
+                fn();
+                return;
+            }
             const container = watchView.querySelector('.player-container');
             appState.isFloating = false;
             watchView.classList.remove('floating-mode', 'hidden');
@@ -3668,7 +4061,6 @@
             if (!container) container = view ? view.querySelector('.player-container') : null;
             if (!container) return;
 
-            // איפוס מלא של כל ה-Inline Styles שנוצרו בעת גרירה או שינוי גודל (resize) של הנגן הממוזער
             container.style.removeProperty('width');
             container.style.removeProperty('height');
             container.style.removeProperty('max-width');
@@ -3689,7 +4081,6 @@
                 container.classList.add('max-w-5xl');
             }
 
-            // וידוא שגם ה-iframe הפנימי של יוטיוב מתרחב ל-100% מגודל המיכל הרגיל
             const playerWrapper = document.getElementById('playerContainerWrapper');
             if (playerWrapper) {
                 playerWrapper.style.removeProperty('width');
@@ -3726,8 +4117,6 @@
             }
         }
 
-        let pipWindowRef = null;
-
         async function openAlwaysOnTopPlayer() {
             const videoId = appState.currentVideoId;
             if (!videoId) return showToast("אין סרטון מתנגן כרגע");
@@ -3736,10 +4125,14 @@
             const container = view ? view.querySelector('.player-container') : null;
             const playerWrapper = document.getElementById('playerContainerWrapper');
 
-            // טריק מתקדם למניעת שגיאה 153 ולציפה מעל כל החלונות במחשב:
-            // במקום ליצור iframe חדש בתוך about:blank (שחוסם את ה-Referrer וגורם לשגיאה 153 ביוטיוב),
-            // אנו מעבירים (adoptNode / appendChild) את הנגן החי הקיים אל החלון הצף של Document Picture-in-Picture,
-            // וכאשר סוגרים את החלון הצף - מחזירים את הנגן למקומו הרגיל בגודל מלא!
+            const initialTimeSec = getCurrentPlaybackSeconds(videoId);
+            savePlaybackTimeToResume(videoId, initialTimeSec);
+
+            if (activeExternalTimer) {
+                clearInterval(activeExternalTimer);
+                activeExternalTimer = null;
+            }
+
             if ('documentPictureInPicture' in window && playerWrapper) {
                 try {
                     if (pipWindowRef && !pipWindowRef.closed) {
@@ -3779,17 +4172,96 @@
 </html>`);
                     doc.close();
 
+                    let pipTrackedTime = initialTimeSec;
+                    let pipIsPlaying = true;
+                    let lastInfoDeliveryMs = 0;
+                    let hasRestored = false;
+
                     const pipMount = doc.getElementById('pipMount');
                     const playerFrameEl = document.getElementById('playerFrame');
+
                     if (playerFrameEl && pipMount) {
+                        try {
+                            const currentSrc = playerFrameEl.getAttribute('src') || '';
+                            if (currentSrc) {
+                                const parsedUrl = new URL(currentSrc, window.location.href);
+                                parsedUrl.searchParams.set('start', String(initialTimeSec));
+                                parsedUrl.searchParams.set('autoplay', '1');
+                                parsedUrl.searchParams.set('enablejsapi', '1');
+                                playerFrameEl.setAttribute('src', parsedUrl.toString());
+                            }
+                        } catch (e) {}
+
                         pipMount.appendChild(playerFrameEl);
+
+                        const sendListeningAndSeek = () => {
+                            try {
+                                if (playerFrameEl.contentWindow) {
+                                    playerFrameEl.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
+                                    if (pipTrackedTime > 0) {
+                                        playerFrameEl.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [Math.floor(pipTrackedTime), true] }), '*');
+                                    }
+                                    playerFrameEl.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
+                                }
+                            } catch (e) {}
+                        };
+
+                        playerFrameEl.addEventListener('load', () => {
+                            sendListeningAndSeek();
+                            setTimeout(sendListeningAndSeek, 500);
+                            setTimeout(sendListeningAndSeek, 1200);
+                        }, { once: true });
                     }
 
-                    const restoreFromPip = () => {
-                        const frameInPip = doc.getElementById('playerFrame');
-                        if (frameInPip && playerWrapper && !playerWrapper.contains(frameInPip)) {
-                            playerWrapper.appendChild(frameInPip);
+                    const onPipMessage = (ev) => {
+                        try {
+                            if (typeof ev.data !== 'string') return;
+                            const data = JSON.parse(ev.data);
+                            if (data && data.event === 'infoDelivery' && data.info) {
+                                if (typeof data.info.currentTime === 'number' && data.info.currentTime > 0) {
+                                    pipTrackedTime = data.info.currentTime;
+                                    lastInfoDeliveryMs = Date.now();
+                                    savePlaybackTimeToResume(videoId, pipTrackedTime);
+                                }
+                                if (typeof data.info.playerState === 'number') {
+                                    pipIsPlaying = (data.info.playerState === 1);
+                                }
+                            }
+                        } catch (e) {}
+                    };
+
+                    pipWin.addEventListener('message', onPipMessage);
+                    window.addEventListener('message', onPipMessage);
+
+                    activeExternalTimer = setInterval(() => {
+                        if (pipWin.closed) {
+                            clearInterval(activeExternalTimer);
+                            activeExternalTimer = null;
+                            return;
                         }
+                        if (pipIsPlaying && (Date.now() - lastInfoDeliveryMs > 1400)) {
+                            pipTrackedTime += 1;
+                            savePlaybackTimeToResume(videoId, pipTrackedTime);
+                        }
+                    }, 1000);
+
+                    const restoreFromPip = () => {
+                        if (hasRestored) return;
+                        hasRestored = true;
+                        activeExternalRestoreFn = null;
+                        if (activeExternalTimer) {
+                            clearInterval(activeExternalTimer);
+                            activeExternalTimer = null;
+                        }
+                        window.removeEventListener('message', onPipMessage);
+
+                        const finalResumeSec = Math.floor(pipTrackedTime || getCurrentPlaybackSeconds(videoId) || initialTimeSec);
+                        savePlaybackTimeToResume(videoId, finalResumeSec);
+
+                        try {
+                            if (pipWin && !pipWin.closed) pipWin.close();
+                        } catch (e) {}
+
                         appState.isFloating = false;
                         if (view) {
                             view.classList.remove('floating-mode', 'hidden');
@@ -3798,21 +4270,20 @@
                         resetFloatingContainerSize(container);
                         document.body.style.overflow = 'hidden';
                         document.getElementById('return-to-video-btn').classList.add('hidden');
-                        if (ytPlayer && typeof ytPlayer.playVideo === 'function') {
-                            try { ytPlayer.playVideo(); } catch (e) {}
-                        }
+
+                        mountMainYoutubePlayer(videoId, finalResumeSec);
                     };
+
+                    activeExternalRestoreFn = restoreFromPip;
 
                     doc.getElementById('backToMainBtn').addEventListener('click', () => {
                         restoreFromPip();
-                        pipWin.close();
                     });
 
                     pipWin.addEventListener('pagehide', () => {
                         restoreFromPip();
                     });
 
-                    // בזמן שהנגן צף מעל כל החלונות במחשב, נסתיר את המודאל הכפול ונשאיר אפשרות חזרה
                     if (view) {
                         appState.isFloating = false;
                         view.classList.remove('active', 'floating-mode');
@@ -3822,26 +4293,15 @@
                     document.getElementById('return-to-video-btn').classList.remove('hidden');
                     document.body.style.overflow = 'auto';
 
-                    if (ytPlayer && typeof ytPlayer.playVideo === 'function') {
-                        setTimeout(() => {
-                            try { ytPlayer.playVideo(); } catch (e) {}
-                        }, 150);
-                    }
-
-                    showToast("הנגן הצף פעיל מעל כל החלונות במחשב!");
+                    showToast("הנגן הצף פעיל וממשיך מאותה נקודה שבה עצרת!");
                     return;
                 } catch (err) {
                     console.warn("Document PiP fallback to popup:", err);
                 }
             }
 
-            // גיבוי לדפדפנים ללא Document PiP: פתיחת חלון Popup ישיר בכתובת YouTube Embed תקנית (כך שתמיד יש URL של https://www.youtube.com ולא מתקבלת שגיאה 153 לעולם)
-            let currentTime = 0;
-            if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
-                try {
-                    currentTime = Math.floor(ytPlayer.getCurrentTime() || 0);
-                    if (typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
-                } catch (e) {}
+            if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+                try { ytPlayer.pauseVideo(); } catch (e) {}
             }
 
             const width = 480;
@@ -3849,10 +4309,47 @@
             const left = window.screen.availWidth - width - 30;
             const top = window.screen.availHeight - height - 60;
             const features = `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no`;
-            const directEmbedUrl = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&rel=0&start=${currentTime}`;
+            const directEmbedUrl = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&rel=0&enablejsapi=1&start=${initialTimeSec}`;
 
             const popup = window.open(directEmbedUrl, 'YouTubeFloatingPlayer', features);
             if (popup) {
+                popupWindowRef = popup;
+                let popupTrackedTime = initialTimeSec;
+                let popupRestored = false;
+
+                const restoreFromPopup = () => {
+                    if (popupRestored) return;
+                    popupRestored = true;
+                    activeExternalRestoreFn = null;
+                    if (activeExternalTimer) {
+                        clearInterval(activeExternalTimer);
+                        activeExternalTimer = null;
+                    }
+                    try {
+                        if (popupWindowRef && !popupWindowRef.closed) popupWindowRef.close();
+                    } catch (e) {}
+                    savePlaybackTimeToResume(videoId, popupTrackedTime);
+                    appState.isFloating = false;
+                    if (view) {
+                        view.classList.remove('floating-mode', 'hidden');
+                        view.classList.add('active');
+                    }
+                    resetFloatingContainerSize(container);
+                    document.body.style.overflow = 'hidden';
+                    document.getElementById('return-to-video-btn').classList.add('hidden');
+                    mountMainYoutubePlayer(videoId, popupTrackedTime);
+                };
+
+                activeExternalRestoreFn = restoreFromPopup;
+                activeExternalTimer = setInterval(() => {
+                    if (!popup || popup.closed) {
+                        restoreFromPopup();
+                        return;
+                    }
+                    popupTrackedTime += 1;
+                    savePlaybackTimeToResume(videoId, popupTrackedTime);
+                }, 1000);
+
                 appState.isFloating = false;
                 if (view) {
                     view.classList.remove('active', 'floating-mode');
@@ -3861,7 +4358,7 @@
                 resetFloatingContainerSize(container);
                 document.getElementById('return-to-video-btn').classList.remove('hidden');
                 document.body.style.overflow = 'auto';
-                showToast("נפתח חלון נגן צף עצמאי!");
+                showToast("נפתח חלון נגן צף עצמאי מאותה נקודה שבה עצרת!");
             } else {
                 showToast("הדפדפן חסם את החלון הקופץ. אנא אפשר חלונות קופצים.");
             }
@@ -3918,7 +4415,7 @@
                 resizeHandle.addEventListener('pointermove', (e) => {
                     if (!isResizing || !appState.isFloating) return;
                     const newW = Math.max(260, Math.min(window.innerWidth * 0.9, startW + (e.clientX - startX)));
-                    const newH = Math.max(146, Math.min(window.innerHeight * 0.9, startH + (e.clientY - startY)));
+                    const newH = Math.max(146, Math.min(window.innerHeight * 0.9, startH + (startY - e.clientY)));
                     container.style.setProperty('--floating-w', `${Math.round(newW)}px`);
                     container.style.setProperty('--floating-h', `${Math.round(newH)}px`);
                 });
@@ -4027,13 +4524,22 @@
                         <img src="${escapeHtml(item.thumbnail)}" class="w-full aspect-video object-cover rounded-lg" style="background-color: var(--bg-surface);">
                         <div class="absolute bottom-1 left-1 bg-black/80 text-white text-[9px] px-1 rounded font-bold">${parseDuration(item.duration) || ''}</div>
                     </div>
-                    <div class="flex-1 flex flex-col justify-center">
+                    <div class="flex-1 flex flex-col justify-center min-w-0">
                         <h4 class="text-xs font-bold line-clamp-2 leading-tight" style="color: var(--text-primary);">${badge}${escapeHtml(item.title)}</h4>
-                        <p class="text-[10px] mt-1" style="color: var(--text-secondary);">${escapeHtml(item.channel)}</p>
+                        <div class="flex items-center gap-1.5 mt-1">
+                            <div class="w-4 h-4 rounded-full overflow-hidden flex-shrink-0 border flex items-center justify-center" style="background-color: var(--bg-surface); border-color: var(--border-color);">
+                                <img src="${escapeHtml((videoChannelMap[item.id]?.channelId && channelAvatarsCache[videoChannelMap[item.id].channelId]) || '')}" data-video-avatar-id="${escapeHtml(item.id)}" data-channel-avatar-id="${escapeHtml(videoChannelMap[item.id]?.channelId || '')}" class="w-full h-full object-cover ${(videoChannelMap[item.id]?.channelId && channelAvatarsCache[videoChannelMap[item.id].channelId]) ? '' : 'hidden'}" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');">
+                                <div class="w-full h-full flex items-center justify-center ${(videoChannelMap[item.id]?.channelId && channelAvatarsCache[videoChannelMap[item.id].channelId]) ? 'hidden' : ''}">
+                                    <i class="fas fa-user text-[7px] opacity-40" style="color: var(--text-primary);"></i>
+                                </div>
+                            </div>
+                            <p class="text-[10px] truncate" style="color: var(--text-secondary);">${escapeHtml(item.channel)}</p>
+                        </div>
                     </div>
                 `;
                 list.appendChild(div);
             });
+            resolveMissingVideoChannelAvatars(upcoming.slice(0, 40).map(u => u.id));
         }
 
         function minimizePlayer() {
@@ -4061,6 +4567,7 @@
             const newClientId = document.getElementById('clientIdInput').value.trim();
             const newMaxResults = document.getElementById('maxResultsInput').value;
             const newDefaultDlQual = document.getElementById('defaultDownloadQualitySelect').value || '1080';
+            const newDefaultDlConn = Math.min(32, Math.max(1, parseInt(document.getElementById('defaultDownloadConnectionsSelect')?.value || '8', 10) || 8));
             const newShowDlPopup = document.getElementById('showDownloadPopupCheckbox').checked;
             const newTheme = document.getElementById('themeSelect').value;
             
@@ -4078,6 +4585,7 @@
             appState.clientId = newClientId;
             appState.maxResults = newMaxResults ? parseInt(newMaxResults) : 12;
             appState.defaultDownloadQuality = newDefaultDlQual;
+            appState.defaultDownloadConnections = newDefaultDlConn;
             appState.showDownloadPopup = newShowDlPopup;
             
             safeSetLocalStorage('yt_api_key', appState.apiKey);
@@ -4085,6 +4593,7 @@
             safeSetLocalStorage('yt_client_id', appState.clientId);
             safeSetLocalStorage('yt_max_results', appState.maxResults);
             safeSetLocalStorage('yt_default_dl_quality', appState.defaultDownloadQuality);
+            safeSetLocalStorage('yt_default_dl_connections', String(appState.defaultDownloadConnections));
             safeSetLocalStorage('yt_show_dl_popup', String(appState.showDownloadPopup));
             DownloadHistoryManager.renderMiniPopup();
             safeSetLocalStorage('yt_theme', newTheme);
@@ -4118,6 +4627,7 @@
             const savedClient = localStorage.getItem('yt_client_id');
             const savedMaxResults = localStorage.getItem('yt_max_results');
             const savedDefaultDlQual = localStorage.getItem('yt_default_dl_quality') || '1080';
+            const savedDefaultDlConn = parseInt(localStorage.getItem('yt_default_dl_connections') || '8', 10) || 8;
             const savedShowDlPopup = localStorage.getItem('yt_show_dl_popup') !== 'false';
             const storedTheme = localStorage.getItem('yt_theme');
 
@@ -4126,6 +4636,7 @@
             if(savedClient) document.getElementById('clientIdInput').value = savedClient;
             if(savedMaxResults) { document.getElementById('maxResultsInput').value = savedMaxResults; appState.maxResults = parseInt(savedMaxResults); }
             appState.defaultDownloadQuality = savedDefaultDlQual;
+            appState.defaultDownloadConnections = Math.min(32, Math.max(1, savedDefaultDlConn));
             appState.showDownloadPopup = savedShowDlPopup;
             const dlPopupCb = document.getElementById('showDownloadPopupCheckbox');
             if (dlPopupCb) dlPopupCb.checked = savedShowDlPopup;
@@ -4134,6 +4645,7 @@
             applyDefaultDownloadQualityToUI();
             loadPlaylistsToSidebar();
             updateIncognitoBtn();
+            updateUnwatchedOnlyBtnUI();
             DownloadHistoryManager.updateBadge();
 
             if(savedKey) { 
@@ -4266,76 +4778,254 @@
             return ids;
         }
 
-        async function loadHomePage(isHistoryNav = false) {
+        async function loadHomePage(isHistoryNav = false, homeFilter = null) {
             if (appState.isSelectionMode) toggleSelectionMode();
             setActiveNavItem('navHome');
             appState.searchContext = 'general';
+            if (homeFilter) appState.homeFilter = homeFilter;
+            const activeFilter = appState.homeFilter || 'all';
+
             document.getElementById('channelHeaderContainer').classList.add('hidden');
-            document.getElementById('internalSearch').classList.add('hidden');
+            document.getElementById('internalSearch').classList.remove('hidden');
             document.getElementById('searchInput').value = "";
             appState.pageToken = "";
 
             if (!isHistoryNav) pushHistory({ type: 'home' });
-            
             if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
-            else if (!appState.currentVideoId) document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען...</div>`;
 
             document.getElementById('pagination').classList.add('hidden');
-            const titleEl = document.getElementById('sectionTitle');
-            titleEl.classList.remove('hidden');
-            titleEl.innerText = appState.token ? "מומלצים עבורך" : "סרטונים פופולריים בישראל";
-            document.getElementById('exportUrlsBtn').classList.remove('hidden'); 
+            document.getElementById('exportUrlsBtn').classList.remove('hidden');
+
+            const positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+            const rawResumeItems = Object.values(positions)
+                .filter(p => p && p.details && p.details.id)
+                .sort((a, b) => (b.updatedAt || b.time || 0) - (a.updatedAt || a.time || 0));
+
+            let resumeFormatted = rawResumeItems.map(item => ({
+                id: { kind: 'youtube#video', videoId: item.details.id },
+                snippet: {
+                    title: item.details.title,
+                    channelTitle: item.details.channel || item.channel || '',
+                    channelId: item.details.channelId || videoChannelMap[item.details.id]?.channelId || '',
+                    thumbnails: { high: { url: item.details.thumbnail }, medium: { url: item.details.thumbnail } },
+                    publishedAt: item.updatedAt ? new Date(item.updatedAt).toISOString() : new Date().toISOString()
+                },
+                contentDetails: { duration: item.details.duration || '' },
+                statistics: { viewCount: 0, likeCount: 0 },
+                resumeData: { time: item.time }
+            }));
+
+            const resumeIdSet = new Set(resumeFormatted.map(r => r.id.videoId));
+
+            const updateHomeTitleUI = (resCount, recCount) => {
+                const titleEl = document.getElementById('sectionTitle');
+                titleEl.classList.remove('hidden');
+                titleEl.innerHTML = `
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span>דף הבית</span>
+                        <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+                            <button onclick="loadHomePage(true, 'all')" class="px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${activeFilter === 'all' ? 'bg-blue-600 text-white border-blue-600' : ''}" style="${activeFilter !== 'all' ? 'background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);' : ''}">
+                                <i class="fas fa-house"></i> המשך צפייה ומותאם אישית (${resCount + recCount})
+                            </button>
+                            <button onclick="loadHomePage(true, 'resume')" class="px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${activeFilter === 'resume' ? 'bg-blue-600 text-white border-blue-600' : ''}" style="${activeFilter !== 'resume' ? 'background-color: var(--bg-surface); color: #3b82f6; border-color: var(--border-color);' : ''}">
+                                <i class="fas fa-play-circle"></i> המשך צפייה (${resCount})
+                            </button>
+                            <button onclick="loadHomePage(true, 'recommended')" class="px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${activeFilter === 'recommended' ? 'bg-blue-600 text-white border-blue-600' : ''}" style="${activeFilter !== 'recommended' ? 'background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);' : ''}">
+                                <i class="fas fa-wand-magic-sparkles text-purple-400"></i> מומלצים לפי הטעם שלך (${recCount})
+                            </button>
+                        </div>
+                    </div>
+                `;
+            };
+
+            if (resumeFormatted.length > 0 && activeFilter !== 'recommended') {
+                updateHomeTitleUI(resumeFormatted.length, 0);
+                renderResults(resumeFormatted, true);
+            } else if (!appState.currentVideoId) {
+                updateHomeTitleUI(resumeFormatted.length, 0);
+                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">בונה פיד דף הבית מותאם אישית והמשך צפייה...</div>`;
+            }
+
+            if (!appState.apiKey) {
+                if (resumeFormatted.length === 0) {
+                    document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">אין כרגע סרטונים בהמשך צפייה.<br>הגדר מפתח API בהגדרות או התחל לצפות בסרטונים כדי למלא את דף הבית.</div>`;
+                    appState.currentRenderedItems = [];
+                }
+                return;
+            }
 
             try {
-                let collectedUrls = [];
-                const headers = appState.token ? { Authorization: `Bearer ${appState.token}` } : {};
+                if (resumeFormatted.length > 0) {
+                    try {
+                        const rIds = resumeFormatted.map(r => r.id.videoId).slice(0, 50).join(',');
+                        const rStatsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${rIds}&key=${appState.apiKey}`);
+                        const rStatsData = await rStatsRes.json();
+                        if (rStatsData.items) {
+                            const mapById = {};
+                            rStatsData.items.forEach(it => { mapById[it.id] = it; });
+                            resumeFormatted = resumeFormatted.map(r => {
+                                const apiItem = mapById[r.id.videoId];
+                                if (!apiItem) return r;
+                                return {
+                                    ...r,
+                                    snippet: apiItem.snippet || r.snippet,
+                                    statistics: apiItem.statistics || r.statistics,
+                                    contentDetails: apiItem.contentDetails || r.contentDetails
+                                };
+                            });
+                        }
+                    } catch (e) {}
+                }
+
+                if (activeFilter === 'resume') {
+                    updateHomeTitleUI(resumeFormatted.length, 0);
+                    if (resumeFormatted.length > 0) {
+                        renderResults(resumeFormatted, true);
+                    } else {
+                        document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">אין כרגע סרטונים ברשימת המשך צפייה.</div>`;
+                        appState.currentRenderedItems = [];
+                    }
+                    return;
+                }
+
+                const localHistory = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
+                const watchedSet = new Set(localHistory.map(h => h.id));
+                const likesObj = LocalLikesManager.getLikes();
+                const likedVideos = likesObj.videos || [];
+                const likedChannels = likesObj.channels || [];
+                const localSubs = LocalSubsManager.getSubs();
+                const localPlSubs = LocalPlaylistSubsManager.getSubs();
+                const recentSearches = JSON.parse(localStorage.getItem('yt_recent_searches') || '[]');
+                const playlistsMap = PlaylistManager.getPlaylists();
+                const playlistVideos = Object.values(playlistsMap).flat();
+
+                const candidateVideoIds = [];
+                const addCandidateId = (vid) => {
+                    if (isValidVideoId(vid) && !resumeIdSet.has(vid) && !candidateVideoIds.includes(vid)) {
+                        candidateVideoIds.push(vid);
+                    }
+                };
+
+                const fetchTasks = [];
+
+                localSubs.slice(0, 4).forEach(sub => {
+                    if (sub.uploadsId) {
+                        fetchTasks.push(
+                            fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${encodeURIComponent(sub.uploadsId)}&maxResults=4&key=${appState.apiKey}`)
+                                .then(r => r.json())
+                                .then(d => {
+                                    const ext = extractVideoUrlsAndIdsFromItems(d.items || []);
+                                    ext.ids.forEach(addCandidateId);
+                                }).catch(() => {})
+                        );
+                    }
+                });
+
+                localPlSubs.slice(0, 2).forEach(pl => {
+                    if (pl.id) {
+                        fetchTasks.push(
+                            fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${encodeURIComponent(pl.id)}&maxResults=4&key=${appState.apiKey}`)
+                                .then(r => r.json())
+                                .then(d => {
+                                    const ext = extractVideoUrlsAndIdsFromItems(d.items || []);
+                                    ext.ids.forEach(addCandidateId);
+                                }).catch(() => {})
+                        );
+                    }
+                });
+
+                const personalSeeds = [];
+                const addSeed = (s) => {
+                    const clean = String(s || '').trim();
+                    if (clean && clean.length >= 2 && !personalSeeds.includes(clean)) {
+                        personalSeeds.push(clean);
+                    }
+                };
+
+                rawResumeItems.slice(0, 4).forEach(r => {
+                    if (r.details?.channel) addSeed(r.details.channel);
+                    else if (r.details?.title) addSeed(r.details.title.split(/[-|•()]/)[0]);
+                });
+                likedVideos.slice(0, 4).forEach(v => {
+                    if (v.channel) addSeed(v.channel);
+                    else if (v.title) addSeed(v.title.split(/[-|•()]/)[0]);
+                });
+                likedChannels.slice(0, 3).forEach(c => addSeed(c.title));
+                localSubs.slice(0, 3).forEach(s => addSeed(s.title));
+                recentSearches.slice(0, 3).forEach(q => addSeed(q));
+                localHistory.slice(0, 5).forEach(h => {
+                    if (h.channel) addSeed(h.channel);
+                    else if (h.title) addSeed(h.title.split(/[-|•()]/)[0]);
+                });
+                playlistVideos.slice(0, 3).forEach(pv => {
+                    if (pv.channel) addSeed(pv.channel);
+                });
 
                 if (appState.token) {
-                    // שלב 1: משיכת פעילויות מהחשבון וחילוץ כתובות הסרטונים
-                    const actUrl = `https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=50&key=${appState.apiKey}`;
-                    const actRes = await fetch(actUrl, { headers });
-                    const actData = await actRes.json();
-                    if (actData.items) {
-                        const extracted = extractVideoUrlsAndIdsFromItems(actData.items);
-                        collectedUrls.push(...extracted.urls);
-                    }
+                    const headers = { Authorization: `Bearer ${appState.token}` };
+                    fetchTasks.push(
+                        fetch(`https://www.googleapis.com/youtube/v3/activities?part=snippet,contentDetails&mine=true&maxResults=15&key=${appState.apiKey}`, { headers })
+                            .then(r => r.json())
+                            .then(d => {
+                                const ext = extractVideoUrlsAndIdsFromItems(d.items || []);
+                                ext.ids.forEach(addCandidateId);
+                            }).catch(() => {})
+                    );
+                }
 
-                    // שלב 2: אם יש מעט תוצאות, השלמה מסרטונים שהמשתמש סימן בלייק בחשבון גוגל
-                    if (collectedUrls.length < appState.maxResults) {
-                        try {
-                            const likedUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&myRating=like&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
-                            const likedRes = await fetch(likedUrl, { headers });
-                            const likedData = await likedRes.json();
-                            if (likedData.items) {
-                                const extractedLikes = extractVideoUrlsAndIdsFromItems(likedData.items);
-                                collectedUrls.push(...extractedLikes.urls);
-                            }
-                        } catch (e) {}
+                const selectedSeeds = personalSeeds.slice(0, 3);
+                selectedSeeds.forEach(seedQuery => {
+                    const perSeedMax = Math.max(4, Math.ceil(appState.maxResults / Math.max(1, selectedSeeds.length)));
+                    fetchTasks.push(
+                        fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=${perSeedMax}&q=${encodeURIComponent(seedQuery)}&key=${appState.apiKey}`)
+                            .then(r => r.json())
+                            .then(d => {
+                                (d.items || []).forEach(it => {
+                                    const vid = it.id?.videoId;
+                                    if (vid && !watchedSet.has(vid)) addCandidateId(vid);
+                                });
+                                (d.items || []).forEach(it => {
+                                    if (it.id?.videoId) addCandidateId(it.id.videoId);
+                                });
+                            }).catch(() => {})
+                    );
+                });
+
+                await Promise.all(fetchTasks);
+
+                let personalizedFormatted = [];
+                const targetIds = candidateVideoIds.slice(0, appState.maxResults);
+                if (targetIds.length > 0) {
+                    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${targetIds.join(',')}&key=${appState.apiKey}`);
+                    const statsData = await statsRes.json();
+                    if (statsData.items) {
+                        personalizedFormatted = statsData.items.map(item => ({
+                            id: { kind: 'youtube#video', videoId: item.id },
+                            videoUrl: `https://www.youtube.com/watch?v=${item.id}`,
+                            snippet: item.snippet,
+                            statistics: item.statistics,
+                            contentDetails: item.contentDetails
+                        }));
                     }
                 }
 
-                // שלב 3: אם לא מחוברים או שחשבון הגוגל לא החזיר מספיק כתובות סרטונים, משלימים מסרטונים פופולריים בישראל
-                if (collectedUrls.length === 0) {
-                    const popUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&chart=mostPopular&regionCode=IL&maxResults=${appState.maxResults}&key=${appState.apiKey}`;
-                    const popRes = await fetch(popUrl);
-                    const popData = await popRes.json();
-                    if (popData.items) {
-                        const extractedPop = extractVideoUrlsAndIdsFromItems(popData.items);
-                        collectedUrls.push(...extractedPop.urls);
-                    }
-                }
+                updateHomeTitleUI(resumeFormatted.length, personalizedFormatted.length);
 
-                const finalVideoIds = extractVideoIdsFromUrls(collectedUrls).slice(0, appState.maxResults);
+                const combinedHomeItems = activeFilter === 'recommended'
+                    ? personalizedFormatted
+                    : [...resumeFormatted, ...personalizedFormatted];
 
-                if (finalVideoIds.length > 0) {
-                    await fetchAndRenderVideos(finalVideoIds, true);
+                if (combinedHomeItems.length > 0) {
+                    renderResults(combinedHomeItems, true);
                 } else {
-                    document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">לא נמצאו סרטונים להצגה.</div>`;
+                    document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">עדיין אין סרטונים בהמשך צפייה או בהיסטוריה האישית שלך.<br>חפש סרטון או התחל לצפות כדי שדף הבית יציג את המשך הצפייה והמלצות מותאמות עבורך.</div>`;
                     appState.currentRenderedItems = [];
                 }
             } catch (err) {
                 console.error(err);
-                document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 text-red-500">שגיאה בטעינת דף הבית. בדוק את מפתח ה-API שלך.</div>`;
+                if (resumeFormatted.length === 0) {
+                    document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 text-red-500">שגיאה בטעינת דף הבית. בדוק את מפתח ה-API שלך.</div>`;
+                }
             }
         }
 
@@ -4719,12 +5409,27 @@
             const localHistory = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             const watchedIds = new Set(localHistory.map(h => h.id));
 
-            // איסוף מזהי ערוצים
-            const channelIdsToFetch = items
-                .filter(item => item.id?.kind === 'youtube#video' || typeof item.id === 'string' || item.id?.videoId)
-                .map(item => item.snippet?.channelId)
-                .filter(Boolean);
-            
+            // מיפוי ואיסוף מזהי ערוצים (כולל השלמה אוטומטית להיסטוריה, מועדפים, המשך צפייה ורשימות אישיות)
+            const videoIdsInBatch = [];
+            const channelIdsToFetch = [];
+            items.forEach(item => {
+                const vidId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
+                if (!vidId) return;
+                videoIdsInBatch.push(vidId);
+                if (item.snippet) {
+                    if (item.snippet.channelId) {
+                        videoChannelMap[vidId] = {
+                            channelId: item.snippet.channelId,
+                            channelTitle: item.snippet.channelTitle || ''
+                        };
+                        channelIdsToFetch.push(item.snippet.channelId);
+                    } else if (videoChannelMap[vidId]?.channelId) {
+                        item.snippet.channelId = videoChannelMap[vidId].channelId;
+                        channelIdsToFetch.push(item.snippet.channelId);
+                    }
+                }
+            });
+            safeSetLocalStorage('yt_video_channel_map', JSON.stringify(videoChannelMap));
             if (channelIdsToFetch.length > 0) {
                 loadMissingChannelAvatars(channelIdsToFetch);
             }
@@ -4898,7 +5603,8 @@
                 const isWatchLater = PlaylistManager.getPlaylists()['Watch Later']?.some(v => v.id === videoId);
                 const watchLaterIconClass = isWatchLater ? 'fas fa-clock text-blue-500' : 'fas fa-clock';
 
-                const channelAvatarUrl = snip.channelId && channelAvatarsCache[snip.channelId] ? channelAvatarsCache[snip.channelId] : '';
+                const resolvedChannelId = snip.channelId || videoChannelMap[videoId]?.channelId || '';
+                const channelAvatarUrl = resolvedChannelId && channelAvatarsCache[resolvedChannelId] ? channelAvatarsCache[resolvedChannelId] : '';
 
                 card.innerHTML = `
                     <div class="relative mb-4 group/img" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">
@@ -4918,12 +5624,14 @@
                         </button>
                     </div>
                     <div class="flex-1 flex gap-3 px-1">
-                        <!-- תמונת הערוץ במקום סמל ה-Play האפור -->
+                        <!-- תמונת הערוץ בכל מקום באתר -->
                         <div class="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden border flex items-center justify-center relative cursor-pointer hover:opacity-80 transition" 
                              style="background-color: var(--bg-surface); border-color: var(--border-color);" 
-                             title="${channelTitle}"
-                             onclick="event.stopPropagation(); if('${snip.channelId}') loadChannelVideos('${snip.channelId}', false, false, 'all')">
-                            <img src="${channelAvatarUrl}" data-channel-avatar-id="${snip.channelId || ''}" class="w-full h-full object-cover ${channelAvatarUrl ? '' : 'hidden'}" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');">
+                             title="${escapeHtml(channelTitle)}"
+                             data-video-channel-click="${escapeHtml(videoId)}"
+                             data-channel-id="${escapeHtml(resolvedChannelId)}"
+                             onclick="event.stopPropagation(); const cid = this.getAttribute('data-channel-id') || (videoChannelMap['${videoId}'] && videoChannelMap['${videoId}'].channelId); if(cid) loadChannelVideos(cid, false, false, 'all')">
+                            <img src="${escapeHtml(channelAvatarUrl)}" data-channel-avatar-id="${escapeHtml(resolvedChannelId)}" data-video-avatar-id="${escapeHtml(videoId)}" class="w-full h-full object-cover ${channelAvatarUrl ? '' : 'hidden'}" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');">
                             <div class="w-full h-full flex items-center justify-center ${channelAvatarUrl ? 'hidden' : ''}">
                                 <i class="fas fa-user text-xs opacity-40" style="color: var(--text-primary);"></i>
                             </div>
@@ -4932,7 +5640,7 @@
                         <div class="flex-1 flex flex-col">
                             <h3 class="font-semibold text-base leading-snug line-clamp-2" title="${escapeHtml(snip.title)}" style="color: var(--text-primary);" onclick="openPlayer('${videoId}', '${title}', '${thumbUrl}', '${safeChannel}', '${durationForSave}')">${escapeHtml(snip.title)}</h3>
                             <div class="text-sm mt-1" style="color: var(--text-secondary);">
-                                <p class="transition-colors hover:underline" onclick="loadChannelVideos('${escapeJsString(snip.channelId || '')}', false, false, 'all')">${escapeHtml(channelTitle)}</p>
+                                <p class="transition-colors hover:underline" data-video-channel-click="${escapeHtml(videoId)}" data-channel-id="${escapeHtml(resolvedChannelId)}" onclick="event.stopPropagation(); const cid = this.getAttribute('data-channel-id') || (videoChannelMap['${videoId}'] && videoChannelMap['${videoId}'].channelId); if(cid) loadChannelVideos(cid, false, false, 'all')">${escapeHtml(channelTitle)}</p>
                                 <p>${viewsText}${likesText}${timeText}</p> 
                             </div>
                             ${resumeStatsHtml}
@@ -4974,7 +5682,7 @@
                                 </button>
                                 ` : ''}
 
-                                ${appState.searchContext === 'local_resume' ? `
+                                ${(appState.searchContext === 'local_resume' || item.resumeData) ? `
                                 <button onclick="removeFromResumeList('${videoId}', event)" class="flex items-center justify-center text-[10px] px-3 py-1.5 rounded-full transition w-fit border" title="הסר מהמשך צפייה" style="background-color: rgba(153, 0, 0, 0.2); border-color: red; color: red;">
                                     <i class="fas fa-trash-alt"></i>
                                 </button>
@@ -5006,6 +5714,10 @@
             if (playlistIdsToFetch.length > 0) {
                 loadMissingPlaylistDetails(playlistIdsToFetch);
             }
+            if (videoIdsInBatch.length > 0) {
+                resolveMissingVideoChannelAvatars(videoIdsInBatch);
+            }
+            applyContentFilters();
         }
 
         function setActiveNavItem(id) {
@@ -5134,8 +5846,34 @@
             const watchDlSel = document.getElementById('watchDlQuality');
             if (watchDlSel) watchDlSel.value = getDefaultDownloadQuality();
             
-            appState.currentVideoDetails = { id, title, thumbnail, channel, duration };
+            const knownChId = videoChannelMap[id]?.channelId || '';
+            appState.currentVideoDetails = { id, title, thumbnail, channel, channelId: knownChId, duration };
             updateLikeButtonUI(LocalLikesManager.isLiked(id, 'videos'));
+
+            const modalChannelBar = document.getElementById('modalChannelBar');
+            const modalChannelTitle = document.getElementById('modalChannelTitle');
+            const modalChannelAvatarImg = document.getElementById('modalChannelAvatarImg');
+            const modalChannelAvatarWrap = document.getElementById('modalChannelAvatarWrap');
+            if (modalChannelBar && modalChannelTitle && modalChannelAvatarImg) {
+                modalChannelBar.classList.remove('hidden');
+                modalChannelTitle.innerText = channel || videoChannelMap[id]?.channelTitle || '';
+                modalChannelAvatarImg.setAttribute('data-video-avatar-id', id);
+                modalChannelAvatarImg.setAttribute('data-channel-avatar-id', knownChId);
+                if (knownChId && channelAvatarsCache[knownChId]) {
+                    modalChannelAvatarImg.src = channelAvatarsCache[knownChId];
+                    modalChannelAvatarImg.classList.remove('hidden');
+                    if (modalChannelAvatarImg.nextElementSibling) modalChannelAvatarImg.nextElementSibling.classList.add('hidden');
+                } else {
+                    modalChannelAvatarImg.classList.add('hidden');
+                    if (modalChannelAvatarImg.nextElementSibling) modalChannelAvatarImg.nextElementSibling.classList.remove('hidden');
+                }
+                const goToModalCh = () => {
+                    const cid = modalChannelAvatarImg.getAttribute('data-channel-avatar-id') || videoChannelMap[id]?.channelId;
+                    if (cid) loadChannelVideos(cid, false, false, 'all');
+                };
+                if (modalChannelAvatarWrap) modalChannelAvatarWrap.onclick = goToModalCh;
+                modalChannelTitle.onclick = goToModalCh;
+            }
 
             let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
             let startSeconds = 0;
@@ -5143,53 +5881,7 @@
                 startSeconds = Math.floor(positions[id].time);
             }
 
-            if (ytPlayer) {
-                try {
-                    if (typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
-                    if (typeof ytPlayer.destroy === 'function') ytPlayer.destroy();
-                } catch(e) { console.warn(e); }
-                ytPlayer = null;
-            }
-            
-            let playerParent = document.getElementById('playerContainerWrapper');
-            if (!playerParent) {
-                playerParent = document.querySelector('.aspect-video');
-                if (playerParent) playerParent.id = 'playerContainerWrapper';
-            }
-            if (playerParent) {
-                playerParent.innerHTML = '<div id="playerFrame" class="w-full h-full absolute inset-0"></div>';
-            }
-
-            const playerVarsConfig = { 
-                'autoplay': 1, 
-                'enablejsapi': 1, 
-                'rel': 0, 
-                'start': startSeconds,
-                'fs': 1,           
-                'disablekb': 0     
-            };
-            if (window.location.origin && window.location.origin.startsWith('http')) {
-                playerVarsConfig.origin = window.location.origin;
-                playerVarsConfig.widget_referrer = window.location.href;
-            }
-
-            ytPlayer = new YT.Player('playerFrame', {
-                height: '100%',
-                width: '100%',
-                videoId: id,
-                host: 'https://www.youtube.com',
-                playerVars: playerVarsConfig,
-                events: { 
-                    'onStateChange': onPlayerStateChange,
-                    'onReady': function(event) {
-                        const iframe = event.target.getIframe();
-                        if (iframe) {
-                            iframe.setAttribute('allowfullscreen', 'true');
-                            iframe.focus(); 
-                        }
-                    }
-                }
-            });
+            mountMainYoutubePlayer(id, startSeconds);
             
             appState.currentVideoId = id;
             appState.isVideoPaused = false;
@@ -5207,6 +5899,17 @@
                     document.getElementById('modalDesc').innerHTML = safeLinkifyWithTimestamps(descText);
                     document.getElementById('modalStats').innerText = `${parseInt(item.statistics.viewCount || 0).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`;
                     renderChapters(descText);
+                    if (item.snippet?.channelId) {
+                        videoChannelMap[id] = {
+                            channelId: item.snippet.channelId,
+                            channelTitle: item.snippet.channelTitle || channel || ''
+                        };
+                        safeSetLocalStorage('yt_video_channel_map', JSON.stringify(videoChannelMap));
+                        if (appState.currentVideoDetails) appState.currentVideoDetails.channelId = item.snippet.channelId;
+                        if (modalChannelTitle && item.snippet.channelTitle) modalChannelTitle.innerText = item.snippet.channelTitle;
+                        if (modalChannelAvatarImg) modalChannelAvatarImg.setAttribute('data-channel-avatar-id', item.snippet.channelId);
+                        loadMissingChannelAvatars([item.snippet.channelId]);
+                    }
                 }
                 
                 updateWatchLaterButtonUI(id);
