@@ -118,22 +118,46 @@
         #watchView { display: none; backdrop-filter: blur(12px); background-color: var(--modal-overlay); }
         #watchView.hidden { display: none !important; }
         #watchView.active { display: flex !important; }
+        #watchView.minimized-bg {
+            display: flex !important;
+            position: fixed !important;
+            left: 0 !important;
+            bottom: 0 !important;
+            right: auto !important;
+            top: auto !important;
+            width: 320px !important;
+            height: 180px !important;
+            opacity: 0.001 !important;
+            pointer-events: none !important;
+            z-index: -10 !important;
+            overflow: hidden !important;
+            padding: 0 !important;
+            background: transparent !important;
+            backdrop-filter: none !important;
+        }
+        #watchView.minimized-bg .player-container {
+            width: 320px !important;
+            height: 180px !important;
+            max-width: 320px !important;
+            max-height: 180px !important;
+        }
         
         #watchView.floating-mode { position: fixed; top: auto; left: 20px; bottom: 20px; right: auto; background: transparent; backdrop-filter: none; padding: 0; z-index: 9999; align-items: flex-end; justify-content: flex-start; pointer-events: none; }
         #watchView.floating-mode .modal-overlay-bg { display: none; }
-        #watchView:not(.floating-mode) .player-container {
+        #watchView:not(.floating-mode):not(.minimized-bg) .player-container {
             width: 100% !important;
             height: 90vh !important;
             max-height: 90vh !important;
             resize: none !important;
             transform: none !important;
         }
-        #watchView:not(.floating-mode):not(.yt-expanded-mode) .player-container {
-            max-width: 64rem !important;
-        }
-        #watchView:not(.floating-mode).yt-expanded-mode .player-container {
+        /* תצוגה מוגדלת (78vw) היא כעת ברירת המחדל, ותצוגה מוקטנת (64rem) מופעלת עם .yt-compact-mode */
+        #watchView:not(.floating-mode):not(.minimized-bg):not(.yt-compact-mode) .player-container {
             max-width: 78vw !important;
             width: 78vw !important;
+        }
+        #watchView:not(.floating-mode):not(.minimized-bg).yt-compact-mode .player-container {
+            max-width: 64rem !important;
         }
         #watchView.floating-mode .player-container { 
             width: var(--floating-w, 400px); height: var(--floating-h, 225px); 
@@ -503,6 +527,10 @@
                 <option value="audio">שמע (MP3)</option>
             </select>
             
+            <button id="batchRemoveBtn" onclick="batchRemoveSelectedFromCurrentList()" class="hidden px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 border border-red-500/50 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white" title="הסר את הסרטונים שנבחרו מהרשימה הנוכחית">
+                <i class="fas fa-trash-alt"></i> <span class="hidden md:inline" id="batchRemoveBtnLabel">הסרה מהרשימה</span>
+            </button>
+
             <button onclick="batchAddToPlaylist()" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                 <i class="fas fa-list-ul"></i> <span class="hidden md:inline">הוסף לרשימה</span>
             </button>
@@ -543,8 +571,11 @@
             <div class="player-header p-4 flex justify-between items-center border-b" style="border-color: var(--border-color);">
                 <h3 id="modalTitle" class="font-bold text-lg truncate px-2" style="color: var(--text-primary);"></h3>
                 <div class="flex gap-2">
-                    <button onclick="toggleYouTubeMode()" id="youtubeModeBtn" class="w-10 h-10 rounded-full flex items-center justify-center transition" style="color: var(--text-secondary);" title="תצוגה מוגדלת">
+                    <button onclick="toggleYouTubeMode()" id="youtubeModeBtn" class="w-10 h-10 rounded-full flex items-center justify-center transition hover:text-blue-500" style="color: var(--text-secondary);" title="תצוגת תור (הבאים בתור כמו ביוטיוב)">
                         <i class="fas fa-columns"></i>
+                    </button>
+                    <button onclick="toggleCompactPlayerMode()" id="compactModeBtn" class="w-10 h-10 rounded-full flex items-center justify-center transition hover:text-blue-500" style="color: var(--text-secondary);" title="עבור לתצוגה מוקטנת">
+                        <i class="fas fa-compress-arrows-alt"></i>
                     </button>
                     <button onclick="openAlwaysOnTopPlayer()" id="alwaysOnTopBtn" class="w-10 h-10 rounded-full flex items-center justify-center transition hover:text-blue-500" style="color: var(--text-secondary);" title="נגן צף מעל כל החלונות במחשב (PiP)">
                         <i class="fas fa-external-link-alt"></i>
@@ -614,17 +645,20 @@
                         </div>
                         
                         <div class="p-5 rounded-2xl" style="background-color: var(--bg-surface);">
-                            <div id="modalChannelBar" class="flex items-center gap-3 mb-3 pb-3 border-b hidden" style="border-color: var(--border-color);">
-                                <div id="modalChannelAvatarWrap" class="w-10 h-10 rounded-full overflow-hidden border flex items-center justify-center cursor-pointer flex-shrink-0" style="background-color: var(--bg-card); border-color: var(--border-color);">
-                                    <img id="modalChannelAvatarImg" src="" data-channel-avatar-id="" data-video-avatar-id="" class="w-full h-full object-cover hidden" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');">
-                                    <div class="w-full h-full flex items-center justify-center">
-                                        <i class="fas fa-user text-xs opacity-40" style="color: var(--text-primary);"></i>
+                            <div id="modalChannelBar" class="flex items-center justify-between gap-3 mb-3 pb-3 border-b hidden flex-wrap" style="border-color: var(--border-color);">
+                                <div class="flex items-center gap-3">
+                                    <div id="modalChannelAvatarWrap" class="w-10 h-10 rounded-full overflow-hidden border flex items-center justify-center cursor-pointer flex-shrink-0" style="background-color: var(--bg-card); border-color: var(--border-color);">
+                                        <img id="modalChannelAvatarImg" src="" data-channel-avatar-id="" data-video-avatar-id="" class="w-full h-full object-cover hidden" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');">
+                                        <div class="w-full h-full flex items-center justify-center">
+                                            <i class="fas fa-user text-xs opacity-40" style="color: var(--text-primary);"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span id="modalChannelTitle" class="font-bold text-sm cursor-pointer hover:underline" style="color: var(--text-primary);"></span>
+                                        <span id="modalStats" class="text-xs font-semibold mt-0.5" style="color: var(--text-secondary);"></span>
                                     </div>
                                 </div>
-                                <div class="flex flex-col">
-                                    <span id="modalChannelTitle" class="font-bold text-sm cursor-pointer hover:underline" style="color: var(--text-primary);"></span>
-                                    <span id="modalStats" class="text-xs font-semibold mt-0.5" style="color: var(--text-secondary);"></span>
-                                </div>
+                                <button id="modalChannelSubBtn" type="button" class="px-4 py-1.5 rounded-full text-xs font-bold transition border shadow-sm hidden items-center gap-1.5" style="background-color: var(--bg-card); color: var(--text-primary); border-color: var(--border-color);"></button>
                             </div>
                             
                             <div id="descContainer" class="relative bg-black/5 p-3 rounded-xl border border-transparent transition-colors">
@@ -952,6 +986,8 @@
             isVideoPaused: false,
             isFloating: false,
             isYouTubeMode: false,
+            isCompactMode: false,
+            isMinimizedBg: false,
             currentChapters: [],
             activeChannelId: null,
             activePlaylistId: null,      
@@ -965,6 +1001,8 @@
             miniDownloadMinimized: false,
             homeFilter: 'all',
             lastKnownPlaybackTime: 0,
+            lastKnownDurationSec: 0,
+            lastVideoEndHandledId: null,
             unwatchedOnly: localStorage.getItem('yt_unwatched_only') === 'true',
             isListView: false,
             isSelectionMode: false,
@@ -1068,6 +1106,48 @@
             } else {
                 applyAvatarsToDom();
             }
+        }
+
+        // בדיקה חכמה האם סרטון זכאי להישמר ב"המשך צפייה":
+        // סרטונים שנצפה בהם פחות מ-10 שניות, או שנשאר בהם פחות מ-5 שניות, או שנשאר בהם פחות מ-5% - לא נשמרים!
+        function shouldKeepInResume(watchedSec, totalDurationSecOrIso) {
+            const watched = Number(watchedSec) || 0;
+            if (watched < 10) return false;
+            let totalSec = 0;
+            if (typeof totalDurationSecOrIso === 'number') {
+                totalSec = totalDurationSecOrIso;
+            } else if (typeof totalDurationSecOrIso === 'string' && totalDurationSecOrIso.startsWith('PT')) {
+                totalSec = parseDurationToSeconds(totalDurationSecOrIso);
+            } else if (totalDurationSecOrIso && typeof totalDurationSecOrIso === 'object') {
+                totalSec = Number(totalDurationSecOrIso.durationSeconds) || parseDurationToSeconds(totalDurationSecOrIso.duration || '');
+            }
+            if (totalSec > 0) {
+                const remainingSec = totalSec - watched;
+                const remainingRatio = remainingSec / totalSec;
+                if (remainingSec < 5 || remainingRatio < 0.05) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function lookupVideoStartTimestamp(videoId, existingStartedAt) {
+            if (existingStartedAt) return existingStartedAt;
+            try {
+                const hist = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
+                const found = hist.find(h => h && h.id === videoId && h.timestamp);
+                if (found) return found.timestamp;
+            } catch (e) {}
+            return new Date().toISOString();
+        }
+
+        function formatResumeStartedAtText(startedAtIso) {
+            if (!startedAtIso) return '';
+            const d = new Date(startedAtIso);
+            if (isNaN(d.getTime())) return '';
+            const dateStr = d.toLocaleDateString('he-IL');
+            const timeStr = d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            return `הותחל ב-${dateStr} (${timeStr})`;
         }
 
         async function loadMissingPlaylistDetails(playlistIds) {
@@ -1301,25 +1381,77 @@
             }
         })();
 
-        setInterval(() => {
-            if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function' && appState.currentVideoId) {
+        function handleVideoEndedAdvance(finishedVideoId) {
+            const vidId = finishedVideoId || appState.currentVideoId;
+            if (!vidId || appState.lastVideoEndHandledId === vidId) return;
+            appState.lastVideoEndHandledId = vidId;
+
+            PlaylistManager.removeFromPlaylist('Watch Later', vidId);
+            if (!appState.isIncognitoMode) {
                 try {
-                    const curT = ytPlayer.getCurrentTime();
-                    if (typeof curT === 'number' && curT > 0) {
-                        appState.lastKnownPlaybackTime = curT;
-                    }
-                    if (!appState.isIncognitoMode && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1 && appState.currentVideoDetails) {
-                        let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
-                        positions[appState.currentVideoId] = {
-                            time: curT,
-                            updatedAt: Date.now(),
-                            details: appState.currentVideoDetails
-                        };
+                    let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+                    if (positions[vidId]) {
+                        delete positions[vidId];
                         safeSetLocalStorage('yt_resume_positions', JSON.stringify(positions));
                     }
                 } catch (e) {}
             }
-        }, 2000);
+
+            if (appState.tempQueue.length > 0) {
+                const nextVideo = appState.tempQueue.shift();
+                openPlayer(nextVideo.id, nextVideo.title, nextVideo.thumbnail, nextVideo.channel, nextVideo.duration);
+                showToast(`מנגן מהתור. נותרו: ${appState.tempQueue.length}`);
+                if (appState.searchContext === 'queue') loadQueueTab(true);
+            } else {
+                playNextVideo();
+            }
+        }
+
+        function runBackgroundPlaybackTick() {
+            if (!ytPlayer || !appState.currentVideoId) return;
+            try {
+                const state = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
+                const curT = typeof ytPlayer.getCurrentTime === 'function' ? ytPlayer.getCurrentTime() : 0;
+                const durT = typeof ytPlayer.getDuration === 'function' ? ytPlayer.getDuration() : 0;
+
+                if (typeof durT === 'number' && durT > 0) {
+                    appState.lastKnownDurationSec = durT;
+                    if (appState.currentVideoDetails) {
+                        appState.currentVideoDetails.durationSeconds = durT;
+                    }
+                }
+                if (typeof curT === 'number' && curT > 0) {
+                    appState.lastKnownPlaybackTime = curT;
+                }
+
+                // אם הסרטון הסתיים (גם כשהמשתמש נמצא בחלון גוגל אחר או כשהנגן ממוזער ברקע) - עבור אוטומטית לסרטון הבא!
+                if (state === 0 || (durT > 0 && curT >= durT - 0.6 && state !== 1 && curT > 5)) {
+                    handleVideoEndedAdvance(appState.currentVideoId);
+                    return;
+                }
+
+                // אם נטען סרטון חדש ברקע בזמן שהמשתמש בחלון אחר והוא ממתין במצב Cued (5) או Unstarted (-1), הפעל אותו אוטומטית
+                if ((state === 5 || state === -1) && !appState.isVideoPaused && (!pipWindowRef || pipWindowRef.closed)) {
+                    try { ytPlayer.playVideo(); } catch (e) {}
+                }
+
+                // שמירה חכמה ב"המשך צפייה" (רק אם נצפו >= 10 שניות ונותרו >= 5 שניות ו->= 5%)
+                if (!appState.isIncognitoMode && state === 1 && appState.currentVideoDetails) {
+                    savePlaybackTimeToResume(appState.currentVideoId, curT);
+                }
+            } catch (e) {}
+        }
+
+        // שימוש ב-Web Worker Timer שלא מואט על ידי הדפדפן כשעוברים לחלון גוגל/כרום אחר
+        (function startUnthrottledBackgroundTicker() {
+            try {
+                const blob = new Blob([`setInterval(() => postMessage('tick'), 1000);`], { type: 'application/javascript' });
+                const worker = new Worker(URL.createObjectURL(blob));
+                worker.onmessage = () => runBackgroundPlaybackTick();
+            } catch (e) {
+                setInterval(runBackgroundPlaybackTick, 1000);
+            }
+        })();
 
         function showToast(message) {
             const toast = document.getElementById('toast'); 
@@ -1345,29 +1477,12 @@
         }, true);
 
         function onPlayerStateChange(event) {
-            if (event.data === 0) { 
-                if (appState.currentVideoId) {
-                    PlaylistManager.removeFromPlaylist('Watch Later', appState.currentVideoId);
-                }
-                if (appState.currentVideoId && !appState.isIncognitoMode) {
-                    let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
-                    if (positions[appState.currentVideoId]) {
-                        delete positions[appState.currentVideoId];
-                        localStorage.setItem('yt_resume_positions', JSON.stringify(positions));
-                    }
-                }
-
-                if (appState.tempQueue.length > 0) {
-                    const nextVideo = appState.tempQueue.shift();
-                    openPlayer(nextVideo.id, nextVideo.title, nextVideo.thumbnail, nextVideo.channel, nextVideo.duration);
-                    showToast(`מנגן מהתור. נותרו: ${appState.tempQueue.length}`);
-                    if (appState.searchContext === 'queue') loadQueueTab(true);
-                } else {
-                    playNextVideo(); 
-                }
+            if (event.data === 0) {
+                handleVideoEndedAdvance(appState.currentVideoId);
             }
             if (event.data === 1) { 
                 appState.isVideoPaused = false;
+                appState.lastVideoEndHandledId = null;
                 document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
             } else if (event.data === 2) { 
                 appState.isVideoPaused = true;
@@ -1791,6 +1906,34 @@
             }
         };
 
+        window.handleToggleLocalChannelSub = function(btn, channelId, title, avatarUrl, event) {
+            if (event) event.stopPropagation();
+            if (!channelId) return;
+            const isSubbed = LocalSubsManager.toggleSub(channelId, title || 'ערוץ', avatarUrl || '');
+            if (btn) {
+                btn.innerHTML = isSubbed
+                    ? '<i class="fas fa-bell-slash text-red-500"></i> <span>ביטול מעקב מקומי</span>'
+                    : '<i class="fas fa-bell text-purple-500"></i> <span>מעקב מקומי</span>';
+            }
+            if (appState.searchContext === 'local_subs') {
+                loadLocalSubscriptionsFeed(true);
+            }
+        };
+
+        window.handleToggleLocalPlaylistSub = function(btn, playlistId, title, thumbUrl, event) {
+            if (event) event.stopPropagation();
+            if (!playlistId) return;
+            const isSubbed = LocalPlaylistSubsManager.toggleSub(playlistId, title || 'פלייליסט', thumbUrl || '');
+            if (btn) {
+                btn.innerHTML = isSubbed
+                    ? '<i class="fas fa-bell-slash text-red-500"></i> <span>ביטול מעקב פלייליסט</span>'
+                    : '<i class="fas fa-bell text-amber-500"></i> <span>מעקב פלייליסט</span>';
+            }
+            if (appState.searchContext === 'local_playlist_subs') {
+                loadLocalPlaylistsFeed(true);
+            }
+        };
+
         function updateBadgeUI(elementId, count) {
             const el = document.getElementById(elementId);
             if (!el) return;
@@ -1894,8 +2037,8 @@
                          <button onclick="copyChannelLink('${escapeJsString(channel.id)}')" class="px-5 py-2 rounded-full font-bold transition whitespace-nowrap inline-flex items-center gap-2 shadow border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);" title="העתק קישור לערוץ">
                              <i class="fas fa-link text-blue-500"></i> העתק קישור
                          </button>
-                         <button onclick="const btn=this; const isSubbed = LocalSubsManager.toggleSub('${escapeJsString(channel.id)}', '${escapeJsString(snip.title)}', '${escapeJsString(avatarUrl)}'); btn.innerHTML = isSubbed ? '<i class=\'fas fa-bell-slash\'></i> ביטול מעקב' : '<i class=\'fas fa-bell\'></i> מעקב מקומי';" class="px-5 py-2 rounded-full font-bold transition whitespace-nowrap inline-block shadow border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">
-                             ${isSubbedLocally ? '<i class="fas fa-bell-slash"></i> ביטול מעקב' : '<i class="fas fa-bell"></i> מעקב מקומי'}
+                         <button onclick="handleToggleLocalChannelSub(this, '${escapeJsString(channel.id)}', '${escapeJsString(snip.title)}', '${escapeJsString(avatarUrl)}')" class="px-5 py-2 rounded-full font-bold transition whitespace-nowrap inline-flex items-center gap-2 shadow border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">
+                             ${isSubbedLocally ? '<i class="fas fa-bell-slash text-red-500"></i> <span>ביטול מעקב מקומי</span>' : '<i class="fas fa-bell text-purple-500"></i> <span>מעקב מקומי</span>'}
                          </button>
                     </div>
                 </div>
@@ -1959,12 +2102,34 @@
             updateBatchActionBar();
         }
 
+        function isCurrentContextRemovableList() {
+            const ctx = appState.searchContext || '';
+            return (
+                ctx.startsWith('playlist_') ||
+                ctx === 'local_history' ||
+                ctx === 'local_resume' ||
+                (ctx === 'liked' && appState.currentLikedTab === 'videos') ||
+                ctx === 'queue' ||
+                ctx === 'download_history' ||
+                ctx === 'general'
+            );
+        }
+
         function updateBatchActionBar() {
             const bar = document.getElementById('batchActionBar');
             const countLabel = document.getElementById('batchCountLabel');
+            const removeBtn = document.getElementById('batchRemoveBtn');
             const igBtn = document.getElementById('igBotBtn');
             const igWin = document.getElementById('igBotWindow');
             
+            if (removeBtn) {
+                if (isCurrentContextRemovableList()) {
+                    removeBtn.classList.remove('hidden');
+                } else {
+                    removeBtn.classList.add('hidden');
+                }
+            }
+
             if (appState.isSelectionMode) {
                 bar.classList.remove('translate-y-full');
                 countLabel.innerText = `${appState.selectedVideos.size} סרטונים נבחרו`;
@@ -1974,6 +2139,76 @@
                 bar.classList.add('translate-y-full');
                 if(igBtn) igBtn.style.bottom = '24px'; 
                 if(igWin) igWin.style.bottom = '24px'; 
+            }
+        }
+
+        async function batchRemoveSelectedFromCurrentList() {
+            if (appState.selectedVideos.size === 0) return showToast('לא נבחרו סרטונים להסרה');
+            const selectedIds = Array.from(appState.selectedVideos);
+            const count = selectedIds.length;
+            const ctx = appState.searchContext || '';
+
+            const confirmed = await showCustomDialog({
+                title: 'הסרת סרטונים נבחרים',
+                message: `האם להסיר ${count} סרטונים שנבחרו מהרשימה הנוכחית?`,
+                confirmText: 'הסר נבחרים',
+                cancelText: 'ביטול'
+            });
+            if (!confirmed) return;
+
+            if (ctx.startsWith('playlist_')) {
+                const pName = ctx.replace('playlist_', '');
+                const playlists = PlaylistManager.getPlaylists();
+                if (playlists[pName]) {
+                    playlists[pName] = playlists[pName].filter(v => !appState.selectedVideos.has(v.id));
+                    PlaylistManager.savePlaylists(playlists);
+                    loadPlaylistsToSidebar();
+                }
+                toggleSelectionMode();
+                loadPlaylistView(pName, true);
+                showToast(`${count} סרטונים הוסרו מהרשימה`);
+            } else if (ctx === 'local_history') {
+                let history = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
+                history = history.filter(item => !appState.selectedVideos.has(item.id));
+                safeSetLocalStorage('yt_local_history', JSON.stringify(history));
+                toggleSelectionMode();
+                loadLocalHistory(true);
+                showToast(`${count} סרטונים הוסרו מההיסטוריה המקומית`);
+            } else if (ctx === 'local_resume' || ctx === 'general') {
+                let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+                selectedIds.forEach(id => { delete positions[id]; });
+                safeSetLocalStorage('yt_resume_positions', JSON.stringify(positions));
+                toggleSelectionMode();
+                if (ctx === 'local_resume') loadResumeTab(true);
+                else loadHomePage(true, appState.homeFilter || 'all');
+                showToast(`${count} סרטונים הוסרו מהמשך צפייה`);
+            } else if (ctx === 'liked') {
+                let likes = LocalLikesManager.getLikes();
+                if (likes.videos) {
+                    likes.videos = likes.videos.filter(v => !appState.selectedVideos.has(v.id));
+                    safeSetLocalStorage('yt_local_likes_v2', JSON.stringify(likes));
+                }
+                toggleSelectionMode();
+                renderLikedTab('videos');
+                showToast(`${count} סרטונים הוסרו מהמועדפים`);
+            } else if (ctx === 'queue') {
+                appState.tempQueue = appState.tempQueue.filter(v => !appState.selectedVideos.has(v.id));
+                toggleSelectionMode();
+                loadQueueTab(true);
+                showToast(`${count} סרטונים הוסרו מתור ההשמעה`);
+            } else if (ctx === 'download_history') {
+                let list = DownloadHistoryManager.getHistory();
+                const delMap = JSON.parse(localStorage.getItem('yt_dl_deleted_ids') || '{}');
+                selectedIds.forEach(vid => {
+                    delMap[vid] = Date.now();
+                    DownloadHistoryManager.notifyBridgeCommand(`remove=${encodeURIComponent(vid)}`);
+                });
+                safeSetLocalStorage('yt_dl_deleted_ids', JSON.stringify(delMap));
+                list = list.filter(r => !appState.selectedVideos.has(r.id));
+                DownloadHistoryManager.saveHistory(list);
+                toggleSelectionMode();
+                loadDownloadHistoryTab(true, appState.downloadHistoryFilter || 'all');
+                showToast(`${count} הורדות הוסרו מההיסטוריה`);
             }
         }
 
@@ -2787,6 +3022,7 @@
                 const card = document.createElement('div');
                 card.className = "video-card group flex flex-col p-4 rounded-2xl border transition";
                 card.setAttribute('data-video-id', item.id);
+                if (appState.selectedVideos.has(item.id)) card.classList.add('selected-card');
                 card.style.backgroundColor = "var(--bg-card)";
                 card.style.borderColor = item.status === 'netfree'
                     ? 'rgba(249, 115, 22, 0.6)'
@@ -2819,6 +3055,10 @@
                     <div class="relative mb-3 cursor-pointer" onclick="openPlayer('${safeId}', '${safeTitle}', '${safeThumb}', '${safeChannel}', '')">
                         <img src="${escapeHtml(item.thumbnail)}" class="w-full aspect-video object-cover rounded-xl" style="background-color: var(--bg-surface);">
                         <div class="absolute top-2 right-2 z-10">${statusBadge}</div>
+                        <div class="selection-checkbox absolute top-2 left-2 z-20 w-6 h-6 bg-black/80 rounded border-2 border-gray-400 items-center justify-center transition">
+                            <input type="checkbox" class="pointer-events-none opacity-0 absolute inset-0" ${appState.selectedVideos.has(item.id) ? 'checked' : ''}>
+                            <i class="fas fa-check text-blue-500 opacity-0 transition-opacity"></i>
+                        </div>
                         <div class="absolute bottom-2 left-2 bg-black/85 text-white text-xs px-2 py-0.5 rounded font-bold flex items-center gap-1.5">
                             <span>${escapeHtml(qualityLabel)}</span>
                             <span class="text-cyan-400">• <i class="fas fa-bolt"></i> ${escapeHtml(connLabel)}</span>
@@ -3541,7 +3781,29 @@
             if (appState.currentVideoId && !appState.isYouTubeMode) minimizePlayer();
 
             const positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
-            const items = Object.values(positions).filter(p => p && p.details && p.details.id).sort((a,b) => b.time - a.time);
+            let changedPositions = false;
+            const validEntries = [];
+            Object.entries(positions).forEach(([vid, p]) => {
+                if (!p || !p.details || !p.details.id) {
+                    delete positions[vid];
+                    changedPositions = true;
+                    return;
+                }
+                if (!shouldKeepInResume(p.time, p.details)) {
+                    delete positions[vid];
+                    changedPositions = true;
+                    return;
+                }
+                if (!p.startedAt) {
+                    p.startedAt = lookupVideoStartTimestamp(vid, null);
+                    changedPositions = true;
+                }
+                validEntries.push(p);
+            });
+            if (changedPositions) {
+                safeSetLocalStorage('yt_resume_positions', JSON.stringify(positions));
+            }
+            const items = validEntries.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
             if (items.length === 0) {
                 document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50" style="color: var(--text-secondary);">אין סרטונים שהופסקו באמצע.</div>`;
@@ -3549,13 +3811,22 @@
                 return;
             }
 
-            const formattedItems = items.map(item => ({
-                id: { kind: 'youtube#video', videoId: item.details.id },
-                snippet: { title: item.details.title, channelTitle: item.details.channel || item.channel || '', thumbnails: { high: { url: item.details.thumbnail }, medium: { url: item.details.thumbnail } }, publishedAt: new Date().toISOString() },
-                contentDetails: { duration: item.details.duration },
-                statistics: { viewCount: 0, likeCount: 0 },
-                resumeData: { time: item.time }
-            }));
+            const formattedItems = items.map(item => {
+                const startIso = lookupVideoStartTimestamp(item.details.id, item.startedAt);
+                return {
+                    id: { kind: 'youtube#video', videoId: item.details.id },
+                    snippet: {
+                        title: item.details.title,
+                        channelTitle: item.details.channel || item.channel || '',
+                        channelId: item.details.channelId || videoChannelMap[item.details.id]?.channelId || '',
+                        thumbnails: { high: { url: item.details.thumbnail }, medium: { url: item.details.thumbnail } },
+                        publishedAt: startIso
+                    },
+                    contentDetails: { duration: item.details.duration },
+                    statistics: { viewCount: 0, likeCount: 0 },
+                    resumeData: { time: item.time, startedAt: startIso }
+                };
+            });
 
             renderResults(formattedItems, true);
 
@@ -3711,8 +3982,11 @@
                     <div class="flex-1 flex flex-col items-center channel-details-wrap w-full">
                         <h3 class="font-bold text-lg text-center mb-1 line-clamp-1" style="color: var(--text-primary);">${escapeHtml(sub.title)}</h3>
                         <p class="text-xs text-center mb-4" style="color: var(--text-secondary);">${sub.newCount > 0 ? `${sub.newCount} סרטונים חדשים` : 'אין סרטונים חדשים'}</p>
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 flex-wrap justify-center">
                             <button class="text-white text-xs font-bold px-4 py-2 rounded-full transition shadow" style="background-color: var(--text-primary); color: var(--bg-main);">צפה בעדכונים</button>
+                            <button onclick="event.stopPropagation(); LocalSubsManager.toggleSub('${safeSubId}', '${safeSubTitle}', '${safeSubThumb}'); loadLocalSubscriptionsFeed(true);" class="text-xs font-bold px-3 py-2 rounded-full transition border text-red-500 border-red-500/30 hover:bg-red-500/10" title="בטל מעקב מקומי">
+                                <i class="fas fa-bell-slash"></i>
+                            </button>
                             <button onclick="event.stopPropagation(); copyChannelLink('${safeSubId}')" class="text-xs font-bold px-3 py-2 rounded-full transition border shadow-sm flex items-center gap-1 hover:opacity-80" style="color: var(--text-secondary); border-color: var(--border-color); background-color: var(--bg-surface);" title="העתק קישור לערוץ">
                                 <i class="fas fa-link text-blue-500"></i>
                             </button>
@@ -3962,16 +4236,32 @@
             return 0;
         }
 
-        function savePlaybackTimeToResume(videoId, seconds) {
+        function savePlaybackTimeToResume(videoId, seconds, forceSaveEvenIfShort = false) {
             if (!videoId || typeof seconds !== 'number' || seconds < 0) return;
             appState.lastKnownPlaybackTime = seconds;
             if (appState.isIncognitoMode) return;
             try {
                 const positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+                const existing = positions[videoId];
+                const detailsObj = appState.currentVideoDetails || existing?.details || findVideoMetadataById(videoId);
+                if (appState.lastKnownDurationSec > 0 && detailsObj) {
+                    detailsObj.durationSeconds = appState.lastKnownDurationSec;
+                }
+
+                if (!forceSaveEvenIfShort && !shouldKeepInResume(seconds, detailsObj)) {
+                    if (positions[videoId]) {
+                        delete positions[videoId];
+                        safeSetLocalStorage('yt_resume_positions', JSON.stringify(positions));
+                    }
+                    return;
+                }
+
+                const startedAt = lookupVideoStartTimestamp(videoId, existing?.startedAt);
                 positions[videoId] = {
                     time: seconds,
+                    startedAt: startedAt,
                     updatedAt: Date.now(),
-                    details: appState.currentVideoDetails || positions[videoId]?.details || findVideoMetadataById(videoId)
+                    details: detailsObj
                 };
                 safeSetLocalStorage('yt_resume_positions', JSON.stringify(positions));
             } catch (e) {}
@@ -3981,6 +4271,7 @@
             if (!videoId) return;
             const cleanStart = Math.max(0, Math.floor(Number(startSeconds) || 0));
             appState.lastKnownPlaybackTime = cleanStart;
+            appState.lastVideoEndHandledId = null;
 
             if (ytPlayer) {
                 try {
@@ -4005,7 +4296,8 @@
                 'rel': 0,
                 'start': cleanStart,
                 'fs': 1,
-                'disablekb': 0
+                'disablekb': 0,
+                'playsinline': 1
             };
             if (window.location.origin && window.location.origin.startsWith('http')) {
                 playerVarsConfig.origin = window.location.origin;
@@ -4024,14 +4316,15 @@
                         const iframe = event.target.getIframe();
                         if (iframe) {
                             iframe.setAttribute('allowfullscreen', 'true');
-                            iframe.focus();
+                            iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+                            if (!appState.isMinimizedBg) iframe.focus();
                         }
-                        if (cleanStart > 0) {
-                            try {
+                        try {
+                            if (cleanStart > 0) {
                                 event.target.seekTo(cleanStart, true);
-                                event.target.playVideo();
-                            } catch (e) {}
-                        }
+                            }
+                            event.target.playVideo();
+                        } catch (e) {}
                     }
                 }
             });
@@ -4046,7 +4339,8 @@
             }
             const container = watchView.querySelector('.player-container');
             appState.isFloating = false;
-            watchView.classList.remove('floating-mode', 'hidden');
+            appState.isMinimizedBg = false;
+            watchView.classList.remove('floating-mode', 'hidden', 'minimized-bg');
             watchView.classList.add('active');
             resetFloatingContainerSize(container);
             document.body.style.overflow = 'hidden';
@@ -4073,12 +4367,12 @@
             container.dataset.tx = '0';
             container.dataset.ty = '0';
 
-            if (appState.isYouTubeMode) {
-                if (view) view.classList.add('yt-expanded-mode');
-                container.classList.remove('max-w-5xl');
-            } else {
-                if (view) view.classList.remove('yt-expanded-mode');
+            if (appState.isCompactMode && !appState.isYouTubeMode) {
+                if (view) view.classList.add('yt-compact-mode');
                 container.classList.add('max-w-5xl');
+            } else {
+                if (view) view.classList.remove('yt-compact-mode');
+                container.classList.remove('max-w-5xl');
             }
 
             const playerWrapper = document.getElementById('playerContainerWrapper');
@@ -4097,6 +4391,8 @@
             const view = document.getElementById('watchView');
             const container = view.querySelector('.player-container');
             appState.isFloating = !appState.isFloating;
+            appState.isMinimizedBg = false;
+            view.classList.remove('minimized-bg');
             if (appState.isFloating) {
                 if (container) {
                     container.style.removeProperty('width');
@@ -4117,8 +4413,39 @@
             }
         }
 
+        function getNextVideoCandidate(currentId) {
+            if (appState.tempQueue.length > 0) {
+                return { item: appState.tempQueue.shift(), fromQueue: true };
+            }
+            const currentList = appState.currentRenderedItems || [];
+            const idx = currentList.findIndex(item => {
+                const itemId = item.id?.videoId || (typeof item.id === 'string' ? item.id : null);
+                return itemId === currentId;
+            });
+            if (idx > -1) {
+                for (let i = idx + 1; i < currentList.length; i++) {
+                    const nextItem = currentList[i];
+                    const nextId = nextItem.id?.videoId || (typeof nextItem.id === 'string' ? nextItem.id : null);
+                    if (nextId) {
+                        const snip = nextItem.snippet || {};
+                        return {
+                            item: {
+                                id: nextId,
+                                title: snip.title || '',
+                                thumbnail: snip.thumbnails?.high?.url || snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url || '',
+                                channel: snip.channelTitle || '',
+                                duration: nextItem.contentDetails?.duration || ''
+                            },
+                            fromQueue: false
+                        };
+                    }
+                }
+            }
+            return null;
+        }
+
         async function openAlwaysOnTopPlayer() {
-            const videoId = appState.currentVideoId;
+            let videoId = appState.currentVideoId;
             if (!videoId) return showToast("אין סרטון מתנגן כרגע");
 
             const view = document.getElementById('watchView');
@@ -4126,7 +4453,7 @@
             const playerWrapper = document.getElementById('playerContainerWrapper');
 
             const initialTimeSec = getCurrentPlaybackSeconds(videoId);
-            savePlaybackTimeToResume(videoId, initialTimeSec);
+            savePlaybackTimeToResume(videoId, initialTimeSec, true);
 
             if (activeExternalTimer) {
                 clearInterval(activeExternalTimer);
@@ -4157,15 +4484,18 @@
         html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: Assistant, sans-serif; }
         #pipMount { width: 100%; height: 100%; position: relative; background: #000; }
         #pipMount #playerFrame, #pipMount iframe { width: 100% !important; height: 100% !important; border: none !important; display: block !important; position: absolute !important; inset: 0 !important; }
-        .top-bar { position: fixed; top: 0; left: 0; right: 0; padding: 8px 12px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; opacity: 0; transition: opacity 0.2s; z-index: 50; }
+        .top-bar { position: fixed; top: 0; left: 0; right: 0; padding: 8px 12px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; gap: 8px; opacity: 0; transition: opacity 0.2s; z-index: 50; }
         body:hover .top-bar { opacity: 1; }
         .btn { background: rgba(37, 99, 235, 0.9); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: bold; cursor: pointer; backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
         .btn:hover { background: #1d4ed8; }
+        .btn-sec { background: rgba(0, 0, 0, 0.75); }
+        .btn-sec:hover { background: rgba(59, 130, 246, 0.9); }
     </style>
 </head>
 <body>
     <div class="top-bar">
         <button class="btn" id="backToMainBtn">החזר לחלון הרגיל</button>
+        <button class="btn btn-sec" id="pipNextVideoBtn">הבא בתור ⏭</button>
     </div>
     <div id="pipMount" data-frame-id="ytPipFrame"><span id="ytPipFrame" style="display:none;"></span></div>
 </body>
@@ -4173,57 +4503,145 @@
                     doc.close();
 
                     let pipTrackedTime = initialTimeSec;
+                    let pipTotalDuration = appState.lastKnownDurationSec || parseDurationToSeconds(appState.currentVideoDetails?.duration || '') || 0;
                     let pipIsPlaying = true;
                     let lastInfoDeliveryMs = 0;
                     let hasRestored = false;
+                    let pipAdvancingLock = false;
 
                     const pipMount = doc.getElementById('pipMount');
                     const playerFrameEl = document.getElementById('playerFrame');
 
-                    if (playerFrameEl && pipMount) {
+                    const loadVideoInPipIframe = (targetVidId, startSec) => {
+                        if (!playerFrameEl || !pipMount) return;
+                        videoId = targetVidId;
+                        appState.currentVideoId = targetVidId;
+                        pipTrackedTime = startSec;
+                        pipIsPlaying = true;
+                        pipAdvancingLock = false;
+
+                        playerFrameEl.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+                        playerFrameEl.setAttribute('allowfullscreen', 'true');
+                        if (!pipMount.contains(playerFrameEl)) {
+                            pipMount.appendChild(playerFrameEl);
+                        }
+
+                        let widgetId = 1;
                         try {
-                            const currentSrc = playerFrameEl.getAttribute('src') || '';
-                            if (currentSrc) {
-                                const parsedUrl = new URL(currentSrc, window.location.href);
-                                parsedUrl.searchParams.set('start', String(initialTimeSec));
-                                parsedUrl.searchParams.set('autoplay', '1');
-                                parsedUrl.searchParams.set('enablejsapi', '1');
-                                playerFrameEl.setAttribute('src', parsedUrl.toString());
-                            }
+                            const oldSrc = playerFrameEl.getAttribute('src') || '';
+                            const m = oldSrc.match(/[?&]widgetid=(\d+)/);
+                            if (m && m[1]) widgetId = parseInt(m[1], 10);
                         } catch (e) {}
 
-                        pipMount.appendChild(playerFrameEl);
+                        const embedUrl = new URL(`https://www.youtube.com/embed/${encodeURIComponent(targetVidId)}`);
+                        embedUrl.searchParams.set('autoplay', '1');
+                        embedUrl.searchParams.set('enablejsapi', '1');
+                        embedUrl.searchParams.set('rel', '0');
+                        embedUrl.searchParams.set('fs', '1');
+                        embedUrl.searchParams.set('playsinline', '1');
+                        embedUrl.searchParams.set('start', String(Math.max(0, Math.floor(startSec || 0))));
+                        embedUrl.searchParams.set('widgetid', String(widgetId));
+                        if (window.location.origin && window.location.origin.startsWith('http')) {
+                            embedUrl.searchParams.set('origin', window.location.origin);
+                            embedUrl.searchParams.set('widget_referrer', window.location.href);
+                        }
 
-                        const sendListeningAndSeek = () => {
+                        const sendPlayCommands = () => {
                             try {
                                 if (playerFrameEl.contentWindow) {
-                                    playerFrameEl.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
-                                    if (pipTrackedTime > 0) {
-                                        playerFrameEl.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [Math.floor(pipTrackedTime), true] }), '*');
-                                    }
+                                    // שליחת פקודת האזנה והפעלה גם עם widgetId וגם ללא מזהה כדי להבטיח קליטה מיידית בנגן יוטיוב
+                                    playerFrameEl.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: widgetId, channel: 'widget' }), '*');
+                                    playerFrameEl.contentWindow.postMessage(JSON.stringify({ event: 'listening' }), '*');
+                                    playerFrameEl.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [], id: widgetId, channel: 'widget' }), '*');
                                     playerFrameEl.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
                                 }
                             } catch (e) {}
                         };
 
-                        playerFrameEl.addEventListener('load', () => {
-                            sendListeningAndSeek();
-                            setTimeout(sendListeningAndSeek, 500);
-                            setTimeout(sendListeningAndSeek, 1200);
-                        }, { once: true });
-                    }
+                        playerFrameEl.onload = () => {
+                            sendPlayCommands();
+                            setTimeout(sendPlayCommands, 300);
+                            setTimeout(sendPlayCommands, 800);
+                            setTimeout(sendPlayCommands, 1500);
+                        };
+
+                        playerFrameEl.setAttribute('src', embedUrl.toString());
+                    };
+
+                    const advanceToNextInPip = () => {
+                        if (pipAdvancingLock) return;
+                        pipAdvancingLock = true;
+                        PlaylistManager.removeFromPlaylist('Watch Later', videoId);
+                        if (!appState.isIncognitoMode) {
+                            try {
+                                const positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
+                                delete positions[videoId];
+                                safeSetLocalStorage('yt_resume_positions', JSON.stringify(positions));
+                            } catch (e) {}
+                        }
+                        const nextCandidate = getNextVideoCandidate(videoId);
+                        if (!nextCandidate || !nextCandidate.item) {
+                            pipAdvancingLock = false;
+                            return;
+                        }
+                        const nextV = nextCandidate.item;
+                        appState.currentVideoId = nextV.id;
+                        appState.currentVideoDetails = {
+                            id: nextV.id,
+                            title: nextV.title,
+                            thumbnail: nextV.thumbnail,
+                            channel: nextV.channel,
+                            channelId: videoChannelMap[nextV.id]?.channelId || '',
+                            duration: nextV.duration
+                        };
+                        pipTotalDuration = parseDurationToSeconds(nextV.duration || '') || 0;
+                        safeToLocalHistory(nextV.id, nextV.title, nextV.thumbnail, nextV.channel);
+                        try {
+                            doc.title = nextV.title || 'YouTube Floating Player';
+                            document.getElementById('modalTitle').innerText = nextV.title;
+                            document.getElementById('fullTitle').innerText = nextV.title;
+                        } catch (e) {}
+                        if (nextCandidate.fromQueue && appState.searchContext === 'queue') {
+                            loadQueueTab(true);
+                        }
+                        loadVideoInPipIframe(nextV.id, 0);
+                    };
+
+                    loadVideoInPipIframe(videoId, initialTimeSec);
 
                     const onPipMessage = (ev) => {
                         try {
                             if (typeof ev.data !== 'string') return;
                             const data = JSON.parse(ev.data);
-                            if (data && data.event === 'infoDelivery' && data.info) {
+                            if (!data) return;
+
+                            if (data.event === 'onReady') {
+                                if (playerFrameEl && playerFrameEl.contentWindow) {
+                                    playerFrameEl.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
+                                }
+                            } else if (data.event === 'onStateChange') {
+                                if (data.info === 0) {
+                                    advanceToNextInPip();
+                                } else if (data.info === 1) {
+                                    pipIsPlaying = true;
+                                } else if (data.info === 2) {
+                                    pipIsPlaying = false;
+                                }
+                            } else if (data.event === 'infoDelivery' && data.info) {
+                                if (typeof data.info.duration === 'number' && data.info.duration > 0) {
+                                    pipTotalDuration = data.info.duration;
+                                    appState.lastKnownDurationSec = data.info.duration;
+                                }
                                 if (typeof data.info.currentTime === 'number' && data.info.currentTime > 0) {
                                     pipTrackedTime = data.info.currentTime;
                                     lastInfoDeliveryMs = Date.now();
                                     savePlaybackTimeToResume(videoId, pipTrackedTime);
                                 }
                                 if (typeof data.info.playerState === 'number') {
+                                    if (data.info.playerState === 0) {
+                                        advanceToNextInPip();
+                                        return;
+                                    }
                                     pipIsPlaying = (data.info.playerState === 1);
                                 }
                             }
@@ -4242,6 +4660,9 @@
                         if (pipIsPlaying && (Date.now() - lastInfoDeliveryMs > 1400)) {
                             pipTrackedTime += 1;
                             savePlaybackTimeToResume(videoId, pipTrackedTime);
+                            if (pipTotalDuration > 0 && pipTrackedTime >= pipTotalDuration + 1) {
+                                advanceToNextInPip();
+                            }
                         }
                     }, 1000);
 
@@ -4263,8 +4684,9 @@
                         } catch (e) {}
 
                         appState.isFloating = false;
+                        appState.isMinimizedBg = false;
                         if (view) {
-                            view.classList.remove('floating-mode', 'hidden');
+                            view.classList.remove('floating-mode', 'hidden', 'minimized-bg');
                             view.classList.add('active');
                         }
                         resetFloatingContainerSize(container);
@@ -4280,20 +4702,27 @@
                         restoreFromPip();
                     });
 
+                    const pipNextBtn = doc.getElementById('pipNextVideoBtn');
+                    if (pipNextBtn) {
+                        pipNextBtn.addEventListener('click', () => {
+                            advanceToNextInPip();
+                        });
+                    }
+
                     pipWin.addEventListener('pagehide', () => {
                         restoreFromPip();
                     });
 
                     if (view) {
                         appState.isFloating = false;
-                        view.classList.remove('active', 'floating-mode');
+                        view.classList.remove('active', 'floating-mode', 'minimized-bg');
                         view.classList.add('hidden');
                     }
                     resetFloatingContainerSize(container);
                     document.getElementById('return-to-video-btn').classList.remove('hidden');
                     document.body.style.overflow = 'auto';
 
-                    showToast("הנגן הצף פעיל וממשיך מאותה נקודה שבה עצרת!");
+                    showToast("הנגן הצף פעיל ומתנגן מאותה נקודה שבה עצרת!");
                     return;
                 } catch (err) {
                     console.warn("Document PiP fallback to popup:", err);
@@ -4330,8 +4759,9 @@
                     } catch (e) {}
                     savePlaybackTimeToResume(videoId, popupTrackedTime);
                     appState.isFloating = false;
+                    appState.isMinimizedBg = false;
                     if (view) {
-                        view.classList.remove('floating-mode', 'hidden');
+                        view.classList.remove('floating-mode', 'hidden', 'minimized-bg');
                         view.classList.add('active');
                     }
                     resetFloatingContainerSize(container);
@@ -4352,7 +4782,7 @@
 
                 appState.isFloating = false;
                 if (view) {
-                    view.classList.remove('active', 'floating-mode');
+                    view.classList.remove('active', 'floating-mode', 'minimized-bg');
                     view.classList.add('hidden');
                 }
                 resetFloatingContainerSize(container);
@@ -4426,26 +4856,72 @@
             }
         })();
 
+        // כפתור תצוגת תור (הבאים בתור כמו ביוטיוב)
         function toggleYouTubeMode() {
             appState.isYouTubeMode = !appState.isYouTubeMode;
             const view = document.getElementById('watchView');
             const container = document.querySelector('#watchView .player-container');
             const upNextSidebar = document.getElementById('upNextSidebar');
             const ytModeBtn = document.getElementById('youtubeModeBtn');
+            const compactBtn = document.getElementById('compactModeBtn');
 
             if (appState.isYouTubeMode) {
-                if (view) view.classList.add('yt-expanded-mode');
-                container.classList.remove('max-w-5xl');
+                appState.isCompactMode = false;
+                if (view) view.classList.remove('yt-compact-mode');
                 upNextSidebar.classList.remove('hidden');
                 upNextSidebar.classList.add('flex');
                 populateUpNext();
-                if(ytModeBtn) ytModeBtn.setAttribute('title', 'תצוגה רגילה');
+                if (ytModeBtn) {
+                    ytModeBtn.style.color = '#3b82f6';
+                    ytModeBtn.setAttribute('title', 'הסתר תצוגת תור (הבאים בתור)');
+                }
+                if (compactBtn) {
+                    compactBtn.innerHTML = '<i class="fas fa-compress-arrows-alt"></i>';
+                    compactBtn.setAttribute('title', 'עבור לתצוגה מוקטנת');
+                }
             } else {
-                if (view) view.classList.remove('yt-expanded-mode');
-                container.classList.add('max-w-5xl');
                 upNextSidebar.classList.add('hidden');
                 upNextSidebar.classList.remove('flex');
-                if(ytModeBtn) ytModeBtn.setAttribute('title', 'תצוגה מוגדלת');
+                if (ytModeBtn) {
+                    ytModeBtn.style.color = 'var(--text-secondary)';
+                    ytModeBtn.setAttribute('title', 'תצוגת תור (הבאים בתור כמו ביוטיוב)');
+                }
+            }
+            if (!appState.isFloating) {
+                resetFloatingContainerSize(container);
+            }
+        }
+
+        // כפתור מעבר בין תצוגת ברירת מחדל (מוגדלת) לתצוגה מוקטנת
+        function toggleCompactPlayerMode() {
+            appState.isCompactMode = !appState.isCompactMode;
+            const view = document.getElementById('watchView');
+            const container = document.querySelector('#watchView .player-container');
+            const upNextSidebar = document.getElementById('upNextSidebar');
+            const compactBtn = document.getElementById('compactModeBtn');
+            const ytModeBtn = document.getElementById('youtubeModeBtn');
+
+            if (appState.isCompactMode) {
+                if (appState.isYouTubeMode) {
+                    appState.isYouTubeMode = false;
+                    upNextSidebar.classList.add('hidden');
+                    upNextSidebar.classList.remove('flex');
+                    if (ytModeBtn) {
+                        ytModeBtn.style.color = 'var(--text-secondary)';
+                        ytModeBtn.setAttribute('title', 'תצוגת תור (הבאים בתור כמו ביוטיוב)');
+                    }
+                }
+                if (view) view.classList.add('yt-compact-mode');
+                if (compactBtn) {
+                    compactBtn.innerHTML = '<i class="fas fa-expand-arrows-alt text-blue-500"></i>';
+                    compactBtn.setAttribute('title', 'חזור לתצוגה מוגדלת (ברירת מחדל)');
+                }
+            } else {
+                if (view) view.classList.remove('yt-compact-mode');
+                if (compactBtn) {
+                    compactBtn.innerHTML = '<i class="fas fa-compress-arrows-alt"></i>';
+                    compactBtn.setAttribute('title', 'עבור לתצוגה מוקטנת');
+                }
             }
             if (!appState.isFloating) {
                 resetFloatingContainerSize(container);
@@ -4544,10 +5020,20 @@
 
         function minimizePlayer() {
             if (appState.isFloating) {
-                document.getElementById('watchView').classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
+                appState.isMinimizedBg = true;
+                watchView.classList.remove('active', 'floating-mode');
+                watchView.classList.add('minimized-bg');
+                returnToVideoBtn.classList.remove('hidden');
+                document.body.style.overflow = 'auto';
             } else if (appState.currentVideoId) {
-                watchView.classList.remove('active', 'hidden'); watchView.classList.add('hidden'); returnToVideoBtn.classList.remove('hidden'); document.body.style.overflow = 'auto'; 
-            } else { closePlayer(); }
+                appState.isMinimizedBg = true;
+                watchView.classList.remove('active', 'hidden');
+                watchView.classList.add('minimized-bg');
+                returnToVideoBtn.classList.remove('hidden');
+                document.body.style.overflow = 'auto';
+            } else {
+                closePlayer();
+            }
         }
 
         function toggleConfig() {
@@ -4797,23 +5283,41 @@
             document.getElementById('exportUrlsBtn').classList.remove('hidden');
 
             const positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
-            const rawResumeItems = Object.values(positions)
-                .filter(p => p && p.details && p.details.id)
-                .sort((a, b) => (b.updatedAt || b.time || 0) - (a.updatedAt || a.time || 0));
+            let changedPositions = false;
+            const rawResumeItems = [];
+            Object.entries(positions).forEach(([vid, p]) => {
+                if (!p || !p.details || !p.details.id || !shouldKeepInResume(p.time, p.details)) {
+                    delete positions[vid];
+                    changedPositions = true;
+                    return;
+                }
+                if (!p.startedAt) {
+                    p.startedAt = lookupVideoStartTimestamp(vid, null);
+                    changedPositions = true;
+                }
+                rawResumeItems.push(p);
+            });
+            if (changedPositions) {
+                safeSetLocalStorage('yt_resume_positions', JSON.stringify(positions));
+            }
+            rawResumeItems.sort((a, b) => (b.updatedAt || b.time || 0) - (a.updatedAt || a.time || 0));
 
-            let resumeFormatted = rawResumeItems.map(item => ({
-                id: { kind: 'youtube#video', videoId: item.details.id },
-                snippet: {
-                    title: item.details.title,
-                    channelTitle: item.details.channel || item.channel || '',
-                    channelId: item.details.channelId || videoChannelMap[item.details.id]?.channelId || '',
-                    thumbnails: { high: { url: item.details.thumbnail }, medium: { url: item.details.thumbnail } },
-                    publishedAt: item.updatedAt ? new Date(item.updatedAt).toISOString() : new Date().toISOString()
-                },
-                contentDetails: { duration: item.details.duration || '' },
-                statistics: { viewCount: 0, likeCount: 0 },
-                resumeData: { time: item.time }
-            }));
+            let resumeFormatted = rawResumeItems.map(item => {
+                const startIso = lookupVideoStartTimestamp(item.details.id, item.startedAt);
+                return {
+                    id: { kind: 'youtube#video', videoId: item.details.id },
+                    snippet: {
+                        title: item.details.title,
+                        channelTitle: item.details.channel || item.channel || '',
+                        channelId: item.details.channelId || videoChannelMap[item.details.id]?.channelId || '',
+                        thumbnails: { high: { url: item.details.thumbnail }, medium: { url: item.details.thumbnail } },
+                        publishedAt: startIso
+                    },
+                    contentDetails: { duration: item.details.duration || '' },
+                    statistics: { viewCount: 0, likeCount: 0 },
+                    resumeData: { time: item.time, startedAt: startIso }
+                };
+            });
 
             const resumeIdSet = new Set(resumeFormatted.map(r => r.id.videoId));
 
@@ -4863,16 +5367,40 @@
                         if (rStatsData.items) {
                             const mapById = {};
                             rStatsData.items.forEach(it => { mapById[it.id] = it; });
-                            resumeFormatted = resumeFormatted.map(r => {
-                                const apiItem = mapById[r.id.videoId];
-                                if (!apiItem) return r;
-                                return {
+                            let prunedAny = false;
+                            const nextResumeFormatted = [];
+                            resumeFormatted.forEach(r => {
+                                const vid = r.id.videoId;
+                                const apiItem = mapById[vid];
+                                const durIso = apiItem?.contentDetails?.duration || r.contentDetails?.duration || '';
+                                if (durIso && positions[vid] && positions[vid].details) {
+                                    positions[vid].details.duration = durIso;
+                                }
+                                if (durIso && !shouldKeepInResume(r.resumeData.time, durIso)) {
+                                    delete positions[vid];
+                                    resumeIdSet.delete(vid);
+                                    prunedAny = true;
+                                    return;
+                                }
+                                if (!apiItem) {
+                                    nextResumeFormatted.push(r);
+                                    return;
+                                }
+                                nextResumeFormatted.push({
                                     ...r,
-                                    snippet: apiItem.snippet || r.snippet,
+                                    snippet: {
+                                        ...(apiItem.snippet || r.snippet),
+                                        // שמירה על תאריך התחלת הצפייה האישי במקום תאריך העלאת הסרטון
+                                        publishedAt: r.resumeData.startedAt
+                                    },
                                     statistics: apiItem.statistics || r.statistics,
                                     contentDetails: apiItem.contentDetails || r.contentDetails
-                                };
+                                });
                             });
+                            resumeFormatted = nextResumeFormatted;
+                            if (prunedAny) {
+                                safeSetLocalStorage('yt_resume_positions', JSON.stringify(positions));
+                            }
                         }
                     } catch (e) {}
                 }
@@ -5409,7 +5937,6 @@
             const localHistory = JSON.parse(localStorage.getItem('yt_local_history') || '[]');
             const watchedIds = new Set(localHistory.map(h => h.id));
 
-            // מיפוי ואיסוף מזהי ערוצים (כולל השלמה אוטומטית להיסטוריה, מועדפים, המשך צפייה ורשימות אישיות)
             const videoIdsInBatch = [];
             const channelIdsToFetch = [];
             items.forEach(item => {
@@ -5548,16 +6075,21 @@
                     const views = item.statistics.viewCount; const likes = item.statistics.likeCount; const date = snip.publishedAt;
                     if(views) viewsText = `${formatCount(views)} צפיות`;
                     if(likes) likesText = ` • ${formatCount(likes)} לייקים`;
-                    if(date) timeText = ` • ${timeSince(date)}`;
+                    if (item.resumeData && item.resumeData.startedAt) {
+                        const startedLabel = formatResumeStartedAtText(item.resumeData.startedAt);
+                        timeText = viewsText ? ` • ${startedLabel}` : startedLabel;
+                    } else if (date) {
+                        timeText = viewsText ? ` • ${timeSince(date)}` : timeSince(date);
+                    }
                 }
 
                 if (item.contentDetails && item.contentDetails.duration) {
                     durationText = `<span class="absolute bottom-2 left-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-bold">${parseDuration(item.contentDetails.duration)}</span>`;
                 }
 
-                if (item.resumeData && item.contentDetails?.duration) {
-                    const watchedSec = Math.floor(item.resumeData.time);
-                    const totalSec = parseDurationToSeconds(item.contentDetails.duration);
+                if (item.resumeData) {
+                    const watchedSec = Math.floor(item.resumeData.time || 0);
+                    const totalSec = parseDurationToSeconds(item.contentDetails?.duration || '');
                     if (totalSec > 0) {
                         const percent = Math.min(100, Math.round((watchedSec / totalSec) * 100));
                         const remainingSec = Math.max(0, totalSec - watchedSec);
@@ -5571,6 +6103,12 @@
                         resumeStatsHtml = `
                             <div class="mt-2 mb-1 text-[11px] font-bold px-3 py-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-400 inline-flex items-center gap-1 shadow-sm w-fit" title="זמן צפייה">
                                 <i class="fas fa-history ml-1 text-blue-500"></i> עברו: ${formatSeconds(watchedSec)} • נותרו: ${formatSeconds(remainingSec)} (${percent}%)
+                            </div>
+                        `;
+                    } else {
+                        resumeStatsHtml = `
+                            <div class="mt-2 mb-1 text-[11px] font-bold px-3 py-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-400 inline-flex items-center gap-1 shadow-sm w-fit" title="זמן צפייה">
+                                <i class="fas fa-history ml-1 text-blue-500"></i> נעצר ב-${formatSeconds(watchedSec)}
                             </div>
                         `;
                     }
@@ -5728,37 +6266,137 @@
             }
         }
 
-        async function fetchComments(videoId) {
-            try {
-                const res = await fetch(`https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&maxResults=20&key=${appState.apiKey}`);
-                const data = await res.json();
-                const commentsList = document.getElementById('commentsList');
-                commentsList.innerHTML = '';
-                
-                if (!data.items || data.items.length === 0) {
-                    commentsList.innerHTML = '<p style="color: var(--text-secondary);">אין תגובות זמינות לסרטון זה.</p>';
-                    return;
-                }
-                
-                data.items.forEach(item => {
-                    const comment = item.snippet.topLevelComment.snippet;
-                    commentsList.innerHTML += `
-                        <div class="flex gap-3">
-                            <img src="${escapeHtml(comment.authorProfileImageUrl)}" class="w-10 h-10 rounded-full border" style="border-color: var(--border-color);">
-                            <div>
-                                <h4 class="font-bold text-sm" style="color: var(--text-primary);">${escapeHtml(comment.authorDisplayName)}</h4>
-                                <p class="text-sm mt-1" style="color: var(--text-secondary);">${safeLinkifyWithTimestamps(comment.textOriginal || comment.textDisplay)}</p>
-                                <div class="text-xs mt-2 flex gap-3" style="color: var(--text-muted);">
-                                    <span><i class="fas fa-thumbs-up"></i> ${comment.likeCount}</span>
-                                    <span>${new Date(comment.publishedAt).toLocaleDateString('he-IL')}</span>
-                                </div>
+        function renderNormalizedComments(normalizedComments, sourceNote = '') {
+            const commentsList = document.getElementById('commentsList');
+            commentsList.innerHTML = '';
+            if (sourceNote) {
+                commentsList.innerHTML += `<div class="text-xs px-3 py-1.5 rounded-lg border inline-flex items-center gap-2 w-fit mb-2" style="background-color: var(--bg-surface); border-color: var(--border-color); color: var(--text-secondary);"><i class="fas fa-info-circle text-blue-400"></i><span>${escapeHtml(sourceNote)}</span></div>`;
+            }
+            normalizedComments.forEach(c => {
+                const avatarHtml = c.avatar
+                    ? `<img src="${escapeHtml(c.avatar)}" class="w-10 h-10 rounded-full border object-cover flex-shrink-0" style="border-color: var(--border-color);" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="w-10 h-10 rounded-full border items-center justify-center flex-shrink-0 hidden" style="background-color: var(--bg-surface); border-color: var(--border-color);"><i class="fas fa-user text-xs opacity-50" style="color: var(--text-primary);"></i></div>`
+                    : `<div class="w-10 h-10 rounded-full border flex items-center justify-center flex-shrink-0" style="background-color: var(--bg-surface); border-color: var(--border-color);"><i class="fas fa-user text-xs opacity-50" style="color: var(--text-primary);"></i></div>`;
+
+                commentsList.innerHTML += `
+                    <div class="flex gap-3">
+                        ${avatarHtml}
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-sm" style="color: var(--text-primary);">${escapeHtml(c.author || 'משתמש')}</h4>
+                            <p class="text-sm mt-1 whitespace-pre-wrap leading-relaxed" style="color: var(--text-secondary);">${safeLinkifyWithTimestamps(c.text || '')}</p>
+                            <div class="text-xs mt-2 flex gap-3" style="color: var(--text-muted);">
+                                <span><i class="fas fa-thumbs-up"></i> ${escapeHtml(String(c.likes ?? 0))}</span>
+                                <span>${escapeHtml(c.date || '')}</span>
                             </div>
                         </div>
-                    `;
-                });
-            } catch(e) {
-                document.getElementById('commentsList').innerHTML = '<p style="color: var(--text-secondary);">שגיאה בטעינת התגובות או שהן מושבתות עבור סרטון זה.</p>';
+                    </div>
+                `;
+            });
+        }
+
+        async function fetchComments(videoId) {
+            const commentsList = document.getElementById('commentsList');
+            const googleEndpoints = [
+                `https://youtube.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${encodeURIComponent(videoId)}&maxResults=25&order=relevance&textFormat=plainText&key=${appState.apiKey}`,
+                `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${encodeURIComponent(videoId)}&maxResults=25&order=relevance&textFormat=plainText&key=${appState.apiKey}`
+            ];
+
+            let blockedByNetFree = false;
+
+            // שלב 1: ניסיון דרך שני דומיינים של Google API עם textFormat=plainText
+            for (const ep of googleEndpoints) {
+                try {
+                    const res = await fetch(ep);
+                    if (res.status === 418) {
+                        blockedByNetFree = true;
+                        continue;
+                    }
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && Array.isArray(data.items) && data.items.length > 0) {
+                            const list = data.items.map(item => {
+                                const c = item.snippet?.topLevelComment?.snippet || {};
+                                return {
+                                    author: c.authorDisplayName || 'משתמש',
+                                    avatar: c.authorProfileImageUrl || '',
+                                    text: c.textOriginal || c.textDisplay || '',
+                                    likes: c.likeCount || 0,
+                                    date: c.publishedAt ? new Date(c.publishedAt).toLocaleDateString('he-IL') : ''
+                                };
+                            });
+                            renderNormalizedComments(list);
+                            return;
+                        } else if (data && Array.isArray(data.items) && data.items.length === 0) {
+                            commentsList.innerHTML = '<p style="color: var(--text-secondary);">אין תגובות זמינות לסרטון זה.</p>';
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    blockedByNetFree = true;
+                }
             }
+
+            // שלב 2: אם נטפרי חוסם את commentThreads של גוגל, מנסים שרתי מראה חלופיים (Piped / Invidious APIs)
+            const altMirrors = [
+                { type: 'piped', url: `https://pipedapi.kavin.rocks/comments/${encodeURIComponent(videoId)}` },
+                { type: 'piped', url: `https://api.piped.private.coffee/comments/${encodeURIComponent(videoId)}` },
+                { type: 'invidious', url: `https://inv.nadeko.net/api/v1/comments/${encodeURIComponent(videoId)}` },
+                { type: 'invidious', url: `https://yewtu.be/api/v1/comments/${encodeURIComponent(videoId)}` }
+            ];
+
+            for (const mirror of altMirrors) {
+                try {
+                    const controller = new AbortController();
+                    const t = setTimeout(() => controller.abort(), 3500);
+                    const res = await fetch(mirror.url, { signal: controller.signal });
+                    clearTimeout(t);
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    const rawList = data?.comments || [];
+                    if (Array.isArray(rawList) && rawList.length > 0) {
+                        const list = rawList.slice(0, 25).map(c => ({
+                            author: c.author || 'משתמש',
+                            avatar: c.thumbnail || (Array.isArray(c.authorThumbnails) && c.authorThumbnails[0]?.url) || '',
+                            text: c.commentText || c.content || '',
+                            likes: c.likeCount ?? 0,
+                            date: c.commentedTime || c.publishedText || ''
+                        }));
+                        renderNormalizedComments(list, 'התגובות נטענו דרך שרת עוקף חסימה');
+                        return;
+                    }
+                } catch (e) {}
+            }
+
+            // שלב 3: אם נטפרי חוסם את כל שרתי התגובות ויש מפתח Gemini, מייצרים סיכום תובנות ונקודות מרכזיות על הסרטון
+            if (appState.geminiApiKey && appState.currentVideoDetails) {
+                try {
+                    commentsList.innerHTML = '<p class="animate-pulse text-sm" style="color: var(--text-secondary);">שרת התגובות חסום בנטפרי - מפיק סיכום תובנות ונקודות מפתח על הסרטון באמצעות AI...</p>';
+                    const vTitle = appState.currentVideoDetails.title || '';
+                    const vChannel = appState.currentVideoDetails.channel || '';
+                    const vDesc = document.getElementById('modalDesc')?.innerText || '';
+                    const prompt = `המשתמש צופה בסרטון יוטיוב בשם "${vTitle}" של הערוץ "${vChannel}". תיאור הסרטון: "${vDesc.slice(0, 600)}". מכיוון שנטפרי חוסם את טעינת התגובות מיוטיוב, כתוב בעברית 3-4 נקודות מפתח/תובנות מעניינות על התוכן והנושא של הסרטון בפורמט קצר וברור.`;
+                    const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': appState.geminiApiKey },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    });
+                    if (gRes.ok) {
+                        const gData = await gRes.json();
+                        const aiText = gData.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (aiText) {
+                            renderNormalizedComments([{
+                                author: 'סיכום AI חכם (תגובות יוטיוב חסומות בנטפרי)',
+                                avatar: '',
+                                text: aiText.trim(),
+                                likes: 'AI',
+                                date: 'תובנות על הסרטון'
+                            }], 'נטפרי חוסם את ממשק התגובות של יוטיוב - מוצג סיכום AI חכם על הסרטון');
+                            return;
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            commentsList.innerHTML = `<p style="color: var(--text-secondary);">${blockedByNetFree ? 'טעינת התגובות נחסמה על ידי סינון נטפרי עבור סרטון זה (הגדר מפתח Gemini בהגדרות לקבלת תובנות AI חלופיות).' : 'אין תגובות זמינות או שהן מושבתות עבור סרטון זה.'}</p>`;
         }
 
         function renderChapters(description) {
@@ -5847,13 +6485,34 @@
             if (watchDlSel) watchDlSel.value = getDefaultDownloadQuality();
             
             const knownChId = videoChannelMap[id]?.channelId || '';
-            appState.currentVideoDetails = { id, title, thumbnail, channel, channelId: knownChId, duration };
+            appState.lastKnownDurationSec = parseDurationToSeconds(duration || '') || 0;
+            appState.currentVideoDetails = { id, title, thumbnail, channel, channelId: knownChId, duration, durationSeconds: appState.lastKnownDurationSec };
             updateLikeButtonUI(LocalLikesManager.isLiked(id, 'videos'));
 
             const modalChannelBar = document.getElementById('modalChannelBar');
             const modalChannelTitle = document.getElementById('modalChannelTitle');
             const modalChannelAvatarImg = document.getElementById('modalChannelAvatarImg');
             const modalChannelAvatarWrap = document.getElementById('modalChannelAvatarWrap');
+            const modalChannelSubBtn = document.getElementById('modalChannelSubBtn');
+
+            const syncModalChannelSubUI = (chId, chTitle, chAvatar) => {
+                if (!modalChannelSubBtn) return;
+                if (!chId) {
+                    modalChannelSubBtn.classList.add('hidden');
+                    modalChannelSubBtn.classList.remove('inline-flex');
+                    return;
+                }
+                const isSub = LocalSubsManager.isSubbed(chId);
+                modalChannelSubBtn.classList.remove('hidden');
+                modalChannelSubBtn.classList.add('inline-flex');
+                modalChannelSubBtn.innerHTML = isSub
+                    ? '<i class="fas fa-bell-slash text-red-500"></i> <span>ביטול מעקב מקומי</span>'
+                    : '<i class="fas fa-bell text-purple-500"></i> <span>מעקב מקומי</span>';
+                modalChannelSubBtn.onclick = (ev) => {
+                    handleToggleLocalChannelSub(modalChannelSubBtn, chId, chTitle, chAvatar, ev);
+                };
+            };
+
             if (modalChannelBar && modalChannelTitle && modalChannelAvatarImg) {
                 modalChannelBar.classList.remove('hidden');
                 modalChannelTitle.innerText = channel || videoChannelMap[id]?.channelTitle || '';
@@ -5873,6 +6532,7 @@
                 };
                 if (modalChannelAvatarWrap) modalChannelAvatarWrap.onclick = goToModalCh;
                 modalChannelTitle.onclick = goToModalCh;
+                syncModalChannelSubUI(knownChId, channel, knownChId ? channelAvatarsCache[knownChId] : '');
             }
 
             let positions = JSON.parse(localStorage.getItem('yt_resume_positions') || '{}');
@@ -5881,34 +6541,66 @@
                 startSeconds = Math.floor(positions[id].time);
             }
 
-            mountMainYoutubePlayer(id, startSeconds);
-            
+            const wasMinimized = appState.isMinimizedBg;
             appState.currentVideoId = id;
             appState.isVideoPaused = false;
+
+            mountMainYoutubePlayer(id, startSeconds);
             
             document.getElementById('global-pause-btn').classList.remove('hidden');
             document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
-            document.getElementById('return-to-video-btn').classList.add('hidden');
+            
+            if (wasMinimized) {
+                view.classList.remove('active', 'hidden', 'floating-mode');
+                view.classList.add('minimized-bg');
+                document.getElementById('return-to-video-btn').classList.remove('hidden');
+                document.body.style.overflow = 'auto';
+            } else {
+                appState.isMinimizedBg = false;
+                document.getElementById('return-to-video-btn').classList.add('hidden');
+                if (!appState.isFloating) {
+                    const container = view.querySelector('.player-container');
+                    resetFloatingContainerSize(container);
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    document.body.style.overflow = 'auto';
+                }
+                view.classList.remove('hidden', 'minimized-bg');
+                view.classList.add('active');
+            }
             
             try {
-                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${id}&key=${appState.apiKey}`);
+                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${id}&key=${appState.apiKey}`);
                 const data = await res.json();
-                const item = data.items[0];
+                const item = data.items && data.items[0];
                 if (item) {
                     const descText = item.snippet.description || '';
                     document.getElementById('modalDesc').innerHTML = safeLinkifyWithTimestamps(descText);
-                    document.getElementById('modalStats').innerText = `${parseInt(item.statistics.viewCount || 0).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`;
+                    document.getElementById('modalStats').innerText = `${parseInt(item.statistics?.viewCount || 0).toLocaleString()} צפיות • ${new Date(item.snippet.publishedAt).toLocaleDateString('he-IL')}`;
                     renderChapters(descText);
+                    if (item.contentDetails?.duration) {
+                        const dSec = parseDurationToSeconds(item.contentDetails.duration);
+                        if (dSec > 0) {
+                            appState.lastKnownDurationSec = dSec;
+                            if (appState.currentVideoDetails) {
+                                appState.currentVideoDetails.duration = item.contentDetails.duration;
+                                appState.currentVideoDetails.durationSeconds = dSec;
+                            }
+                        }
+                    }
                     if (item.snippet?.channelId) {
+                        const cId = item.snippet.channelId;
+                        const cTitle = item.snippet.channelTitle || channel || '';
                         videoChannelMap[id] = {
-                            channelId: item.snippet.channelId,
-                            channelTitle: item.snippet.channelTitle || channel || ''
+                            channelId: cId,
+                            channelTitle: cTitle
                         };
                         safeSetLocalStorage('yt_video_channel_map', JSON.stringify(videoChannelMap));
-                        if (appState.currentVideoDetails) appState.currentVideoDetails.channelId = item.snippet.channelId;
-                        if (modalChannelTitle && item.snippet.channelTitle) modalChannelTitle.innerText = item.snippet.channelTitle;
-                        if (modalChannelAvatarImg) modalChannelAvatarImg.setAttribute('data-channel-avatar-id', item.snippet.channelId);
-                        loadMissingChannelAvatars([item.snippet.channelId]);
+                        if (appState.currentVideoDetails) appState.currentVideoDetails.channelId = cId;
+                        if (modalChannelTitle && cTitle) modalChannelTitle.innerText = cTitle;
+                        if (modalChannelAvatarImg) modalChannelAvatarImg.setAttribute('data-channel-avatar-id', cId);
+                        await loadMissingChannelAvatars([cId]);
+                        syncModalChannelSubUI(cId, cTitle, channelAvatarsCache[cId] || '');
                     }
                 }
                 
@@ -5934,15 +6626,6 @@
             } catch(e) { console.error(e); }
             
             if (appState.isYouTubeMode) populateUpNext();
-            
-            if (!appState.isFloating) {
-                const container = view.querySelector('.player-container');
-                resetFloatingContainerSize(container);
-                document.body.style.overflow = 'hidden';
-            } else {
-                document.body.style.overflow = 'auto';
-            }
-            view.classList.add('active'); view.classList.remove('hidden');
         }
 
         function closePlayer() {
@@ -5966,7 +6649,8 @@
             const view = document.getElementById('watchView');
             const container = view.querySelector('.player-container');
             appState.isFloating = false;
-            view.classList.remove('active', 'floating-mode');
+            appState.isMinimizedBg = false;
+            view.classList.remove('active', 'floating-mode', 'minimized-bg');
             view.classList.add('hidden');
             resetFloatingContainerSize(container);
             document.body.style.overflow = 'auto'; 
@@ -6492,7 +7176,8 @@
                 document.getElementById('internalSearch').classList.add('hidden');
                 
                 const titleEl = document.getElementById('sectionTitle');
-                titleEl.innerHTML = `סרטונים מתוך הפלייליסט: ${escapeHtml(title)} <button onclick="copyPlaylistLink('${escapeJsString(playlistId)}')" class="mr-3 text-xs px-3 py-1.5 rounded-full border transition inline-flex items-center gap-1 font-normal" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);" title="העתק קישור לפלייליסט"><i class="fas fa-link text-blue-500"></i> העתק קישור לפלייליסט</button>`;
+                const isPlSubbed = LocalPlaylistSubsManager.isSubbed(playlistId);
+                titleEl.innerHTML = `סרטונים מתוך הפלייליסט: ${escapeHtml(title)} <button onclick="copyPlaylistLink('${escapeJsString(playlistId)}')" class="mr-3 text-xs px-3 py-1.5 rounded-full border transition inline-flex items-center gap-1 font-normal" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);" title="העתק קישור לפלייליסט"><i class="fas fa-link text-blue-500"></i> העתק קישור לפלייליסט</button> <button onclick="handleToggleLocalPlaylistSub(this, '${escapeJsString(playlistId)}', '${escapeJsString(title)}', '')" class="mr-2 text-xs px-3 py-1.5 rounded-full border transition inline-flex items-center gap-1 font-bold" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-color);">${isPlSubbed ? '<i class="fas fa-bell-slash text-red-500"></i> <span>ביטול מעקב פלייליסט</span>' : '<i class="fas fa-bell text-amber-500"></i> <span>מעקב פלייליסט</span>'}</button>`;
                 titleEl.classList.remove('hidden');
                 
                 const grid = document.getElementById('resultsGrid');
