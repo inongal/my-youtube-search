@@ -300,33 +300,11 @@
                 </button>
             </div>
             
-            <select id="searchType" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סוג תוצאה" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
-                <option value="">הכל</option>
-                <option value="video">סרטונים</option>
-                <option value="channel">ערוצים</option>
-                <option value="playlist">פלייליסטים</option> 
-            </select>
-            
-            <select id="searchDuration" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="משך" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
-                <option value="">כל אורך</option>
-                <option value="short">קצר (&lt;4 דק')</option>
-                <option value="medium">בינוני (4-20 דק')</option>
-                <option value="long">ארוך (&gt;20 דק')</option>
-            </select>
-
-            <select id="searchDate" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="זמן העלאה" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
-                <option value="">כל הזמן</option>
-                <option value="today">ב-24 השעות האחרונות</option>
-                <option value="week">בשבוע האחרון</option>
-                <option value="month">בחודש האחרון</option>
-                <option value="year">בשנה האחרונה</option>
-            </select>
-
-            <select id="searchOrder" class="text-sm rounded-lg p-2.5 outline-none hidden md:block" title="סינון לפי" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
-                <option value="relevance">רלוונטיות</option>
-                <option value="date">תאריך העלאה</option>
-                <option value="viewCount">מספר צפיות</option>
-            </select>
+            <button id="searchFiltersToggleBtn" type="button" onclick="toggleSearchFiltersPanel()" class="px-4 py-2.5 rounded-full text-sm font-bold border transition flex items-center gap-2 flex-shrink-0 hover:border-blue-500 shadow-sm" style="background-color: var(--bg-surface); border-color: var(--border-color); color: var(--text-primary);" title="פתח לשונית מסנני חיפוש מתקדמים כמו ביוטיוב">
+                <i class="fas fa-sliders text-blue-500"></i>
+                <span class="hidden sm:inline">מסננים</span>
+                <span id="activeSearchFiltersBadge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">0</span>
+            </button>
         </div>
 
         <div class="flex items-center gap-4">
@@ -442,6 +420,198 @@
 
         <main id="mainContent" class="flex-1 lg:mr-64 p-6 relative">
             
+            <!-- לשונית מסנני חיפוש מתקדמים בסגנון יוטיוב -->
+            <div id="searchFiltersPanel" class="hidden mb-6 p-5 rounded-3xl border shadow-xl transition-all" style="background-color: var(--bg-card); border-color: var(--border-color);">
+                <div class="flex items-center justify-between flex-wrap gap-3 pb-4 mb-4 border-b" style="border-color: var(--border-color);">
+                    <div class="flex items-center gap-2.5">
+                        <i class="fas fa-sliders text-blue-500 text-lg"></i>
+                        <h3 class="font-bold text-base" style="color: var(--text-primary);">לשונית מסנני חיפוש (YouTube Filters)</h3>
+                        <span id="searchFiltersSummaryText" class="text-xs px-2.5 py-0.5 rounded-full border hidden" style="background-color: var(--bg-surface); color: var(--text-secondary); border-color: var(--border-color);"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="applySearchFiltersAndRun()" class="px-4 py-1.5 rounded-full text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow">
+                            <i class="fas fa-check"></i> החל מסננים
+                        </button>
+                        <button type="button" onclick="resetAllSearchFilters()" class="px-3.5 py-1.5 rounded-full text-xs font-bold border transition hover:border-red-500" style="background-color: var(--bg-surface); color: var(--text-secondary); border-color: var(--border-color);">
+                            <i class="fas fa-undo"></i> איפוס הכל
+                        </button>
+                        <button type="button" onclick="toggleSearchFiltersPanel()" class="w-8 h-8 rounded-full flex items-center justify-center transition hover:bg-white/10" style="color: var(--text-secondary);" title="סגור לשונית מסננים">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 text-right">
+                    <!-- עמודה 1: תאריך העלאה -->
+                    <div class="flex flex-col gap-2.5">
+                        <h4 class="text-xs font-bold uppercase tracking-wider pb-1.5 border-b" style="color: var(--text-muted); border-color: var(--border-color);">תאריך העלאה</h4>
+                        <select id="searchDate" onchange="onFilterControlChanged()" class="w-full text-xs rounded-xl p-2.5 outline-none border" title="זמן העלאה" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                            <option value="">כל הזמן</option>
+                            <option value="hour">בשעה האחרונה</option>
+                            <option value="today">היום (24 שעות אחרונות)</option>
+                            <option value="week">השבוע האחרון</option>
+                            <option value="month">החודש האחרון</option>
+                            <option value="year">השנה האחרונה</option>
+                        </select>
+                        <div class="p-2.5 rounded-xl border flex flex-col gap-2" style="background-color: var(--bg-surface); border-color: var(--border-color);">
+                            <span class="text-[11px] font-bold" style="color: var(--text-secondary);">טווח תאריכים מדויק:</span>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px]" style="color: var(--text-muted);">מתאריך:</label>
+                                <input type="date" id="searchDateAfterInput" onchange="onFilterControlChanged()" class="w-full text-xs rounded-lg p-1.5 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px]" style="color: var(--text-muted);">עד תאריך:</label>
+                                <input type="date" id="searchDateBeforeInput" onchange="onFilterControlChanged()" class="w-full text-xs rounded-lg p-1.5 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- עמודה 2: סוג תוצאה -->
+                    <div class="flex flex-col gap-2.5">
+                        <h4 class="text-xs font-bold uppercase tracking-wider pb-1.5 border-b" style="color: var(--text-muted); border-color: var(--border-color);">סוג תוצאה</h4>
+                        <select id="searchType" onchange="onFilterControlChanged()" class="w-full text-xs rounded-xl p-2.5 outline-none border" title="סוג תוצאה" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                            <option value="">הכל (סרטונים, ערוצים, רשימות)</option>
+                            <option value="video">סרטונים בלבד</option>
+                            <option value="channel">ערוצים בלבד</option>
+                            <option value="playlist">פלייליסטים בלבד</option>
+                            <option value="movie">סרטים (Movies)</option>
+                            <option value="episode">פרקים (Episodes)</option>
+                        </select>
+                        <div class="flex flex-col gap-1.5 mt-1">
+                            <label class="text-[11px] font-bold" style="color: var(--text-secondary);">שידור חי / אירועים:</label>
+                            <select id="searchEventType" onchange="onFilterControlChanged()" class="w-full text-xs rounded-xl p-2.5 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                                <option value="">הכל</option>
+                                <option value="live">שידור חי כעת (Live)</option>
+                                <option value="completed">שידורים חיים שהסתיימו</option>
+                                <option value="upcoming">שידורי בכורה / עתידיים</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- עמודה 3: משך ובחירת אורך מדויקת -->
+                    <div class="flex flex-col gap-2.5">
+                        <h4 class="text-xs font-bold uppercase tracking-wider pb-1.5 border-b" style="color: var(--text-muted); border-color: var(--border-color);">משך ובחירת אורך מדויקת</h4>
+                        <select id="searchDuration" onchange="onFilterControlChanged()" class="w-full text-xs rounded-xl p-2.5 outline-none border" title="משך" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                            <option value="">כל אורך</option>
+                            <option value="short">קצר (&lt; 4 דקות)</option>
+                            <option value="medium">בינוני (4 עד 20 דקות)</option>
+                            <option value="long">ארוך (&gt; 20 דקות)</option>
+                        </select>
+                        <div class="p-2.5 rounded-xl border flex flex-col gap-2" style="background-color: var(--bg-surface); border-color: var(--border-color);">
+                            <span class="text-[11px] font-bold flex items-center justify-between" style="color: var(--text-secondary);">
+                                <span>אורך מדויק (דקות / שניות):</span>
+                                <button type="button" onclick="setExactDurationPreset('', '', '', '')" class="text-[10px] text-blue-400 hover:underline">נקה</button>
+                            </span>
+                            <div class="grid grid-cols-2 gap-1.5">
+                                <div>
+                                    <label class="text-[10px] block mb-0.5" style="color: var(--text-muted);">מינימום (דק' : שנ')</label>
+                                    <div class="flex items-center gap-1" dir="ltr">
+                                        <input type="number" id="searchMinMinutesInput" min="0" placeholder="דק'" oninput="onFilterControlChanged()" class="w-1/2 text-center text-xs rounded-lg p-1.5 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                                        <span class="text-xs font-bold">:</span>
+                                        <input type="number" id="searchMinSecondsInput" min="0" max="59" placeholder="שנ'" oninput="onFilterControlChanged()" class="w-1/2 text-center text-xs rounded-lg p-1.5 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] block mb-0.5" style="color: var(--text-muted);">מקסימום (דק' : שנ')</label>
+                                    <div class="flex items-center gap-1" dir="ltr">
+                                        <input type="number" id="searchMaxMinutesInput" min="0" placeholder="דק'" oninput="onFilterControlChanged()" class="w-1/2 text-center text-xs rounded-lg p-1.5 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                                        <span class="text-xs font-bold">:</span>
+                                        <input type="number" id="searchMaxSecondsInput" min="0" max="59" placeholder="שנ'" oninput="onFilterControlChanged()" class="w-1/2 text-center text-xs rounded-lg p-1.5 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-1 pt-1">
+                                <button type="button" onclick="setExactDurationPreset(0, 0, 1, 0)" class="text-[10px] px-2 py-0.5 rounded-full border hover:border-blue-500 transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-secondary);">עד 1 דק'</button>
+                                <button type="button" onclick="setExactDurationPreset(1, 0, 5, 0)" class="text-[10px] px-2 py-0.5 rounded-full border hover:border-blue-500 transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-secondary);">1-5 דק'</button>
+                                <button type="button" onclick="setExactDurationPreset(5, 0, 15, 0)" class="text-[10px] px-2 py-0.5 rounded-full border hover:border-blue-500 transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-secondary);">5-15 דק'</button>
+                                <button type="button" onclick="setExactDurationPreset(15, 0, 30, 0)" class="text-[10px] px-2 py-0.5 rounded-full border hover:border-blue-500 transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-secondary);">15-30 דק'</button>
+                                <button type="button" onclick="setExactDurationPreset(30, 0, 60, 0)" class="text-[10px] px-2 py-0.5 rounded-full border hover:border-blue-500 transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-secondary);">30-60 דק'</button>
+                                <button type="button" onclick="setExactDurationPreset(60, 0, '', '')" class="text-[10px] px-2 py-0.5 rounded-full border hover:border-blue-500 transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-secondary);">60+ דק'</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- עמודה 4: מאפיינים ותכונות יוטיוב -->
+                    <div class="flex flex-col gap-2">
+                        <h4 class="text-xs font-bold uppercase tracking-wider pb-1.5 border-b" style="color: var(--text-muted); border-color: var(--border-color);">מאפיינים ותכונות</h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[10px] block mb-1" style="color: var(--text-muted);">איכות וידאו</label>
+                                <select id="searchVideoDefinition" onchange="onFilterControlChanged()" class="w-full text-xs rounded-xl p-2 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                                    <option value="">הכל</option>
+                                    <option value="high">HD בלבד</option>
+                                    <option value="standard">רגיל (SD)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] block mb-1" style="color: var(--text-muted);">כתוביות</label>
+                                <select id="searchVideoCaption" onchange="onFilterControlChanged()" class="w-full text-xs rounded-xl p-2 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                                    <option value="">הכל</option>
+                                    <option value="closedCaption">עם כתוביות</option>
+                                    <option value="none">ללא כתוביות</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] block mb-1" style="color: var(--text-muted);">רישיון</label>
+                                <select id="searchVideoLicense" onchange="onFilterControlChanged()" class="w-full text-xs rounded-xl p-2 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                                    <option value="">הכל</option>
+                                    <option value="creativeCommon">Creative Commons</option>
+                                    <option value="youtube">רישיון רגיל</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] block mb-1" style="color: var(--text-muted);">ממד (2D / 3D)</label>
+                                <select id="searchVideoDimension" onchange="onFilterControlChanged()" class="w-full text-xs rounded-xl p-2 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                                    <option value="">הכל</option>
+                                    <option value="2d">רגיל (2D)</option>
+                                    <option value="3d">תלת-ממד (3D)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] block mb-1" style="color: var(--text-muted);">אזור / שפה</label>
+                                <select id="searchRegionCode" onchange="onFilterControlChanged()" class="w-full text-xs rounded-xl p-2 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                                    <option value="">כל העולם</option>
+                                    <option value="IL">ישראל (עברית)</option>
+                                    <option value="US">ארה"ב (אנגלית)</option>
+                                    <option value="GB">בריטניה</option>
+                                    <option value="FR">צרפת</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] block mb-1" style="color: var(--text-muted);">סינון בטיחות</label>
+                                <select id="searchSafeSearch" onchange="onFilterControlChanged()" class="w-full text-xs rounded-xl p-2 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                                    <option value="moderate">מתון (ברירת מחדל)</option>
+                                    <option value="strict">קפדני (Strict)</option>
+                                    <option value="none">ללא סינון</option>
+                                </select>
+                            </div>
+                        </div>
+                        <label class="flex items-center gap-2 text-xs mt-1 cursor-pointer" style="color: var(--text-secondary);">
+                            <input type="checkbox" id="searchEmbeddableOnly" onchange="onFilterControlChanged()" class="w-4 h-4 accent-blue-600 rounded">
+                            <span>סרטונים הניתנים להטמעה בלבד</span>
+                        </label>
+                    </div>
+
+                    <!-- עמודה 5: מיון לפי -->
+                    <div class="flex flex-col gap-2.5">
+                        <h4 class="text-xs font-bold uppercase tracking-wider pb-1.5 border-b" style="color: var(--text-muted); border-color: var(--border-color);">מיון לפי</h4>
+                        <select id="searchOrder" onchange="onFilterControlChanged()" class="w-full text-xs rounded-xl p-2.5 outline-none border" title="סינון לפי" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                            <option value="relevance">רלוונטיות</option>
+                            <option value="date">תאריך העלאה (מהחדש לישן)</option>
+                            <option value="viewCount">מספר צפיות</option>
+                            <option value="rating">דירוג ולייקים</option>
+                            <option value="title">כותרת (א'-ת')</option>
+                            <option value="duration_desc">אורך סרטון (מהארוך לקצר)</option>
+                            <option value="duration_asc">אורך סרטון (מהקצר לארוך)</option>
+                        </select>
+                        <div class="p-2.5 rounded-xl border flex flex-col gap-1.5" style="background-color: var(--bg-surface); border-color: var(--border-color);">
+                            <span class="text-[11px] font-bold" style="color: var(--text-secondary);">סינון מספר צפיות מינימלי:</span>
+                            <input type="number" id="searchMinViewsInput" min="0" placeholder="למשל: 10000" oninput="onFilterControlChanged()" class="w-full text-xs rounded-lg p-1.5 outline-none border" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
                 <div class="flex items-center">
                     <h2 id="sectionTitle" class="text-2xl font-bold hidden" style="color: var(--text-primary);">מומלצים</h2>
@@ -546,6 +716,7 @@
                 <option value="1080">1080p</option>
                 <option value="720">720p</option>
                 <option value="480">480p</option>
+                <option value="subs_he">כתוביות בעברית (מוטמע)</option>
                 <option value="audio">שמע (MP3)</option>
             </select>
             
@@ -565,11 +736,8 @@
                 <i class="fas fa-file-alt"></i> <span class="hidden md:inline">גיבוי קישורים</span>
             </button>
 
-            <button onclick="batchDownloadWithYtDlp(false)" class="bg-blue-600 hover:bg-blue-700 border border-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg text-white">
+            <button onclick="batchDownloadWithYtDlp()" class="bg-blue-600 hover:bg-blue-700 border border-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-lg text-white">
                 <i class="fas fa-download"></i> הורדה מרובה
-            </button>
-            <button onclick="batchDownloadWithYtDlp(true)" class="bg-emerald-600 hover:bg-emerald-700 border border-emerald-500 px-3.5 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1.5 shadow-lg text-white" title="הורדה מרובה באיכות ברירת המחדל עם כתוביות מתורגמות לעברית מוטמעות בווידאו">
-                <i class="fas fa-closed-captioning"></i> <span class="hidden sm:inline">הורדה + כתוביות בעברית</span>
             </button>
         </div>
     </div>
@@ -641,16 +809,12 @@
                                         <option value="1080" style="background-color: var(--bg-surface);">1080p</option>
                                         <option value="720" style="background-color: var(--bg-surface);">720p</option>
                                         <option value="480" style="background-color: var(--bg-surface);">480p</option>
+                                        <option value="subs_he" style="background-color: var(--bg-surface);">כתוביות בעברית (מוטמע)</option>
                                         <option value="audio" style="background-color: var(--bg-surface);">שמע (MP3)</option>
                                     </select>
                                     <div class="w-px h-4" style="background-color: var(--border-light);"></div>
-                                    <button onclick="downloadWatchVideo(false)" class="transition flex items-center gap-1" style="color: #3b82f6;" title="הורד עכשיו">
+                                    <button onclick="downloadWatchVideo()" class="transition flex items-center gap-1" style="color: #3b82f6;" title="הורד עכשיו">
                                         <i class="fas fa-download"></i>
-                                    </button>
-                                    <div class="w-px h-4" style="background-color: var(--border-light);"></div>
-                                    <button onclick="downloadWatchVideo(true)" class="transition flex items-center gap-1 text-xs font-bold px-1" style="color: #10b981;" title="הורד באיכות ברירת המחדל עם כתוביות מתורגמות לעברית מוטמעות בווידאו">
-                                        <i class="fas fa-closed-captioning"></i>
-                                        <span>עב</span>
                                     </button>
                                 </div>
 
@@ -758,6 +922,7 @@
                             <option value="1080">1080p (איכות מלאה)</option>
                             <option value="720">720p (HD)</option>
                             <option value="480">480p (חסכוני)</option>
+                            <option value="subs_he">כתוביות בעברית (מוטמע בווידאו)</option>
                             <option value="audio">שמע בלבד (MP3)</option>
                         </select>
                     </div>
@@ -2997,9 +3162,22 @@
         }
 
         function getDefaultDownloadQuality() {
-            const allowed = ['1080', '720', '480', 'audio'];
+            const allowed = ['1080', '720', '480', 'subs_he', 'audio'];
             const saved = appState.defaultDownloadQuality || localStorage.getItem('yt_default_dl_quality') || '1080';
             return allowed.includes(saved) ? saved : '1080';
+        }
+
+        function resolveDownloadQualitySelection(selectedValue) {
+            const defQ = getDefaultDownloadQuality();
+            const raw = selectedValue || defQ;
+            const baseVideoQual = ['1080', '720', '480'].includes(defQ) ? defQ : '1080';
+            if (raw === 'subs_he') {
+                return { quality: baseVideoQual, withHebrewSubs: true };
+            }
+            if (['1080', '720', '480', 'audio'].includes(raw)) {
+                return { quality: raw, withHebrewSubs: false };
+            }
+            return { quality: baseVideoQual, withHebrewSubs: defQ === 'subs_he' };
         }
 
         function applyDefaultDownloadQualityToUI() {
@@ -3021,14 +3199,19 @@
             });
         }
 
-        async function downloadWithYtDlp(videoId, withHebrewSubs = false) {
+        async function downloadWithYtDlp(videoId, forceHebrewSubs = false) {
             const defQ = getDefaultDownloadQuality();
             const connections = getDefaultDownloadConnections();
+            const qualitySelect = document.getElementById(`dl-qual-${videoId}`);
+            const resolved = resolveDownloadQualitySelection(qualitySelect ? qualitySelect.value : defQ);
+            const withHebrewSubs = Boolean(forceHebrewSubs || resolved.withHebrewSubs);
+            const quality = resolved.quality;
+
             if (!isValidVideoId(videoId)) {
                 DownloadHistoryManager.addRecord({
                     id: String(videoId || 'unknown'),
                     title: 'מזהה סרטון שגוי',
-                    quality: defQ,
+                    quality,
                     connections,
                     hebrewSubs: withHebrewSubs,
                     status: 'failed',
@@ -3036,11 +3219,6 @@
                 });
                 return showToast('מזהה סרטון לא תקין להורדה');
             }
-            const qualitySelect = document.getElementById(`dl-qual-${videoId}`);
-            const allowedQualities = ['1080', '720', '480', 'audio'];
-            let quality = withHebrewSubs
-                ? (defQ === 'audio' ? '1080' : defQ)
-                : ((qualitySelect && allowedQualities.includes(qualitySelect.value)) ? qualitySelect.value : defQ);
             const connText = (connections === 1 ? 'חיבור 1' : `${connections} חיבורים`) + (withHebrewSubs ? ' + כתוביות בעברית' : '');
             
             const meta = findVideoMetadataById(videoId);
@@ -3068,15 +3246,13 @@
             triggerYtDlpProtocol(buildYtDlpUri(videoId, quality, connections, withHebrewSubs), [recordId]);
         }
 
-        async function downloadWatchVideo(withHebrewSubs = false) {
+        async function downloadWatchVideo(forceHebrewSubs = false) {
             if (!appState.currentVideoId || !isValidVideoId(appState.currentVideoId)) return;
-            const defQ = getDefaultDownloadQuality();
             const connections = getDefaultDownloadConnections();
-            const allowedQualities = ['1080', '720', '480', 'audio'];
-            const rawQuality = document.getElementById('watchDlQuality').value;
-            const quality = withHebrewSubs
-                ? (defQ === 'audio' ? '1080' : defQ)
-                : (allowedQualities.includes(rawQuality) ? rawQuality : defQ);
+            const rawQuality = document.getElementById('watchDlQuality')?.value;
+            const resolved = resolveDownloadQualitySelection(rawQuality);
+            const withHebrewSubs = Boolean(forceHebrewSubs || resolved.withHebrewSubs);
+            const quality = resolved.quality;
             const connText = (connections === 1 ? 'חיבור 1' : `${connections} חיבורים`) + (withHebrewSubs ? ' + כתוביות בעברית' : '');
 
             const meta = findVideoMetadataById(appState.currentVideoId);
@@ -3104,16 +3280,14 @@
             triggerYtDlpProtocol(buildYtDlpUri(appState.currentVideoId, quality, connections, withHebrewSubs), [recordId]);
         }
 
-        async function batchDownloadWithYtDlp(withHebrewSubs = false) {
+        async function batchDownloadWithYtDlp(forceHebrewSubs = false) {
             if (appState.selectedVideos.size === 0) return;
             
-            const defQ = getDefaultDownloadQuality();
             const connections = getDefaultDownloadConnections();
             const qualitySelect = document.getElementById('batchQualitySelect');
-            const allowedQualities = ['1080', '720', '480', 'audio'];
-            const quality = withHebrewSubs
-                ? (defQ === 'audio' ? '1080' : defQ)
-                : ((qualitySelect && allowedQualities.includes(qualitySelect.value)) ? qualitySelect.value : defQ);
+            const resolved = resolveDownloadQualitySelection(qualitySelect ? qualitySelect.value : null);
+            const withHebrewSubs = Boolean(forceHebrewSubs || resolved.withHebrewSubs);
+            const quality = resolved.quality;
             const connText = (connections === 1 ? 'חיבור 1' : `${connections} חיבורים`) + (withHebrewSubs ? ' + כתוביות בעברית' : '');
             
             const videos = appState.currentRenderedItems.filter(item => 
@@ -4882,8 +5056,11 @@
                             pipPlayEnforcerInterval = null;
                         }
 
+                        // טעינה עם mute=1 בחלון ה-PiP מאפשרת לכרום להפעיל את הווידאו אוטומטית ומיידית ב-100% מהמקרים ללא כפתור ההפעלה האדום!
+                        // במקביל, הנגן הראשי (שכבר קיבל הרשאת קול מהמשתמש) מנגן את הסאונד בסנכרון מדויק עם חלון ה-PiP!
                         const embedUrl = new URL(`https://www.youtube.com/embed/${encodeURIComponent(targetVidId)}`);
                         embedUrl.searchParams.set('autoplay', '1');
+                        embedUrl.searchParams.set('mute', '1');
                         embedUrl.searchParams.set('enablejsapi', '1');
                         embedUrl.searchParams.set('rel', '0');
                         embedUrl.searchParams.set('fs', '1');
@@ -4900,7 +5077,9 @@
                             pipIframeEl.id = 'pipIframe';
                             pipIframeEl.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
                             pipIframeEl.setAttribute('allowfullscreen', 'true');
+                            const hiddenMarker = pipMount.querySelector('#ytPipFrame');
                             pipMount.innerHTML = '';
+                            if (hiddenMarker) pipMount.appendChild(hiddenMarker);
                             pipMount.appendChild(pipIframeEl);
                         }
 
@@ -4960,11 +5139,38 @@
                         if (nextCandidate.fromQueue && appState.searchContext === 'queue') {
                             loadQueueTab(true);
                         }
+                        // טען והפעל גם בנגן הראשי (עבור הסאונד המסונכרן) וגם בחלון ה-PiP (עבור הווידאו הצף)
+                        mountMainYoutubePlayer(nextV.id, 0);
                         loadVideoInPipIframe(nextV.id, 0);
+                    };
+
+                    const syncMainAudioWithPip = (shouldPlay, targetTimeSec = null) => {
+                        if (!ytPlayer || !ytPlayerReady) return;
+                        try {
+                            if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
+                            if (targetTimeSec !== null && typeof ytPlayer.getCurrentTime === 'function' && typeof ytPlayer.seekTo === 'function') {
+                                const mainCur = ytPlayer.getCurrentTime() || 0;
+                                if (Math.abs(mainCur - targetTimeSec) > 0.55) {
+                                    ytPlayer.seekTo(targetTimeSec, true);
+                                }
+                            }
+                            const mainState = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
+                            if (shouldPlay) {
+                                if (mainState !== 1) {
+                                    ytPlayer.playVideo();
+                                    sendDirectPlayToMainIframe();
+                                }
+                            } else {
+                                if (mainState === 1) {
+                                    ytPlayer.pauseVideo();
+                                }
+                            }
+                        } catch (e) {}
                     };
 
                     const onPipMessage = (ev) => {
                         try {
+                            if (pipIframeEl && ev.source && ev.source !== pipIframeEl.contentWindow) return;
                             if (typeof ev.data !== 'string') return;
                             const data = JSON.parse(ev.data);
                             if (!data) return;
@@ -4981,11 +5187,7 @@
                                         clearInterval(pipPlayEnforcerInterval);
                                         pipPlayEnforcerInterval = null;
                                     }
-                                    if (pipTempMutedForAutoplay) {
-                                        pipTempMutedForAutoplay = false;
-                                        sendPipPlayCommand('unMute', []);
-                                        sendPipPlayCommand('setVolume', [100]);
-                                    }
+                                    syncMainAudioWithPip(true, pipTrackedTime);
                                 } else if (data.info === 5 || data.info === -1) {
                                     if (!pipConfirmedPlayingOnce) {
                                         sendPipPlayCommand();
@@ -4995,6 +5197,7 @@
                                         sendPipPlayCommand();
                                     } else {
                                         pipIsPlaying = false;
+                                        syncMainAudioWithPip(false);
                                     }
                                 }
                             } else if (data.event === 'infoDelivery' && data.info) {
@@ -5006,6 +5209,9 @@
                                     pipTrackedTime = data.info.currentTime;
                                     lastInfoDeliveryMs = Date.now();
                                     savePlaybackTimeToResume(videoId, pipTrackedTime);
+                                    if (pipIsPlaying) {
+                                        syncMainAudioWithPip(true, pipTrackedTime);
+                                    }
                                 }
                                 if (typeof data.info.playerState === 'number') {
                                     if (data.info.playerState === 0) {
@@ -5019,22 +5225,12 @@
                                             clearInterval(pipPlayEnforcerInterval);
                                             pipPlayEnforcerInterval = null;
                                         }
-                                        if (pipTempMutedForAutoplay) {
-                                            pipTempMutedForAutoplay = false;
-                                            sendPipPlayCommand('unMute', []);
-                                            sendPipPlayCommand('setVolume', [100]);
-                                        }
+                                        syncMainAudioWithPip(true, pipTrackedTime);
                                     } else if (!pipConfirmedPlayingOnce && (data.info.playerState === 5 || data.info.playerState === -1 || data.info.playerState === 2)) {
-                                        readyTicksWithoutPlay++;
-                                        if (readyTicksWithoutPlay >= 4 && !pipTempMutedForAutoplay) {
-                                            // אם דפדפן כרום חסם ניגון אוטומטי בחלון ה-PiP, הפעל מיד עם mute ושחרר קול מיד בתחילת הניגון
-                                            pipTempMutedForAutoplay = true;
-                                            sendPipPlayCommand('mute', []);
-                                        } else {
-                                            sendPipPlayCommand();
-                                        }
-                                    } else {
+                                        sendPipPlayCommand();
+                                    } else if (data.info.playerState === 2 && pipConfirmedPlayingOnce) {
                                         pipIsPlaying = false;
+                                        syncMainAudioWithPip(false);
                                     }
                                 }
                             }
@@ -6101,12 +6297,176 @@
             }
         }
 
+        function toggleSearchFiltersPanel(forceState = null) {
+            const panel = document.getElementById('searchFiltersPanel');
+            if (!panel) return;
+            const shouldShow = forceState !== null ? forceState : panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !shouldShow);
+            updateActiveSearchFiltersBadge();
+        }
+
+        function getExactDurationBoundsSec() {
+            const minM = parseInt(document.getElementById('searchMinMinutesInput')?.value || '', 10);
+            const minS = parseInt(document.getElementById('searchMinSecondsInput')?.value || '', 10);
+            const maxM = parseInt(document.getElementById('searchMaxMinutesInput')?.value || '', 10);
+            const maxS = parseInt(document.getElementById('searchMaxSecondsInput')?.value || '', 10);
+
+            const hasMin = !isNaN(minM) || !isNaN(minS);
+            const hasMax = !isNaN(maxM) || !isNaN(maxS);
+
+            const minSec = hasMin ? Math.max(0, (isNaN(minM) ? 0 : minM * 60) + (isNaN(minS) ? 0 : minS)) : null;
+            const maxSec = hasMax ? Math.max(0, (isNaN(maxM) ? 0 : maxM * 60) + (isNaN(maxS) ? 0 : maxS)) : null;
+
+            return { minSec, maxSec, hasExact: (minSec !== null && minSec > 0) || (maxSec !== null && maxSec > 0) };
+        }
+
+        function setExactDurationPreset(minM, minS, maxM, maxS) {
+            const minMInp = document.getElementById('searchMinMinutesInput');
+            const minSInp = document.getElementById('searchMinSecondsInput');
+            const maxMInp = document.getElementById('searchMaxMinutesInput');
+            const maxSInp = document.getElementById('searchMaxSecondsInput');
+            if (minMInp) minMInp.value = minM === '' ? '' : String(minM);
+            if (minSInp) minSInp.value = minS === '' ? '' : String(minS);
+            if (maxMInp) maxMInp.value = maxM === '' ? '' : String(maxM);
+            if (maxSInp) maxSInp.value = maxS === '' ? '' : String(maxS);
+            const durSel = document.getElementById('searchDuration');
+            if (durSel && (minM !== '' || maxM !== '')) durSel.value = '';
+            onFilterControlChanged();
+        }
+
+        function updateActiveSearchFiltersBadge() {
+            let count = 0;
+            const summaryParts = [];
+            const typeVal = document.getElementById('searchType')?.value || '';
+            const durVal = document.getElementById('searchDuration')?.value || '';
+            const dateVal = document.getElementById('searchDate')?.value || '';
+            const orderVal = document.getElementById('searchOrder')?.value || 'relevance';
+            const dateAfter = document.getElementById('searchDateAfterInput')?.value || '';
+            const dateBefore = document.getElementById('searchDateBeforeInput')?.value || '';
+            const eventType = document.getElementById('searchEventType')?.value || '';
+            const videoDef = document.getElementById('searchVideoDefinition')?.value || '';
+            const videoCap = document.getElementById('searchVideoCaption')?.value || '';
+            const videoLic = document.getElementById('searchVideoLicense')?.value || '';
+            const videoDim = document.getElementById('searchVideoDimension')?.value || '';
+            const regionCode = document.getElementById('searchRegionCode')?.value || '';
+            const safeSearch = document.getElementById('searchSafeSearch')?.value || 'moderate';
+            const embedOnly = Boolean(document.getElementById('searchEmbeddableOnly')?.checked);
+            const minViews = parseInt(document.getElementById('searchMinViewsInput')?.value || '0', 10) || 0;
+            const exactDur = getExactDurationBoundsSec();
+
+            if (typeVal) { count++; summaryParts.push(`סוג: ${typeVal}`); }
+            if (durVal) { count++; summaryParts.push(`משך: ${durVal}`); }
+            if (exactDur.hasExact) {
+                count++;
+                const minTxt = exactDur.minSec ? `${Math.floor(exactDur.minSec / 60)}:${String(exactDur.minSec % 60).padStart(2, '0')}` : '0:00';
+                const maxTxt = exactDur.maxSec ? `${Math.floor(exactDur.maxSec / 60)}:${String(exactDur.maxSec % 60).padStart(2, '0')}` : 'ללא הגבלה';
+                summaryParts.push(`אורך מדויק: ${minTxt} - ${maxTxt}`);
+            }
+            if (dateVal) { count++; summaryParts.push(`זמן: ${dateVal}`); }
+            if (dateAfter || dateBefore) { count++; summaryParts.push('טווח תאריכים'); }
+            if (orderVal && orderVal !== 'relevance') { count++; summaryParts.push(`מיון: ${orderVal}`); }
+            if (eventType) { count++; summaryParts.push(`אירוע: ${eventType}`); }
+            if (videoDef) { count++; summaryParts.push('HD'); }
+            if (videoCap) { count++; summaryParts.push('כתוביות'); }
+            if (videoLic) { count++; summaryParts.push(videoLic); }
+            if (videoDim) { count++; summaryParts.push(videoDim.toUpperCase()); }
+            if (regionCode) { count++; summaryParts.push(`אזור: ${regionCode}`); }
+            if (safeSearch !== 'moderate') { count++; }
+            if (embedOnly) { count++; summaryParts.push('ניתן להטמעה'); }
+            if (minViews > 0) { count++; summaryParts.push(`מינ' צפיות: ${minViews.toLocaleString()}`); }
+
+            const badge = document.getElementById('activeSearchFiltersBadge');
+            if (badge) {
+                if (count > 0) {
+                    badge.innerText = String(count);
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            const sumEl = document.getElementById('searchFiltersSummaryText');
+            if (sumEl) {
+                if (summaryParts.length > 0) {
+                    sumEl.innerText = summaryParts.join(' • ');
+                    sumEl.classList.remove('hidden');
+                } else {
+                    sumEl.classList.add('hidden');
+                }
+            }
+        }
+
+        function onFilterControlChanged() {
+            updateActiveSearchFiltersBadge();
+        }
+
+        function applySearchFiltersAndRun() {
+            updateActiveSearchFiltersBadge();
+            const q = document.getElementById('searchInput')?.value.trim() || appState.query;
+            if (q) {
+                performSearch(false);
+            } else {
+                applyContentFilters();
+                showToast('המסננים הוחלו');
+            }
+        }
+
+        function resetAllSearchFilters() {
+            const idsToEmpty = [
+                'searchType', 'searchDuration', 'searchDate', 'searchDateAfterInput',
+                'searchDateBeforeInput', 'searchEventType', 'searchMinMinutesInput',
+                'searchMinSecondsInput', 'searchMaxMinutesInput', 'searchMaxSecondsInput',
+                'searchVideoDefinition', 'searchVideoCaption', 'searchVideoLicense',
+                'searchVideoDimension', 'searchRegionCode', 'searchMinViewsInput'
+            ];
+            idsToEmpty.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const ord = document.getElementById('searchOrder');
+            if (ord) ord.value = 'relevance';
+            const safe = document.getElementById('searchSafeSearch');
+            if (safe) safe.value = 'moderate';
+            const emb = document.getElementById('searchEmbeddableOnly');
+            if (emb) emb.checked = false;
+
+            updateActiveSearchFiltersBadge();
+            const q = document.getElementById('searchInput')?.value.trim() || appState.query;
+            if (q && appState.searchContext === 'search') {
+                performSearch(false);
+            } else {
+                applyContentFilters();
+                showToast('כל מסנני החיפוש אופסו');
+            }
+        }
+
         async function performSearch(loadMore, isHistoryNav = false) {
             let query = loadMore ? appState.query : document.getElementById('searchInput').value.trim();
-            const order = document.getElementById('searchOrder').value;
-            let type = document.getElementById('searchType').value || 'video,channel,playlist'; 
-            const duration = document.getElementById('searchDuration').value;
-            const dateFilter = document.getElementById('searchDate').value;
+            const rawOrder = document.getElementById('searchOrder')?.value || 'relevance';
+            const apiOrder = (rawOrder === 'duration_desc' || rawOrder === 'duration_asc') ? 'relevance' : rawOrder;
+            let rawType = document.getElementById('searchType')?.value || '';
+            let type = rawType || 'video,channel,playlist';
+            let videoTypeParam = '';
+            if (rawType === 'movie' || rawType === 'episode') {
+                type = 'video';
+                videoTypeParam = rawType;
+            }
+
+            let duration = document.getElementById('searchDuration')?.value || '';
+            const dateFilter = document.getElementById('searchDate')?.value || '';
+            const dateAfterCustom = document.getElementById('searchDateAfterInput')?.value || '';
+            const dateBeforeCustom = document.getElementById('searchDateBeforeInput')?.value || '';
+            const eventType = document.getElementById('searchEventType')?.value || '';
+            const videoDefinition = document.getElementById('searchVideoDefinition')?.value || '';
+            const videoCaption = document.getElementById('searchVideoCaption')?.value || '';
+            const videoLicense = document.getElementById('searchVideoLicense')?.value || '';
+            const videoDimension = document.getElementById('searchVideoDimension')?.value || '';
+            const regionCode = document.getElementById('searchRegionCode')?.value || '';
+            const safeSearch = document.getElementById('searchSafeSearch')?.value || 'moderate';
+            const embeddableOnly = Boolean(document.getElementById('searchEmbeddableOnly')?.checked);
+            const minViews = parseInt(document.getElementById('searchMinViewsInput')?.value || '0', 10) || 0;
+            const exactDur = getExactDurationBoundsSec();
+
+            updateActiveSearchFiltersBadge();
 
             if (!query) return loadHomePage();
 
@@ -6147,7 +6507,20 @@
                 localStorage.setItem('yt_recent_searches', JSON.stringify(recents));
             }
 
-            if (duration) { type = 'video'; document.getElementById('searchType').value = 'video'; }
+            // אם נבחר אורך מדויק שנופל בתוך קטגוריה של יוטיוב, העבר גם ל-API כדי לדייק את התוצאות הראשוניות
+            if (!duration && exactDur.hasExact) {
+                if (exactDur.maxSec !== null && exactDur.maxSec <= 240) {
+                    duration = 'short';
+                } else if (exactDur.minSec !== null && exactDur.minSec >= 1200) {
+                    duration = 'long';
+                } else if (exactDur.minSec !== null && exactDur.minSec >= 240 && exactDur.maxSec !== null && exactDur.maxSec <= 1200) {
+                    duration = 'medium';
+                }
+            }
+
+            if (duration || exactDur.hasExact || eventType || videoDefinition || videoCaption || videoLicense || videoDimension || embeddableOnly || videoTypeParam) {
+                type = 'video';
+            }
 
             appState.searchContext = 'search'; 
             document.getElementById('channelHeaderContainer').classList.add('hidden');
@@ -6161,23 +6534,46 @@
                 if (appState.isSelectionMode) toggleSelectionMode();
                 appState.query = query; 
                 appState.pageToken = "";
-                if (!isHistoryNav) { pushHistory({ type: 'search', query: query, filterType: type, order: order, duration: duration, dateFilter: dateFilter }); }
+                if (!isHistoryNav) { pushHistory({ type: 'search', query: query, filterType: rawType, order: rawOrder, duration: duration, dateFilter: dateFilter }); }
                 if (appState.currentVideoId && !appState.isYouTubeMode) { minimizePlayer(); document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">מחפש...</div>`; } 
                 else if (!appState.currentVideoId) { document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">מחפש...</div>`; }
             }
 
             try {
-                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${appState.maxResults}&q=${encodeURIComponent(appState.query)}&order=${order}&type=${type}&key=${appState.apiKey}`;
+                // אם מופעל סינון אורך מדויק או מינימום צפיות, שלוף יותר תוצאות מה-API כדי להציג מספיק סרטונים שעומדים בטווח המדויק
+                const fetchCount = (exactDur.hasExact || minViews > 0) ? Math.min(50, Math.max(appState.maxResults * 3, 30)) : appState.maxResults;
+                let url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${fetchCount}&q=${encodeURIComponent(appState.query)}&order=${apiOrder}&type=${type}&safeSearch=${safeSearch}&key=${appState.apiKey}`;
                 if (duration) url += `&videoDuration=${duration}`;
+                if (videoTypeParam) url += `&videoType=${videoTypeParam}`;
+                if (eventType) url += `&eventType=${eventType}`;
+                if (videoDefinition) url += `&videoDefinition=${videoDefinition}`;
+                if (videoCaption) url += `&videoCaption=${videoCaption}`;
+                if (videoLicense) url += `&videoLicense=${videoLicense}`;
+                if (videoDimension) url += `&videoDimension=${videoDimension}`;
+                if (embeddableOnly) url += `&videoEmbeddable=true`;
+                if (regionCode) {
+                    url += `&regionCode=${regionCode}`;
+                    if (regionCode === 'IL') url += `&relevanceLanguage=he`;
+                    else if (regionCode === 'US' || regionCode === 'GB') url += `&relevanceLanguage=en`;
+                }
                 if (appState.pageToken) url += `&pageToken=${appState.pageToken}`;
 
-                if (dateFilter) {
+                if (dateAfterCustom) {
+                    const da = new Date(dateAfterCustom + 'T00:00:00');
+                    if (!isNaN(da.getTime())) url += `&publishedAfter=${da.toISOString()}`;
+                } else if (dateFilter) {
                     const date = new Date();
-                    if (dateFilter === 'today') date.setDate(date.getDate() - 1);
+                    if (dateFilter === 'hour') date.setHours(date.getHours() - 1);
+                    else if (dateFilter === 'today') date.setDate(date.getDate() - 1);
                     else if (dateFilter === 'week') date.setDate(date.getDate() - 7);
                     else if (dateFilter === 'month') date.setMonth(date.getMonth() - 1);
                     else if (dateFilter === 'year') date.setFullYear(date.getFullYear() - 1);
                     url += `&publishedAfter=${date.toISOString()}`;
+                }
+
+                if (dateBeforeCustom) {
+                    const db = new Date(dateBeforeCustom + 'T23:59:59');
+                    if (!isNaN(db.getTime())) url += `&publishedBefore=${db.toISOString()}`;
                 }
 
                 const response = await fetch(url);
@@ -6191,10 +6587,43 @@
                 const otherItems = items.filter(i => i.id.kind !== 'youtube#video'); 
                 
                 if (videoIds.length > 0) {
-                     const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds.join(',')}&key=${appState.apiKey}`);
-                     const statsData = await statsRes.json();
-                     const combinedItems = [...otherItems, ...statsData.items.map(i => ({ id: { kind: 'youtube#video', videoId: i.id }, snippet: i.snippet, statistics: i.statistics, contentDetails: i.contentDetails }))];
-                     renderResults(combinedItems, !loadMore);
+                    const statsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds.join(',')}&key=${appState.apiKey}`);
+                    const statsData = await statsRes.json();
+                    let videoItems = (statsData.items || []).map(i => ({
+                        id: { kind: 'youtube#video', videoId: i.id },
+                        snippet: i.snippet,
+                        statistics: i.statistics,
+                        contentDetails: i.contentDetails
+                    }));
+
+                    // סינון לפי אורך מדויק (דקות ושניות) ומינימום צפיות
+                    if (exactDur.hasExact || minViews > 0) {
+                        videoItems = videoItems.filter(v => {
+                            const dSec = parseDurationToSeconds(v.contentDetails?.duration || '');
+                            if (exactDur.minSec !== null && exactDur.minSec > 0 && dSec < exactDur.minSec) return false;
+                            if (exactDur.maxSec !== null && exactDur.maxSec > 0 && dSec > exactDur.maxSec) return false;
+                            if (minViews > 0) {
+                                const views = parseInt(v.statistics?.viewCount || '0', 10) || 0;
+                                if (views < minViews) return false;
+                            }
+                            return true;
+                        });
+                    }
+
+                    // מיון לפי אורך סרטון אם נבחר
+                    if (rawOrder === 'duration_desc') {
+                        videoItems.sort((a, b) => parseDurationToSeconds(b.contentDetails?.duration || '') - parseDurationToSeconds(a.contentDetails?.duration || ''));
+                    } else if (rawOrder === 'duration_asc') {
+                        videoItems.sort((a, b) => parseDurationToSeconds(a.contentDetails?.duration || '') - parseDurationToSeconds(b.contentDetails?.duration || ''));
+                    }
+
+                    const combinedItems = [...otherItems, ...videoItems.slice(0, appState.maxResults)];
+                    if (combinedItems.length === 0 && !loadMore) {
+                        document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-60" style="color: var(--text-secondary);">לא נמצאו סרטונים התואמים את מסנני האורך/החיפוש המדויקים שהגדרת.<br><button onclick="resetAllSearchFilters()" class="mt-3 px-4 py-2 rounded-full bg-blue-600 text-white text-xs font-bold">אפס מסננים</button></div>`;
+                        appState.currentRenderedItems = [];
+                    } else {
+                        renderResults(combinedItems, !loadMore);
+                    }
                 } else {
                     renderResults(otherItems, !loadMore);
                 }
@@ -6638,15 +7067,12 @@
                                         <option value="1080" ${getDefaultDownloadQuality() === '1080' ? 'selected' : ''} style="background-color: var(--bg-surface);">1080p</option>
                                         <option value="720" ${getDefaultDownloadQuality() === '720' ? 'selected' : ''} style="background-color: var(--bg-surface);">720p</option>
                                         <option value="480" ${getDefaultDownloadQuality() === '480' ? 'selected' : ''} style="background-color: var(--bg-surface);">480p</option>
+                                        <option value="subs_he" ${getDefaultDownloadQuality() === 'subs_he' ? 'selected' : ''} style="background-color: var(--bg-surface);">כתוביות בעברית</option>
                                         <option value="audio" ${getDefaultDownloadQuality() === 'audio' ? 'selected' : ''} style="background-color: var(--bg-surface);">שמע (MP3)</option>
                                     </select>
                                     <div class="w-px h-3" style="background-color: var(--border-light);"></div>
-                                    <button onclick="downloadWithYtDlp('${videoId}', false)" class="transition flex items-center gap-1" style="color: #3b82f6;" title="הורד עכשיו">
+                                    <button onclick="downloadWithYtDlp('${videoId}')" class="transition flex items-center gap-1" style="color: #3b82f6;" title="הורד עכשיו">
                                         <i class="fas fa-download"></i>
-                                    </button>
-                                    <div class="w-px h-3" style="background-color: var(--border-light);"></div>
-                                    <button onclick="downloadWithYtDlp('${videoId}', true)" class="transition flex items-center gap-0.5 text-[10px] font-bold" style="color: #10b981;" title="הורד באיכות ברירת המחדל עם כתוביות מתורגמות לעברית מוטמעות בווידאו">
-                                        <i class="fas fa-closed-captioning"></i><span>עב</span>
                                     </button>
                                </div>
                                 ${appState.searchContext === 'local_history' ? `
