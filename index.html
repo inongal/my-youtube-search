@@ -3062,7 +3062,8 @@
                 const list = DownloadHistoryManager.getHistory();
                 const now = Date.now();
                 const recentOrActive = list.filter(r => {
-                    if (r.status === 'pending' || r.status === 'paused') return true;
+                    if (r.status === 'pending') return true;
+                    if (r.status === 'cancelled' || r.status === 'paused') return false;
                     const ageSec = (now - new Date(r.timestamp).getTime()) / 1000;
                     return ageSec <= 18;
                 }).slice(0, 4);
@@ -3515,6 +3516,8 @@
             const failedCount = allRecords.filter(r => r.status === 'failed').length;
             const netfreeCount = allRecords.filter(r => r.status === 'netfree').length;
             const pendingCount = allRecords.filter(r => r.status === 'pending').length;
+            const pausedCount = allRecords.filter(r => r.status === 'paused').length;
+            const cancelledCount = allRecords.filter(r => r.status === 'cancelled').length;
 
             const filtered = filterStatus === 'all'
                 ? allRecords
@@ -3539,8 +3542,14 @@
                             <button onclick="loadDownloadHistoryTab(true, 'netfree')" class="px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${filterStatus === 'netfree' ? 'bg-orange-600 text-white border-orange-600' : ''}" style="${filterStatus !== 'netfree' ? 'background-color: var(--bg-surface); color: #f97316; border-color: var(--border-color);' : ''}">
                                 <i class="fas fa-shield-alt"></i> חסימה בנטפרי (${netfreeCount})
                             </button>
-                            <button onclick="loadDownloadHistoryTab(true, 'pending')" class="px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${filterStatus === 'pending' ? 'bg-amber-600 text-white border-amber-600' : ''}" style="${filterStatus !== 'pending' ? 'background-color: var(--bg-surface); color: #f59e0b; border-color: var(--border-color);' : ''}">
+                            <button onclick="loadDownloadHistoryTab(true, 'pending')" class="px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${filterStatus === 'pending' ? 'bg-cyan-600 text-white border-cyan-600' : ''}" style="${filterStatus !== 'pending' ? 'background-color: var(--bg-surface); color: #06b6d4; border-color: var(--border-color);' : ''}">
                                 <i class="fas fa-hourglass-half"></i> בתהליך (${pendingCount})
+                            </button>
+                            <button onclick="loadDownloadHistoryTab(true, 'paused')" class="px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${filterStatus === 'paused' ? 'bg-amber-600 text-white border-amber-600' : ''}" style="${filterStatus !== 'paused' ? 'background-color: var(--bg-surface); color: #f59e0b; border-color: var(--border-color);' : ''}">
+                                <i class="fas fa-pause-circle"></i> מושהה (${pausedCount})
+                            </button>
+                            <button onclick="loadDownloadHistoryTab(true, 'cancelled')" class="px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${filterStatus === 'cancelled' ? 'bg-gray-600 text-white border-gray-500' : ''}" style="${filterStatus !== 'cancelled' ? 'background-color: var(--bg-surface); color: #9ca3af; border-color: var(--border-color);' : ''}">
+                                <i class="fas fa-ban"></i> בוטל ע"י המשתמש (${cancelledCount})
                             </button>
                         </div>
                     </div>
@@ -3583,17 +3592,27 @@
                 card.style.backgroundColor = "var(--bg-card)";
                 card.style.borderColor = item.status === 'netfree'
                     ? 'rgba(249, 115, 22, 0.6)'
-                    : (item.status === 'failed' ? 'rgba(239, 68, 68, 0.5)' : (item.status === 'success' ? 'rgba(34, 197, 94, 0.35)' : 'var(--border-color)'));
+                    : (item.status === 'failed'
+                        ? 'rgba(239, 68, 68, 0.5)'
+                        : (item.status === 'success'
+                            ? 'rgba(34, 197, 94, 0.35)'
+                            : (item.status === 'paused'
+                                ? 'rgba(245, 158, 11, 0.5)'
+                                : (item.status === 'cancelled' ? 'rgba(156, 163, 175, 0.4)' : 'var(--border-color)'))));
 
                 let statusBadge = '';
                 if (item.status === 'success') {
                     statusBadge = `<span class="bg-green-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-check-circle"></i> ירד בהצלחה</span>`;
                 } else if (item.status === 'netfree') {
                     statusBadge = `<span class="bg-orange-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-shield-alt"></i> חסום בנטפרי</span>`;
+                } else if (item.status === 'paused') {
+                    statusBadge = `<span class="bg-amber-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-pause-circle"></i> מושהה</span>`;
+                } else if (item.status === 'cancelled') {
+                    statusBadge = `<span class="bg-gray-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-ban"></i> בוטל ע"י המשתמש</span>`;
                 } else if (item.status === 'failed') {
                     statusBadge = `<span class="bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-times-circle"></i> לא ירד</span>`;
                 } else {
-                    statusBadge = `<span class="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-spinner fa-spin"></i> בתהליך הורדה</span>`;
+                    statusBadge = `<span class="bg-cyan-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"><i class="fas fa-spinner fa-spin"></i> בתהליך הורדה</span>`;
                 }
 
                 const qualityLabel = item.quality === 'audio' ? 'MP3 (שמע)' : `${item.quality}p`;
