@@ -711,9 +711,11 @@
         <div class="flex items-center gap-3">
             <select id="batchQualitySelect" class="text-sm rounded-lg px-3 py-2 outline-none hidden sm:block border" style="background-color: var(--bg-surface); color: var(--text-primary); border-color: var(--border-light);">
                 <option value="1080">1080p</option>
+                <option value="1080_subs">1080p + כתוביות</option>
                 <option value="720">720p</option>
+                <option value="720_subs">720p + כתוביות</option>
                 <option value="480">480p</option>
-                <option value="subs_he">כתוביות</option>
+                <option value="480_subs">480p + כתוביות</option>
                 <option value="audio">שמע (MP3)</option>
             </select>
             
@@ -739,7 +741,7 @@
         </div>
     </div>
 
-    <div id="watchView" class="fixed inset-0 z-[200] items-center justify-center p-4">
+    <div id="watchView" tabindex="-1" class="fixed inset-0 z-[200] items-center justify-center p-4 outline-none">
         <div class="absolute inset-0 modal-overlay-bg" onclick="minimizePlayer()"></div>
         
         <div class="player-container relative w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col border shadow-2xl z-10 transition-all duration-300" style="background-color: var(--bg-main); border-color: var(--border-color);">
@@ -805,9 +807,11 @@
                                 <div class="flex items-center gap-2 px-3 py-1.5 rounded-full transition border" style="background-color: var(--bg-surface); border-color: var(--border-color);">
                                     <select id="watchDlQuality" class="bg-transparent text-sm outline-none cursor-pointer" style="color: var(--text-secondary);">
                                         <option value="1080" style="background-color: var(--bg-surface);">1080p</option>
+                                        <option value="1080_subs" style="background-color: var(--bg-surface);">1080p + כתוביות</option>
                                         <option value="720" style="background-color: var(--bg-surface);">720p</option>
+                                        <option value="720_subs" style="background-color: var(--bg-surface);">720p + כתוביות</option>
                                         <option value="480" style="background-color: var(--bg-surface);">480p</option>
-                                        <option value="subs_he" style="background-color: var(--bg-surface);">כתוביות</option>
+                                        <option value="480_subs" style="background-color: var(--bg-surface);">480p + כתוביות</option>
                                         <option value="audio" style="background-color: var(--bg-surface);">שמע (MP3)</option>
                                     </select>
                                     <div class="w-px h-4" style="background-color: var(--border-light);"></div>
@@ -918,9 +922,11 @@
                         <label class="block text-[10px] font-bold mb-2 uppercase tracking-widest" style="color: var(--text-muted);">איכות הורדה ברירת מחדל</label>
                         <select id="defaultDownloadQualitySelect" class="w-full border rounded-xl py-3 px-4 outline-none transition" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);">
                             <option value="1080">1080p (איכות מלאה)</option>
+                            <option value="1080_subs">1080p + כתוביות</option>
                             <option value="720">720p (HD)</option>
+                            <option value="720_subs">720p + כתוביות</option>
                             <option value="480">480p (חסכוני)</option>
-                            <option value="subs_he">כתוביות (מוטמע בווידאו)</option>
+                            <option value="480_subs">480p + כתוביות</option>
                             <option value="audio">שמע בלבד (MP3)</option>
                         </select>
                     </div>
@@ -957,6 +963,13 @@
                         <div class="text-[11px]" style="color: var(--text-muted);">הצגת אחוזים, צפי סיום וסטטוס חי מתוכנת ההורדה</div>
                     </div>
                     <input type="checkbox" id="showDownloadPopupCheckbox" checked class="w-5 h-5 accent-blue-600 cursor-pointer">
+                </div>
+                <div class="flex items-center justify-between p-3 rounded-xl border" style="background-color: var(--bg-input); border-color: var(--border-color);">
+                    <div>
+                        <div class="text-xs font-bold" style="color: var(--text-primary);">הצג את חלון ה-CMD בכל ההורדות</div>
+                        <div class="text-[11px]" style="color: var(--text-muted);">כשכבוי — ה-CMD מוסתר ברקע ללא הופעה בשורת המשימות וללא עצירת ההורדה</div>
+                    </div>
+                    <input type="checkbox" id="showCmdWindowCheckbox" class="w-5 h-5 accent-blue-600 cursor-pointer">
                 </div>
                 
                 <div class="mt-4 border-t pt-4" style="border-color: var(--border-color);">
@@ -1197,6 +1210,7 @@
             defaultDownloadConnections: parseInt(localStorage.getItem('yt_default_dl_connections') || '8', 10) || 8,
             defaultDownloadFolder: localStorage.getItem('yt_default_dl_folder') || '%USERPROFILE%\\Downloads\\Video',
             showDownloadPopup: localStorage.getItem('yt_show_dl_popup') !== 'false',
+            showCmdWindow: localStorage.getItem('yt_show_cmd_window') === 'true',
             miniDownloadMinimized: false,
             homeFilter: 'all',
             lastKnownPlaybackTime: 0,
@@ -2709,7 +2723,8 @@
             const folderPart = (!folder || folder === '%USERPROFILE%\\Downloads\\Video' || folder === 'default')
                 ? 'default'
                 : encodeUtf8ToHex(folder);
-            return `ytdlp://${videoIdsStr}/${quality}/${connections}/${subsPart}/${folderPart}`;
+            const cmdMode = appState.showCmdWindow ? 'show' : 'hide';
+            return `ytdlp://${videoIdsStr}/${quality}/${connections}/${subsPart}/${folderPart}/${cmdMode}`;
         }
 
         function resetDownloadFolderDefault() {
@@ -3301,22 +3316,23 @@
         }
 
         function getDefaultDownloadQuality() {
-            const allowed = ['1080', '720', '480', 'subs_he', 'audio'];
+            const allowed = ['1080', '1080_subs', '720', '720_subs', '480', '480_subs', 'audio'];
             const saved = appState.defaultDownloadQuality || localStorage.getItem('yt_default_dl_quality') || '1080';
+            if (saved === 'subs_he') return '1080_subs';
             return allowed.includes(saved) ? saved : '1080';
         }
 
         function resolveDownloadQualitySelection(selectedValue) {
             const defQ = getDefaultDownloadQuality();
             const raw = selectedValue || defQ;
-            const baseVideoQual = ['1080', '720', '480'].includes(defQ) ? defQ : '1080';
-            if (raw === 'subs_he') {
-                return { quality: baseVideoQual, withHebrewSubs: true };
-            }
+            if (raw === '1080_subs') return { quality: '1080', withHebrewSubs: true };
+            if (raw === '720_subs') return { quality: '720', withHebrewSubs: true };
+            if (raw === '480_subs') return { quality: '480', withHebrewSubs: true };
+            if (raw === 'subs_he') return { quality: '1080', withHebrewSubs: true };
             if (['1080', '720', '480', 'audio'].includes(raw)) {
                 return { quality: raw, withHebrewSubs: false };
             }
-            return { quality: baseVideoQual, withHebrewSubs: defQ === 'subs_he' };
+            return { quality: '1080', withHebrewSubs: false };
         }
 
         function applyDefaultDownloadQualityToUI() {
@@ -4949,7 +4965,8 @@
                         if (iframe) {
                             iframe.setAttribute('allowfullscreen', 'true');
                             iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
-                            if (!appState.isMinimizedBg) iframe.focus();
+                            const wvFocus = document.getElementById('watchView');
+                            if (!appState.isMinimizedBg && wvFocus) wvFocus.focus({ preventScroll: true });
                         }
                         try {
                             const target = pendingMainLoad || { videoId, startSeconds: cleanStart };
@@ -5864,6 +5881,7 @@
             const newDefaultDlConn = normalizeConnectionsCount(document.getElementById('defaultDownloadConnectionsSelect')?.value || '8');
             const newDefaultDlFolder = (document.getElementById('defaultDownloadFolderInput')?.value || '').trim() || '%USERPROFILE%\\Downloads\\Video';
             const newShowDlPopup = document.getElementById('showDownloadPopupCheckbox').checked;
+            const newShowCmdWindow = Boolean(document.getElementById('showCmdWindowCheckbox')?.checked);
             const newTheme = document.getElementById('themeSelect').value;
             
             if (newKey.includes("•") || newKey === "") {
@@ -5883,6 +5901,8 @@
             appState.defaultDownloadConnections = newDefaultDlConn;
             appState.defaultDownloadFolder = newDefaultDlFolder;
             appState.showDownloadPopup = newShowDlPopup;
+            appState.showCmdWindow = newShowCmdWindow;
+            safeSetLocalStorage('yt_show_cmd_window', String(appState.showCmdWindow));
             
             safeSetLocalStorage('yt_api_key', appState.apiKey);
             safeSetLocalStorage('yt_gemini_api_key', appState.geminiApiKey);
@@ -5927,6 +5947,7 @@
             const savedDefaultDlConn = normalizeConnectionsCount(localStorage.getItem('yt_default_dl_connections') || '8');
             const savedDefaultDlFolder = localStorage.getItem('yt_default_dl_folder') || '%USERPROFILE%\\Downloads\\Video';
             const savedShowDlPopup = localStorage.getItem('yt_show_dl_popup') !== 'false';
+            const savedShowCmdWindow = localStorage.getItem('yt_show_cmd_window') === 'true';
             const storedTheme = localStorage.getItem('yt_theme');
 
             if(savedKey) document.getElementById('apiKeyInput').value = maskApiKey(savedKey);
@@ -5939,6 +5960,9 @@
             appState.showDownloadPopup = savedShowDlPopup;
             const dlPopupCb = document.getElementById('showDownloadPopupCheckbox');
             if (dlPopupCb) dlPopupCb.checked = savedShowDlPopup;
+            appState.showCmdWindow = savedShowCmdWindow;
+            const showCmdCb = document.getElementById('showCmdWindowCheckbox');
+            if (showCmdCb) showCmdCb.checked = savedShowCmdWindow;
             if(storedTheme) document.getElementById('themeSelect').value = storedTheme;
             
             applyDefaultDownloadQualityToUI();
@@ -5981,7 +6005,31 @@
             }, 950);
         }
 
-        document.addEventListener('keydown', (e) => {
+        // החזרת פוקוס אוטומטית לחלון הצפייה כשהעכבר זז מחוץ לנגן או לאחר קליק, כדי שחץ למעלה/למטה תמיד יגיבו!
+        (function setupPlayerKeyboardFocusGuard() {
+            const wrapper = document.getElementById('playerContainerWrapper');
+            const watchViewEl = document.getElementById('watchView');
+            if (wrapper && watchViewEl) {
+                wrapper.addEventListener('mouseleave', () => {
+                    if (watchViewEl.classList.contains('active') && !watchViewEl.classList.contains('minimized-bg')) {
+                        const activeTag = (document.activeElement?.tagName || '').toUpperCase();
+                        if (activeTag === 'IFRAME' || activeTag === 'BODY') {
+                            try { watchViewEl.focus({ preventScroll: true }); } catch (e) {}
+                        }
+                    }
+                });
+            }
+            window.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (!watchViewEl || !watchViewEl.classList.contains('active') || watchViewEl.classList.contains('minimized-bg')) return;
+                    if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
+                        try { window.focus(); watchViewEl.focus({ preventScroll: true }); } catch (e) {}
+                    }
+                }, 180);
+            });
+        })();
+
+        window.addEventListener('keydown', (e) => {
             const activeTag = (document.activeElement?.tagName || '').toUpperCase();
             if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT' || document.activeElement?.isContentEditable) {
                 return;
@@ -5993,9 +6041,21 @@
             const key = e.key;
             const lowerKey = key.toLowerCase();
 
-            // חץ למעלה / למטה: הגברה והנמכת עוצמת שמע ב-5%
-            if (key === 'ArrowUp' || key === 'ArrowDown') {
+            // Ctrl + חץ למעלה / למטה: גלילת חלון הצפייה למעלה ולמטה
+            if ((key === 'ArrowUp' || key === 'ArrowDown') && e.ctrlKey) {
                 e.preventDefault();
+                e.stopPropagation();
+                const scrollArea = document.getElementById('watchVideoArea');
+                if (scrollArea) {
+                    scrollArea.scrollBy({ top: key === 'ArrowDown' ? 160 : -160, behavior: 'smooth' });
+                }
+                return;
+            }
+
+            // חץ למעלה / למטה לבד (ללא Ctrl): הגברה והנמכת עוצמת שמע ב-5%
+            if ((key === 'ArrowUp' || key === 'ArrowDown') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                e.preventDefault();
+                e.stopPropagation();
                 try {
                     const curVol = typeof ytPlayer.getVolume === 'function' ? ytPlayer.getVolume() : 100;
                     const delta = key === 'ArrowUp' ? 5 : -5;
@@ -6146,7 +6206,7 @@
                 openAlwaysOnTopPlayer();
                 return;
             }
-        });
+        }, true);
 
         function initAuth() {
             try {
@@ -7500,11 +7560,13 @@
                                 </button>
 
                                 <div class="flex items-center gap-1 px-2 py-0.5 rounded-full transition w-fit border" onclick="event.stopPropagation();" style="background-color: var(--bg-surface); border-color: var(--border-color);">
-                                    <select id="dl-qual-${videoId}" class="bg-transparent text-[10px] outline-none cursor-pointer max-w-[74px]" style="color: var(--text-secondary); padding-left: 1.35rem; background-position: left 0.15rem center; background-size: 1.1em 1.1em;">
+                                    <select id="dl-qual-${videoId}" class="bg-transparent text-[10px] outline-none cursor-pointer max-w-[78px]" style="color: var(--text-secondary); padding-left: 1.35rem; background-position: left 0.15rem center; background-size: 1.1em 1.1em;">
                                         <option value="1080" ${getDefaultDownloadQuality() === '1080' ? 'selected' : ''} style="background-color: var(--bg-surface);">1080p</option>
+                                        <option value="1080_subs" ${getDefaultDownloadQuality() === '1080_subs' ? 'selected' : ''} style="background-color: var(--bg-surface);">1080+כתו'</option>
                                         <option value="720" ${getDefaultDownloadQuality() === '720' ? 'selected' : ''} style="background-color: var(--bg-surface);">720p</option>
+                                        <option value="720_subs" ${getDefaultDownloadQuality() === '720_subs' ? 'selected' : ''} style="background-color: var(--bg-surface);">720+כתו'</option>
                                         <option value="480" ${getDefaultDownloadQuality() === '480' ? 'selected' : ''} style="background-color: var(--bg-surface);">480p</option>
-                                        <option value="subs_he" ${getDefaultDownloadQuality() === 'subs_he' ? 'selected' : ''} style="background-color: var(--bg-surface);">כתוביות</option>
+                                        <option value="480_subs" ${getDefaultDownloadQuality() === '480_subs' ? 'selected' : ''} style="background-color: var(--bg-surface);">480+כתו'</option>
                                         <option value="audio" ${getDefaultDownloadQuality() === 'audio' ? 'selected' : ''} style="background-color: var(--bg-surface);">MP3</option>
                                     </select>
                                     <div class="w-px h-3" style="background-color: var(--border-light);"></div>
@@ -7880,6 +7942,7 @@
                 document.getElementById('return-to-video-btn').classList.add('hidden');
                 view.classList.remove('hidden', 'minimized-bg');
                 view.classList.add('active');
+                setTimeout(() => { try { view.focus({ preventScroll: true }); } catch (e) {} }, 60);
                 if (!appState.isFloating) {
                     const container = view.querySelector('.player-container');
                     resetFloatingContainerSize(container);
