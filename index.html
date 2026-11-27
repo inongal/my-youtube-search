@@ -1842,8 +1842,11 @@
         }, true);
 
         function onPlayerStateChange(event) {
-            // אם חלון ה-PiP פתוח כרגע, ה-PiP עצמו אחראי על המעבר לסרטון הבא בתוך ה-PiP (ולא הנגן הראשי!)
+            // אם חלון ה-PiP פתוח כרגע, השהה מיד את הנגן הראשי אם הוא מנסה לנגן, ותן רק ל-PiP לנגן ולהעביר לסרטון הבא!
             if (pipWindowRef && !pipWindowRef.closed) {
+                if (event.data === 1 && ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+                    try { ytPlayer.pauseVideo(); } catch (e) {}
+                }
                 return;
             }
             if (event.data === 0) {
@@ -5264,11 +5267,21 @@
             const initialTimeSec = getCurrentPlaybackSeconds(videoId);
             savePlaybackTimeToResume(videoId, initialTimeSec, true);
 
-            // השהה והשתק לחלוטין את הנגן הראשי בזמן ש-PiP פתוח — כך שרק הנגן הצף מנגן תמונה+קול בסנכרון מלא (ללא כפילות סאונד או פרסומת שונה!)
+            // עצור/השהה לחלוטין את הנגן הראשי בזמן ש-PiP פתוח — רק הנגן הצף מנגן שמע ותמונה, ללא שום השתקת קול וללא שמע כפול!
             const initialVideoIdAtPipOpen = videoId;
-            if (ytPlayer) {
+            appState.isVideoPaused = true;
+            const forcePauseMainPlayer = () => {
+                if (!ytPlayer) return;
                 try { if (typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo(); } catch (e) {}
-            }
+                try {
+                    const mainIframe = document.querySelector('#playerContainerWrapper iframe') || document.getElementById('playerFrame');
+                    if (mainIframe && mainIframe.contentWindow) {
+                        mainIframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [], id: 1, channel: 'widget' }), '*');
+                        mainIframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
+                    }
+                } catch (e) {}
+            };
+            forcePauseMainPlayer();
 
             if (activeExternalTimer) {
                 clearInterval(activeExternalTimer);
@@ -5552,12 +5565,22 @@
 
                     loadVideoInPipIframe(videoId, initialTimeSec);
 
+                    forcePauseMainPlayer();
+                    setTimeout(forcePauseMainPlayer, 250);
+                    setTimeout(forcePauseMainPlayer, 800);
+
                     activeExternalTimer = setInterval(() => {
                         if (pipWin.closed) {
                             clearInterval(activeExternalTimer);
                             activeExternalTimer = null;
                             return;
                         }
+                        // ודא שהנגן הראשי נשאר מושהה לחלוטין כל עוד חלון ה-PiP פתוח (מונע שמע כפול ב-100%)
+                        try {
+                            if (ytPlayer && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1) {
+                                forcePauseMainPlayer();
+                            }
+                        } catch (e) {}
                         if (pipIsPlaying && (Date.now() - lastInfoDeliveryMs > 1400)) {
                             pipTrackedTime += 1;
                             savePlaybackTimeToResume(videoId, pipTrackedTime);
