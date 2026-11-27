@@ -272,7 +272,7 @@
 
         <div class="flex-1 max-w-5xl flex items-center gap-2 px-4 relative z-50">
             <div class="flex w-full group relative">
-                <input type="text" id="searchInput" autocomplete="off" placeholder="חיפוש או הדבקת קישור (סרטון/ערוץ/פלייליסט)" 
+                <input type="text" id="searchInput" autocomplete="off" placeholder="חיפוש או הדבקת קישור / רשימת קישורים (סרטונים/ערוץ/פלייליסט)" 
                     class="w-full rounded-r-full py-2.5 px-5 outline-none transition text-right" style="background-color: var(--bg-input); border: 1px solid var(--border-color); border-left: none; color: var(--text-primary);">
                 
                 <div id="autocomplete-results" class="custom-scrollbar shadow-lg absolute top-full mt-1 left-0 right-0 hidden rounded-2xl border overflow-y-auto max-h-64 z-50" style="background-color: var(--bg-card); border-color: var(--border-color);"></div>
@@ -305,6 +305,10 @@
                 <i class="fas fa-sliders text-blue-500"></i>
                 <span class="hidden sm:inline">מסננים</span>
                 <span id="activeSearchFiltersBadge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">0</span>
+            </button>
+            <button id="pasteUrlsModalBtn" type="button" onclick="openPasteUrlsModal()" class="px-3.5 py-2.5 rounded-full text-sm font-bold border transition flex items-center gap-1.5 flex-shrink-0 hover:border-blue-500 shadow-sm" style="background-color: var(--bg-surface); border-color: var(--border-color); color: var(--text-primary);" title="הדבק רשימת כתובות URL והצג את כל הסרטונים">
+                <i class="fas fa-link text-emerald-500"></i>
+                <span class="hidden xl:inline">רשימת קישורים</span>
             </button>
         </div>
 
@@ -887,6 +891,31 @@
                         <button onclick="toggleYouTubeMode()" class="text-xs px-2 py-1 rounded-lg hover:bg-white/10 transition" style="color: var(--text-secondary);" title="סגור תצוגת תור"><i class="fas fa-times"></i></button>
                     </div>
                     <div id="upNextList" class="flex flex-col gap-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="pasteUrlsModal" class="hidden fixed inset-0 z-[290] flex items-center justify-center p-4" style="background-color: var(--modal-overlay); backdrop-filter: blur(10px);" onclick="if(event.target === this) closePasteUrlsModal();">
+        <div class="w-full max-w-xl p-6 rounded-3xl border shadow-2xl flex flex-col gap-4" style="background-color: var(--bg-card); border-color: var(--border-color);" onclick="event.stopPropagation();">
+            <div class="flex items-center justify-between pb-3 border-b" style="border-color: var(--border-color);">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-link text-emerald-500 text-lg"></i>
+                    <h3 class="font-bold text-lg" style="color: var(--text-primary);">הדבקת רשימת כתובות URL</h3>
+                </div>
+                <button type="button" onclick="closePasteUrlsModal()" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition" style="color: var(--text-secondary);">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <p class="text-xs" style="color: var(--text-secondary);">הדבק כאן כמה קישורי יוטיוב שתרצה (כל קישור בשורה נפרדת, עם רווחים או פסיקים — גם קישורי Shorts או youtu.be) וכל הסרטונים יוצגו מיד.</p>
+            <textarea id="pasteUrlsTextarea" rows="7" dir="ltr" oninput="updatePasteUrlsCounter()" placeholder="https://www.youtube.com/watch?v=...&#10;https://youtu.be/...&#10;https://www.youtube.com/shorts/..." class="w-full text-left font-mono text-xs p-3.5 rounded-2xl border outline-none custom-scrollbar resize-y" style="background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-primary);"></textarea>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <span id="pasteUrlsCountLabel" class="text-xs font-bold" style="color: var(--text-secondary);">זוהו 0 סרטונים</span>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closePasteUrlsModal()" class="px-4 py-2 rounded-full text-xs font-bold border transition" style="background-color: var(--bg-surface); color: var(--text-secondary); border-color: var(--border-color);">ביטול</button>
+                    <button type="button" onclick="submitPastedUrlsList()" class="px-5 py-2 rounded-full text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow">
+                        <i class="fas fa-play-circle"></i> הצג את כל הסרטונים
+                    </button>
                 </div>
             </div>
         </div>
@@ -5419,6 +5448,7 @@
                         pipIframeEl.setAttribute('src', embedUrl.toString());
 
                         let attempts = 0;
+                        let usedAutoplayKick = false;
                         pipPlayEnforcerInterval = setInterval(() => {
                             attempts++;
                             if (pipWin.closed || pipConfirmedPlayingOnce || attempts > 80) {
@@ -5426,7 +5456,14 @@
                                 pipPlayEnforcerInterval = null;
                                 return;
                             }
-                            sendPipCommand('playVideo', []);
+                            if (attempts >= 3 && !usedAutoplayKick) {
+                                // אם כרום חסם ניגון אוטומטי עם קול בחלון ה-PiP החדש, עוקף את החסימה ללא mute=1 בכתובת ומשחרר קול מיד ב-playerState === 1!
+                                usedAutoplayKick = true;
+                                sendPipCommand('mute', []);
+                                sendPipCommand('playVideo', []);
+                            } else {
+                                sendPipCommand('playVideo', []);
+                            }
                         }, 150);
                     };
 
@@ -5493,6 +5530,10 @@
                                         pipUnmuteSent = true;
                                         sendPipCommand('unMute', []);
                                         sendPipCommand('setVolume', [100]);
+                                        setTimeout(() => {
+                                            sendPipCommand('unMute', []);
+                                            sendPipCommand('setVolume', [100]);
+                                        }, 200);
                                     }
                                 } else if (data.info === 5 || data.info === -1) {
                                     if (!pipConfirmedPlayingOnce) sendPipCommand('playVideo', []);
@@ -6453,11 +6494,39 @@
             return { urls: extractedUrls, ids: extractedIds };
         }
 
+        function extractVideoIdsFromText(rawText) {
+            const ids = [];
+            const seen = new Set();
+            const text = String(rawText || '');
+            const urlRegex = /(?:[?&]v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtube\.com\/live\/|youtube-nocookie\.com\/embed\/)([a-zA-Z0-9_-]{11})/g;
+            let m;
+            while ((m = urlRegex.exec(text)) !== null) {
+                const id = m[1];
+                if (id && !seen.has(id)) {
+                    seen.add(id);
+                    ids.push(id);
+                }
+            }
+            // תמיכה גם ברשימת מזהי 11 תווים נקיים (שורה לכל מזהה) אם לא נמצאו קישורים מלאים
+            if (ids.length === 0) {
+                const tokens = text.split(/[\s,;]+/).map(t => t.trim()).filter(Boolean);
+                if (tokens.length >= 2 && tokens.every(t => /^[a-zA-Z0-9_-]{11}$/.test(t))) {
+                    tokens.forEach(id => {
+                        if (!seen.has(id)) {
+                            seen.add(id);
+                            ids.push(id);
+                        }
+                    });
+                }
+            }
+            return ids;
+        }
+
         function extractVideoIdsFromUrls(urls) {
             const ids = [];
             const seen = new Set();
             (urls || []).forEach(url => {
-                const m = String(url).match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([a-zA-Z0-9_-]{11})/);
+                const m = String(url).match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([a-zA-Z0-9_-]{11})/);
                 const id = m ? m[1] : (isValidVideoId(url) ? url : null);
                 if (id && !seen.has(id)) {
                     seen.add(id);
@@ -6466,6 +6535,81 @@
             });
             return ids;
         }
+
+        async function loadMultipleVideoUrlsList(videoIds) {
+            const cleanIds = extractVideoIdsFromUrls(videoIds);
+            if (!cleanIds.length) {
+                showToast('לא נמצאו קישורי יוטיוב תקינים');
+                return;
+            }
+            if (appState.isSelectionMode) toggleSelectionMode();
+            appState.searchContext = 'search';
+            appState.pageToken = '';
+            setActiveNavItem('');
+            document.getElementById('channelHeaderContainer').classList.add('hidden');
+            document.getElementById('internalSearch').classList.remove('hidden');
+            document.getElementById('pagination').classList.add('hidden');
+            document.getElementById('exportUrlsBtn').classList.remove('hidden');
+            const titleEl = document.getElementById('sectionTitle');
+            titleEl.classList.remove('hidden');
+            titleEl.innerText = `סרטונים מרשימת קישורים (${cleanIds.length})`;
+            document.getElementById('resultsGrid').innerHTML = `<div class="col-span-full text-center py-20 opacity-50 animate-pulse" style="color: var(--text-secondary);">טוען ${cleanIds.length} סרטונים מהקישורים...</div>`;
+            await fetchAndRenderVideos(cleanIds, true);
+            showToast(`נטענו ${cleanIds.length} סרטונים מרשימת הקישורים`);
+        }
+
+        function openPasteUrlsModal() {
+            const modal = document.getElementById('pasteUrlsModal');
+            const ta = document.getElementById('pasteUrlsTextarea');
+            if (modal) modal.classList.remove('hidden');
+            if (ta) {
+                ta.value = '';
+                updatePasteUrlsCounter();
+                setTimeout(() => ta.focus(), 50);
+            }
+        }
+
+        function closePasteUrlsModal() {
+            const modal = document.getElementById('pasteUrlsModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function updatePasteUrlsCounter() {
+            const ta = document.getElementById('pasteUrlsTextarea');
+            const lbl = document.getElementById('pasteUrlsCountLabel');
+            if (!ta || !lbl) return;
+            const ids = extractVideoIdsFromText(ta.value);
+            lbl.innerText = ids.length === 1 ? 'זוהה סרטון 1' : `זוהו ${ids.length} סרטונים`;
+        }
+
+        function submitPastedUrlsList() {
+            const ta = document.getElementById('pasteUrlsTextarea');
+            if (!ta) return;
+            const ids = extractVideoIdsFromText(ta.value);
+            if (ids.length === 0) {
+                showToast('לא זוהו קישורי יוטיוב תקינים בטקסט שהודבק');
+                return;
+            }
+            closePasteUrlsModal();
+            loadMultipleVideoUrlsList(ids);
+        }
+
+        // זיהוי אוטומטי ומיידי כשמדביקים רשימת קישורים ישירות לשורת החיפוש (גם עם ירידות שורה!)
+        (function attachSearchMultiUrlPasteListener() {
+            const searchInp = document.getElementById('searchInput');
+            if (!searchInp) return;
+            searchInp.addEventListener('paste', (e) => {
+                const pasted = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+                const ids = extractVideoIdsFromText(pasted);
+                if (ids.length >= 2) {
+                    e.preventDefault();
+                    searchInp.value = '';
+                    const ac = document.getElementById('autocomplete-results');
+                    if (ac) ac.classList.add('hidden');
+                    loadMultipleVideoUrlsList(ids);
+                }
+            });
+        })();
 
         async function loadHomePage(isHistoryNav = false, homeFilter = null) {
             if (appState.isSelectionMode) toggleSelectionMode();
@@ -7107,9 +7251,15 @@
 
             if (!query) return loadHomePage();
 
-            const listMatch = query.match(/[?&]list=([^&]+)/);
-            const videoMatch = query.match(/(?:v=|youtu\.be\/|shorts\/)([^&?]+)/);
-            const channelMatch = query.match(/youtube\.com\/(?:channel\/|c\/|@)([^&?\/]+)/);
+            const extractedMultiIds = extractVideoIdsFromText(query);
+            const listMatch = query.match(/[?&]list=([^&\s]+)/);
+            const videoMatch = query.match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([a-zA-Z0-9_-]{11})/);
+            const channelMatch = query.match(/youtube\.com\/(?:channel\/|c\/|@)([^&?\/\s]+)/);
+
+            if (!loadMore && extractedMultiIds.length >= 2) {
+                document.getElementById('searchInput').value = '';
+                return loadMultipleVideoUrlsList(extractedMultiIds);
+            }
 
             if (!loadMore && (listMatch || videoMatch || channelMatch)) {
                 if (listMatch) {
@@ -7119,8 +7269,10 @@
                 } else if (videoMatch) {
                     document.getElementById('searchInput').value = '';
                     appState.searchContext = 'search';
+                    document.getElementById('pagination').classList.add('hidden');
                     document.getElementById('sectionTitle').classList.remove('hidden');
                     document.getElementById('sectionTitle').innerText = `תוצאה לכתובת סרטון`;
+                    document.getElementById('exportUrlsBtn').classList.remove('hidden');
                     return fetchAndRenderVideos([videoMatch[1]], true);
                 } else if (channelMatch) {
                     document.getElementById('searchInput').value = '';
