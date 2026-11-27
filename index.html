@@ -5390,22 +5390,15 @@
                         pipIframeEl.setAttribute('src', embedUrl.toString());
 
                         let attempts = 0;
-                        let usedAutoplayKick = false;
                         pipPlayEnforcerInterval = setInterval(() => {
                             attempts++;
-                            if (pipWin.closed || pipConfirmedPlayingOnce || attempts > 80) {
+                            if (pipWin.closed || pipConfirmedPlayingOnce || attempts > 50) {
                                 clearInterval(pipPlayEnforcerInterval);
                                 pipPlayEnforcerInterval = null;
                                 return;
                             }
-                            if (attempts >= 3 && !usedAutoplayKick) {
-                                usedAutoplayKick = true;
-                                sendPipCommand('mute', []);
-                                sendPipCommand('playVideo', []);
-                            } else {
-                                sendPipCommand('playVideo', []);
-                            }
-                        }, 150);
+                            sendPipCommand('playVideo', []);
+                        }, 180);
                     };
 
                     const advanceToNextInPip = () => {
@@ -5466,15 +5459,7 @@
                                         clearInterval(pipPlayEnforcerInterval);
                                         pipPlayEnforcerInterval = null;
                                     }
-                                    if (!pipUnmuteSent) {
-                                        pipUnmuteSent = true;
-                                        sendPipCommand('unMute', []);
-                                        sendPipCommand('setVolume', [100]);
-                                        setTimeout(() => {
-                                            sendPipCommand('unMute', []);
-                                            sendPipCommand('setVolume', [100]);
-                                        }, 200);
-                                    }
+
                                 } else if (data.info === 5 || data.info === -1) {
                                     if (!pipConfirmedPlayingOnce) sendPipCommand('playVideo', []);
                                 } else if (data.info === 2) {
@@ -5510,15 +5495,7 @@
                                             clearInterval(pipPlayEnforcerInterval);
                                             pipPlayEnforcerInterval = null;
                                         }
-                                        if (!pipUnmuteSent) {
-                                            pipUnmuteSent = true;
-                                            sendPipCommand('unMute', []);
-                                            sendPipCommand('setVolume', [100]);
-                                            setTimeout(() => {
-                                                sendPipCommand('unMute', []);
-                                                sendPipCommand('setVolume', [100]);
-                                            }, 200);
-                                        }
+
                                     } else if (!pipConfirmedPlayingOnce && (data.info.playerState === 5 || data.info.playerState === -1 || data.info.playerState === 2)) {
                                         sendPipCommand('playVideo', []);
                                     } else if (data.info.playerState === 2 && pipConfirmedPlayingOnce) {
@@ -8835,4 +8812,4 @@
         }
     </script>
 </body>
-</html>ד
+</html>
