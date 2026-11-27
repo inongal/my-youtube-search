@@ -2957,27 +2957,27 @@
                                 : (normStatus === 'failed' ? `לא ירד: דיווח שגיאה מתוכנת ההורדה` : `מוריד כעת בתוכנת ההורדה...`)));
 
                     let matched = false;
-                    list.forEach(r => {
-                        if (r.id === vid) {
-                            matched = true;
-                            const finalPct = normStatus === 'success' ? 100 : (pct !== undefined ? pct : (r.percent || 0));
-                            const finalEta = normStatus === 'success' ? '00:00' : (eta !== undefined ? eta : (r.eta || '--:--'));
-                            const finalSpd = speed !== undefined ? speed : (r.speed || '');
-                            const finalConn = entryConn || r.connections || getDefaultDownloadConnections();
+                    // עדכן רק את הרשומה העדכנית ביותר (אינדקס ראשון) עבור אותו videoId — לעולם אל תהפוך הורדות קודמות מההיסטוריה ל-"בתהליך"!
+                    const targetRec = list.find(r => r.id === vid);
+                    if (targetRec) {
+                        matched = true;
+                        const finalPct = normStatus === 'success' ? 100 : (pct !== undefined ? pct : (targetRec.percent || 0));
+                        const finalEta = normStatus === 'success' ? '00:00' : (eta !== undefined ? eta : (targetRec.eta || '--:--'));
+                        const finalSpd = speed !== undefined ? speed : (targetRec.speed || '');
+                        const finalConn = entryConn || targetRec.connections || getDefaultDownloadConnections();
 
-                            if (r.status !== normStatus || r.reason !== reasonText || r.percent !== finalPct || r.eta !== finalEta || r.subState !== subState || r.connections !== finalConn) {
-                                r.status = normStatus;
-                                r.subState = subState;
-                                r.reason = reasonText;
-                                r.percent = finalPct;
-                                r.eta = finalEta;
-                                r.speed = finalSpd;
-                                r.connections = finalConn;
-                                if (entry.quality) r.quality = entry.quality;
-                                updatedCount++;
-                            }
+                        if (targetRec.status !== normStatus || targetRec.reason !== reasonText || targetRec.percent !== finalPct || targetRec.eta !== finalEta || targetRec.subState !== subState || targetRec.connections !== finalConn) {
+                            targetRec.status = normStatus;
+                            targetRec.subState = subState;
+                            targetRec.reason = reasonText;
+                            targetRec.percent = finalPct;
+                            targetRec.eta = finalEta;
+                            targetRec.speed = finalSpd;
+                            targetRec.connections = finalConn;
+                            if (entry.quality) targetRec.quality = entry.quality;
+                            updatedCount++;
                         }
-                    });
+                    }
 
                     if (!matched && isValidVideoId(vid) && (normStatus === 'pending' || (entryUpdatedMs > clearedAt && !deletedMap[vid]))) {
                         const meta = findVideoMetadataById(vid);
@@ -3065,11 +3065,16 @@
 
                 const list = DownloadHistoryManager.getHistory();
                 const now = Date.now();
+                const seenMiniIds = new Set();
                 const recentOrActive = list.filter(r => {
-                    if (r.status === 'pending') return true;
+                    if (!r || !r.id || seenMiniIds.has(r.id)) return false;
                     if (r.status === 'cancelled' || r.status === 'paused') return false;
-                    const ageSec = (now - new Date(r.timestamp).getTime()) / 1000;
-                    return ageSec <= 18;
+                    const isRecent = r.status === 'pending' || (((now - new Date(r.timestamp).getTime()) / 1000) <= 18);
+                    if (isRecent) {
+                        seenMiniIds.add(r.id);
+                        return true;
+                    }
+                    return false;
                 }).slice(0, 4);
 
                 if (recentOrActive.length === 0) {
@@ -3299,7 +3304,15 @@
             }
         }
 
+        let __lastProtocolUrl = '';
+        let __lastProtocolAt = 0;
         function triggerYtDlpProtocol(protocolUrl, recordIds) {
+            const nowMs = Date.now();
+            if (protocolUrl === __lastProtocolUrl && (nowMs - __lastProtocolAt) < 1500) {
+                return;
+            }
+            __lastProtocolUrl = protocolUrl;
+            __lastProtocolAt = nowMs;
             let protocolHandled = false;
             const onBlur = () => { protocolHandled = true; };
             window.addEventListener('blur', onBlur, { once: true });
