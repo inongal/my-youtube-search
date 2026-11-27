@@ -17,7 +17,6 @@
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
     <link rel="preconnect" href="https://www.google.com" crossorigin>
     <link rel="preconnect" href="https://i.ytimg.com" crossorigin>
-    <link rel="preconnect" href="https://www.youtube-nocookie.com" crossorigin>
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="dns-prefetch" href="https://i.ytimg.com">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -1004,13 +1003,6 @@
                     </div>
                     <input type="checkbox" id="showCmdWindowCheckbox" class="w-5 h-5 accent-blue-600 cursor-pointer">
                 </div>
-                <div class="flex items-center justify-between p-3 rounded-xl border" style="background-color: var(--bg-input); border-color: var(--border-color);">
-                    <div>
-                        <div class="text-xs font-bold" style="color: var(--text-primary);">מצב פרטיות ודילוג חסויות (NoCookie + SponsorBlock)</div>
-                        <div class="text-[11px]" style="color: var(--text-muted);">שימוש בנגן youtube-nocookie ודילוג אוטומטי על קטעי חסויות בתוך הסרטון</div>
-                    </div>
-                    <input type="checkbox" id="adShieldCheckbox" checked class="w-5 h-5 accent-blue-600 cursor-pointer">
-                </div>
 
                 
                 <div class="mt-4 border-t pt-4" style="border-color: var(--border-color);">
@@ -1252,7 +1244,6 @@
             defaultDownloadFolder: localStorage.getItem('yt_default_dl_folder') || '%USERPROFILE%\\Downloads\\Video',
             showDownloadPopup: localStorage.getItem('yt_show_dl_popup') !== 'false',
             showCmdWindow: localStorage.getItem('yt_show_cmd_window') === 'true',
-            adShieldEnabled: localStorage.getItem('yt_ad_shield') !== 'false',
             miniDownloadMinimized: false,
             homeFilter: 'all',
             lastKnownPlaybackTime: 0,
@@ -1725,29 +1716,6 @@
             }
         }
 
-        const sponsorBlockCache = {};
-        let lastSponsorSkipKey = '';
-
-        async function fetchSponsorBlockSegments(videoId) {
-            if (!appState.adShieldEnabled || !videoId) return [];
-            if (sponsorBlockCache[videoId]) return sponsorBlockCache[videoId];
-            try {
-                const cats = encodeURIComponent(JSON.stringify(['sponsor', 'selfpromo', 'interaction', 'intro']));
-                const res = await fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${encodeURIComponent(videoId)}&categories=${cats}`);
-                if (!res.ok) {
-                    sponsorBlockCache[videoId] = [];
-                    return [];
-                }
-                const data = await res.json();
-                const segs = Array.isArray(data) ? data.map(s => ({ start: s.segment[0], end: s.segment[1], category: s.category })) : [];
-                sponsorBlockCache[videoId] = segs;
-                return segs;
-            } catch (e) {
-                sponsorBlockCache[videoId] = [];
-                return [];
-            }
-        }
-
         function runBackgroundPlaybackTick() {
             if (!ytPlayer || !appState.currentVideoId) return;
             if (pipWindowRef && !pipWindowRef.closed) return;
@@ -1755,26 +1723,6 @@
                 const state = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
                 const curT = typeof ytPlayer.getCurrentTime === 'function' ? ytPlayer.getCurrentTime() : 0;
                 const durT = typeof ytPlayer.getDuration === 'function' ? ytPlayer.getDuration() : (appState.lastKnownDurationSec || 0);
-
-
-
-                // דילוג אוטומטי על קטעי חסויות (SponsorBlock) בתוך הסרטון
-                if (appState.adShieldEnabled && state === 1 && curT > 0) {
-                    const segs = sponsorBlockCache[appState.currentVideoId];
-                    if (Array.isArray(segs) && segs.length > 0) {
-                        for (const seg of segs) {
-                            if (curT >= seg.start && curT < seg.end - 0.5) {
-                                const skipKey = `${appState.currentVideoId}_${seg.start}`;
-                                if (lastSponsorSkipKey !== skipKey) {
-                                    lastSponsorSkipKey = skipKey;
-                                    try { ytPlayer.seekTo(seg.end, true); } catch (e) {}
-                                    showToast('דולג קטע חסות אוטומטית (SponsorBlock)');
-                                }
-                                break;
-                            }
-                        }
-                    }
-                }
 
                 if (typeof durT === 'number' && durT > 0) {
                     appState.lastKnownDurationSec = durT;
@@ -5082,8 +5030,6 @@
                 'autoplay': 1,
                 'enablejsapi': 1,
                 'rel': 0,
-                'iv_load_policy': 3,
-                'modestbranding': 1,
                 'start': cleanStart,
                 'fs': 1,
                 'disablekb': 0,
@@ -5098,7 +5044,7 @@
                 height: '100%',
                 width: '100%',
                 videoId: videoId,
-                host: appState.adShieldEnabled ? 'https://www.youtube-nocookie.com' : 'https://www.youtube.com',
+                host: 'https://www.youtube.com',
                 playerVars: playerVarsConfig,
                 events: {
                     'onStateChange': onPlayerStateChange,
@@ -5296,7 +5242,7 @@
             const initialTimeSec = getCurrentPlaybackSeconds(videoId);
             savePlaybackTimeToResume(videoId, initialTimeSec, true);
 
-            // עצור/השהה לחלוטין את הנגן הראשי בזמן ש-PiP פתוח — רק הנגן הצף מנגן שמע ותמונה, ללא שום השתקת קול וללא שמע כפול!
+            // השהה לחלוטין את הנגן הראשי בזמן ש-PiP פתוח — רק הנגן הצף מנגן תמונה+שמע (ללא כפילות וללא חוסר סנכרון!)
             const initialVideoIdAtPipOpen = videoId;
             appState.isVideoPaused = true;
             const forcePauseMainPlayer = () => {
@@ -5335,8 +5281,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="referrer" content="strict-origin-when-cross-origin">
-    <link rel="preconnect" href="https://www.youtube-nocookie.com" crossorigin>
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
+    <link rel="preconnect" href="https://www.google.com" crossorigin>
     <title>${escapeHtml(appState.currentVideoDetails?.title || 'YouTube Floating Player')}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -5406,20 +5352,16 @@
                         pipConfirmedPlayingOnce = false;
                         pipUnmuteSent = false;
                         pipAdvancingLock = false;
-                        if (appState.adShieldEnabled) fetchSponsorBlockSegments(targetVidId);
 
                         if (pipPlayEnforcerInterval) {
                             clearInterval(pipPlayEnforcerInterval);
                             pipPlayEnforcerInterval = null;
                         }
 
-                        // נגן יחיד בלבד (youtube-nocookie) שמנגן תמונה+קול יחד באותו iframe — סנכרון 100% ללא שום פער!
-                        const embedHost = appState.adShieldEnabled ? 'https://www.youtube-nocookie.com' : 'https://www.youtube.com';
-                        const embedUrl = new URL(`${embedHost}/embed/${encodeURIComponent(targetVidId)}`);
+                        const embedUrl = new URL(`https://www.youtube.com/embed/${encodeURIComponent(targetVidId)}`);
                         embedUrl.searchParams.set('autoplay', '1');
                         embedUrl.searchParams.set('enablejsapi', '1');
                         embedUrl.searchParams.set('rel', '0');
-                        embedUrl.searchParams.set('iv_load_policy', '3');
                         embedUrl.searchParams.set('fs', '1');
                         embedUrl.searchParams.set('playsinline', '1');
                         embedUrl.searchParams.set('start', String(pipTrackedTime));
@@ -5457,7 +5399,6 @@
                                 return;
                             }
                             if (attempts >= 3 && !usedAutoplayKick) {
-                                // אם כרום חסם ניגון אוטומטי עם קול בחלון ה-PiP החדש, עוקף את החסימה ללא mute=1 בכתובת ומשחרר קול מיד ב-playerState === 1!
                                 usedAutoplayKick = true;
                                 sendPipCommand('mute', []);
                                 sendPipCommand('playVideo', []);
@@ -5503,7 +5444,6 @@
                         if (nextCandidate.fromQueue && appState.searchContext === 'queue') {
                             loadQueueTab(true);
                         }
-                        // נשאר אך ורק ב-PiP — לא מפעיל את הנגן הראשי כלל!
                         loadVideoInPipIframe(nextV.id, 0);
                     };
 
@@ -5557,22 +5497,6 @@
                                     pipTrackedTime = data.info.currentTime;
                                     lastInfoDeliveryMs = Date.now();
                                     savePlaybackTimeToResume(videoId, pipTrackedTime);
-                                    // דילוג אוטומטי על חסויות גם בתוך ה-PiP (SponsorBlock)
-                                    if (appState.adShieldEnabled && pipIsPlaying) {
-                                        const segs = sponsorBlockCache[videoId];
-                                        if (Array.isArray(segs)) {
-                                            for (const seg of segs) {
-                                                if (pipTrackedTime >= seg.start && pipTrackedTime < seg.end - 0.5) {
-                                                    const sk = `${videoId}_${seg.start}`;
-                                                    if (lastSponsorSkipKey !== sk) {
-                                                        lastSponsorSkipKey = sk;
-                                                        sendPipCommand('seekTo', [seg.end, true]);
-                                                    }
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
                                 }
                                 if (typeof data.info.playerState === 'number') {
                                     if (data.info.playerState === 0) {
@@ -5590,6 +5514,10 @@
                                             pipUnmuteSent = true;
                                             sendPipCommand('unMute', []);
                                             sendPipCommand('setVolume', [100]);
+                                            setTimeout(() => {
+                                                sendPipCommand('unMute', []);
+                                                sendPipCommand('setVolume', [100]);
+                                            }, 200);
                                         }
                                     } else if (!pipConfirmedPlayingOnce && (data.info.playerState === 5 || data.info.playerState === -1 || data.info.playerState === 2)) {
                                         sendPipCommand('playVideo', []);
@@ -5605,7 +5533,6 @@
                     window.addEventListener('message', onPipMessage);
 
                     loadVideoInPipIframe(videoId, initialTimeSec);
-
                     forcePauseMainPlayer();
                     setTimeout(forcePauseMainPlayer, 250);
                     setTimeout(forcePauseMainPlayer, 800);
@@ -5616,7 +5543,6 @@
                             activeExternalTimer = null;
                             return;
                         }
-                        // ודא שהנגן הראשי נשאר מושהה לחלוטין כל עוד חלון ה-PiP פתוח (מונע שמע כפול ב-100%)
                         try {
                             if (ytPlayer && typeof ytPlayer.getPlayerState === 'function' && ytPlayer.getPlayerState() === 1) {
                                 forcePauseMainPlayer();
@@ -5664,10 +5590,8 @@
                         document.body.style.overflow = 'hidden';
                         document.getElementById('return-to-video-btn').classList.add('hidden');
 
-                        // חזור לנגן הראשי עם קול פעיל מאותה שנייה מדויקת
                         if (ytPlayer && ytPlayerReady && videoId === initialVideoIdAtPipOpen && typeof ytPlayer.seekTo === 'function') {
                             try {
-                                if (typeof ytPlayer.unMute === 'function') ytPlayer.unMute();
                                 ytPlayer.seekTo(finalResumeSec, true);
                                 ytPlayer.playVideo();
                                 sendDirectPlayToMainIframe();
@@ -6054,7 +5978,6 @@
             const newDefaultDlFolder = (document.getElementById('defaultDownloadFolderInput')?.value || '').trim() || '%USERPROFILE%\\Downloads\\Video';
             const newShowDlPopup = document.getElementById('showDownloadPopupCheckbox').checked;
             const newShowCmdWindow = Boolean(document.getElementById('showCmdWindowCheckbox')?.checked);
-            const newAdShield = document.getElementById('adShieldCheckbox') ? document.getElementById('adShieldCheckbox').checked : true;
             const newTheme = document.getElementById('themeSelect').value;
             
             if (newKey.includes("•") || newKey === "") {
@@ -6075,8 +5998,6 @@
             appState.defaultDownloadFolder = newDefaultDlFolder;
             appState.showDownloadPopup = newShowDlPopup;
             appState.showCmdWindow = newShowCmdWindow;
-            appState.adShieldEnabled = newAdShield;
-            safeSetLocalStorage('yt_ad_shield', String(appState.adShieldEnabled));
             safeSetLocalStorage('yt_show_cmd_window', String(appState.showCmdWindow));
             updateMiniCmdToggleUI();
             
@@ -6124,7 +6045,6 @@
             const savedDefaultDlFolder = localStorage.getItem('yt_default_dl_folder') || '%USERPROFILE%\\Downloads\\Video';
             const savedShowDlPopup = localStorage.getItem('yt_show_dl_popup') !== 'false';
             const savedShowCmdWindow = localStorage.getItem('yt_show_cmd_window') === 'true';
-            const savedAdShield = localStorage.getItem('yt_ad_shield') !== 'false';
             const storedTheme = localStorage.getItem('yt_theme');
 
             if(savedKey) document.getElementById('apiKeyInput').value = maskApiKey(savedKey);
@@ -6140,9 +6060,6 @@
             appState.showCmdWindow = savedShowCmdWindow;
             const showCmdCb = document.getElementById('showCmdWindowCheckbox');
             if (showCmdCb) showCmdCb.checked = savedShowCmdWindow;
-            appState.adShieldEnabled = savedAdShield;
-            const adShieldCb = document.getElementById('adShieldCheckbox');
-            if (adShieldCb) adShieldCb.checked = savedAdShield;
             updateMiniCmdToggleUI();
             if(storedTheme) document.getElementById('themeSelect').value = storedTheme;
             
@@ -8245,7 +8162,6 @@
             }
 
             mountMainYoutubePlayer(id, startSeconds);
-            if (appState.adShieldEnabled) fetchSponsorBlockSegments(id);
             
             document.getElementById('global-pause-btn').classList.remove('hidden');
             document.getElementById('global-pause-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
@@ -8919,4 +8835,4 @@
         }
     </script>
 </body>
-</html>
+</html>ד
