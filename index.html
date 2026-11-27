@@ -977,8 +977,8 @@
                 </div>
                 <div class="flex items-center justify-between p-3 rounded-xl border" style="background-color: var(--bg-input); border-color: var(--border-color);">
                     <div>
-                        <div class="text-xs font-bold" style="color: var(--text-primary);">מגן פרסומות ודילוג חסויות (NoCookie + SponsorBlock)</div>
-                        <div class="text-[11px]" style="color: var(--text-muted);">שימוש בנגן youtube-nocookie, השתקת פרסומות אוטומטית ודילוג על חסויות בתוך הסרטון</div>
+                        <div class="text-xs font-bold" style="color: var(--text-primary);">מצב פרטיות ודילוג חסויות (NoCookie + SponsorBlock)</div>
+                        <div class="text-[11px]" style="color: var(--text-muted);">שימוש בנגן youtube-nocookie ודילוג אוטומטי על קטעי חסויות בתוך הסרטון</div>
                     </div>
                     <input type="checkbox" id="adShieldCheckbox" checked class="w-5 h-5 accent-blue-600 cursor-pointer">
                 </div>
@@ -1729,26 +1729,7 @@
                 const curT = typeof ytPlayer.getCurrentTime === 'function' ? ytPlayer.getCurrentTime() : 0;
                 const durT = typeof ytPlayer.getDuration === 'function' ? ytPlayer.getDuration() : (appState.lastKnownDurationSec || 0);
 
-                // מגן פרסומות: זיהוי פרסומת מוטמעת (video_id שונה מהסרטון הנוכחי) -> השתק אוטומטית והאץ, והחזר קול מיד כשהסרטון חוזר
-                if (appState.adShieldEnabled && typeof ytPlayer.getVideoData === 'function') {
-                    const vData = ytPlayer.getVideoData();
-                    const playingVidId = vData && vData.video_id ? String(vData.video_id) : '';
-                    const isAdPlaying = Boolean(playingVidId && playingVidId !== appState.currentVideoId);
-                    if (isAdPlaying && state === 1) {
-                        if (!adShieldMutedActive) {
-                            adShieldMutedActive = true;
-                            try { adShieldPreAdVolume = typeof ytPlayer.getVolume === 'function' ? ytPlayer.getVolume() : 100; } catch (e) {}
-                            try { ytPlayer.mute(); } catch (e) {}
-                            try { ytPlayer.setPlaybackRate(2); } catch (e) {}
-                        }
-                        return;
-                    } else if (!isAdPlaying && adShieldMutedActive) {
-                        adShieldMutedActive = false;
-                        try { ytPlayer.unMute(); } catch (e) {}
-                        try { ytPlayer.setVolume(adShieldPreAdVolume || 100); } catch (e) {}
-                        try { ytPlayer.setPlaybackRate(1); } catch (e) {}
-                    }
-                }
+
 
                 // דילוג אוטומטי על קטעי חסויות (SponsorBlock) בתוך הסרטון
                 if (appState.adShieldEnabled && state === 1 && curT > 0) {
