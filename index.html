@@ -658,6 +658,9 @@
                 <span id="miniDlCountBadge" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">1</span>
             </div>
             <div class="flex items-center gap-2">
+                <button id="miniCmdToggleBtn" onclick="toggleShowCmdWindowQuick()" class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/20 transition" style="color: var(--text-secondary);" title="חלון CMD מוסתר (לחץ להצגה בהורדה הבאה)">
+                    <i class="fas fa-terminal text-[10px]"></i>
+                </button>
                 <button onclick="loadDownloadHistoryTab()" class="text-[11px] text-blue-400 hover:underline font-semibold" title="פתח היסטוריית הורדות">היסטוריה</button>
                 <button onclick="hideMiniDownloadPopup(true)" class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/20 transition" style="color: var(--text-secondary);" title="הסתר חלונית הורדה">
                     <i class="fas fa-chevron-down text-xs"></i>
@@ -966,10 +969,10 @@
                 </div>
                 <div class="flex items-center justify-between p-3 rounded-xl border" style="background-color: var(--bg-input); border-color: var(--border-color);">
                     <div>
-                        <div class="text-xs font-bold" style="color: var(--text-primary);">הסתר את חלון ה-CMD בזמן ההורדה</div>
-                        <div class="text-[11px]" style="color: var(--text-muted);">כשמופעל — ההורדה רצה בשקט ברקע ללא חלון שחור וללא שורת משימות</div>
+                        <div class="text-xs font-bold" style="color: var(--text-primary);">הצג את חלון ה-CMD בזמן ההורדה</div>
+                        <div class="text-[11px]" style="color: var(--text-muted);">ברירת מחדל: מוסתר ברקע ללא שורת משימות • הפעל כדי לראות את חלון ה-CMD</div>
                     </div>
-                    <input type="checkbox" id="hideCmdWindowCheckbox" class="w-5 h-5 accent-blue-600 cursor-pointer">
+                    <input type="checkbox" id="showCmdWindowCheckbox" class="w-5 h-5 accent-blue-600 cursor-pointer">
                 </div>
 
                 
@@ -1211,7 +1214,7 @@
             defaultDownloadConnections: parseInt(localStorage.getItem('yt_default_dl_connections') || '8', 10) || 8,
             defaultDownloadFolder: localStorage.getItem('yt_default_dl_folder') || '%USERPROFILE%\\Downloads\\Video',
             showDownloadPopup: localStorage.getItem('yt_show_dl_popup') !== 'false',
-            hideCmdWindow: localStorage.getItem('yt_hide_cmd_window') === 'true',
+            showCmdWindow: localStorage.getItem('yt_show_cmd_window') === 'true',
             miniDownloadMinimized: false,
             homeFilter: 'all',
             lastKnownPlaybackTime: 0,
@@ -2724,7 +2727,7 @@
             const folderPart = (!folder || folder === '%USERPROFILE%\\Downloads\\Video' || folder === 'default')
                 ? 'default'
                 : encodeUtf8ToHex(folder);
-            const cmdMode = appState.hideCmdWindow ? 'hide' : 'show';
+            const cmdMode = appState.showCmdWindow ? 'show' : 'hide';
             return `ytdlp://${videoIdsStr}/${quality}/${connections}/${subsPart}/${folderPart}/${cmdMode}`;
         }
 
@@ -3200,6 +3203,27 @@
                 }
             }
         };
+
+        function updateMiniCmdToggleUI() {
+            const btn = document.getElementById('miniCmdToggleBtn');
+            if (!btn) return;
+            if (appState.showCmdWindow) {
+                btn.style.color = '#22c55e';
+                btn.setAttribute('title', 'חלון CMD גלוי (לחץ להסתרה)');
+            } else {
+                btn.style.color = 'var(--text-secondary)';
+                btn.setAttribute('title', 'חלון CMD מוסתר (לחץ להצגה)');
+            }
+        }
+
+        function toggleShowCmdWindowQuick() {
+            appState.showCmdWindow = !appState.showCmdWindow;
+            safeSetLocalStorage('yt_show_cmd_window', String(appState.showCmdWindow));
+            const cb = document.getElementById('showCmdWindowCheckbox');
+            if (cb) cb.checked = appState.showCmdWindow;
+            updateMiniCmdToggleUI();
+            showToast(appState.showCmdWindow ? 'חלון ה-CMD יוצג בהורדות הבאות' : 'חלון ה-CMD יוסתר ברקע בהורדות הבאות');
+        }
 
         function hideMiniDownloadPopup(minimize) {
             appState.miniDownloadMinimized = Boolean(minimize);
@@ -5901,7 +5925,7 @@
             const newDefaultDlConn = normalizeConnectionsCount(document.getElementById('defaultDownloadConnectionsSelect')?.value || '8');
             const newDefaultDlFolder = (document.getElementById('defaultDownloadFolderInput')?.value || '').trim() || '%USERPROFILE%\\Downloads\\Video';
             const newShowDlPopup = document.getElementById('showDownloadPopupCheckbox').checked;
-            const newHideCmdWindow = Boolean(document.getElementById('hideCmdWindowCheckbox')?.checked);
+            const newShowCmdWindow = Boolean(document.getElementById('showCmdWindowCheckbox')?.checked);
             const newTheme = document.getElementById('themeSelect').value;
             
             if (newKey.includes("•") || newKey === "") {
@@ -5921,8 +5945,9 @@
             appState.defaultDownloadConnections = newDefaultDlConn;
             appState.defaultDownloadFolder = newDefaultDlFolder;
             appState.showDownloadPopup = newShowDlPopup;
-            appState.hideCmdWindow = newHideCmdWindow;
-            safeSetLocalStorage('yt_hide_cmd_window', String(appState.hideCmdWindow));
+            appState.showCmdWindow = newShowCmdWindow;
+            safeSetLocalStorage('yt_show_cmd_window', String(appState.showCmdWindow));
+            updateMiniCmdToggleUI();
             
             safeSetLocalStorage('yt_api_key', appState.apiKey);
             safeSetLocalStorage('yt_gemini_api_key', appState.geminiApiKey);
@@ -5967,7 +5992,7 @@
             const savedDefaultDlConn = normalizeConnectionsCount(localStorage.getItem('yt_default_dl_connections') || '8');
             const savedDefaultDlFolder = localStorage.getItem('yt_default_dl_folder') || '%USERPROFILE%\\Downloads\\Video';
             const savedShowDlPopup = localStorage.getItem('yt_show_dl_popup') !== 'false';
-            const savedHideCmdWindow = localStorage.getItem('yt_hide_cmd_window') === 'true';
+            const savedShowCmdWindow = localStorage.getItem('yt_show_cmd_window') === 'true';
             const storedTheme = localStorage.getItem('yt_theme');
 
             if(savedKey) document.getElementById('apiKeyInput').value = maskApiKey(savedKey);
@@ -5980,9 +6005,10 @@
             appState.showDownloadPopup = savedShowDlPopup;
             const dlPopupCb = document.getElementById('showDownloadPopupCheckbox');
             if (dlPopupCb) dlPopupCb.checked = savedShowDlPopup;
-            appState.hideCmdWindow = savedHideCmdWindow;
-            const hideCmdCb = document.getElementById('hideCmdWindowCheckbox');
-            if (hideCmdCb) hideCmdCb.checked = savedHideCmdWindow;
+            appState.showCmdWindow = savedShowCmdWindow;
+            const showCmdCb = document.getElementById('showCmdWindowCheckbox');
+            if (showCmdCb) showCmdCb.checked = savedShowCmdWindow;
+            updateMiniCmdToggleUI();
             if(storedTheme) document.getElementById('themeSelect').value = storedTheme;
             
             applyDefaultDownloadQualityToUI();
