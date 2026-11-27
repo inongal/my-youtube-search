@@ -966,11 +966,12 @@
                 </div>
                 <div class="flex items-center justify-between p-3 rounded-xl border" style="background-color: var(--bg-input); border-color: var(--border-color);">
                     <div>
-                        <div class="text-xs font-bold" style="color: var(--text-primary);">הצג את חלון ה-CMD בכל ההורדות</div>
-                        <div class="text-[11px]" style="color: var(--text-muted);">כשכבוי — ה-CMD מוסתר ברקע ללא הופעה בשורת המשימות וללא עצירת ההורדה</div>
+                        <div class="text-xs font-bold" style="color: var(--text-primary);">הסתר את חלון ה-CMD בזמן ההורדה</div>
+                        <div class="text-[11px]" style="color: var(--text-muted);">כשמופעל — ההורדה רצה בשקט ברקע ללא חלון שחור וללא שורת משימות</div>
                     </div>
-                    <input type="checkbox" id="showCmdWindowCheckbox" class="w-5 h-5 accent-blue-600 cursor-pointer">
+                    <input type="checkbox" id="hideCmdWindowCheckbox" class="w-5 h-5 accent-blue-600 cursor-pointer">
                 </div>
+
                 
                 <div class="mt-4 border-t pt-4" style="border-color: var(--border-color);">
                     <h3 class="text-sm font-bold mb-3" style="color: var(--text-secondary);">ייבוא וייצוא פלייליסטים</h3>
@@ -1210,7 +1211,7 @@
             defaultDownloadConnections: parseInt(localStorage.getItem('yt_default_dl_connections') || '8', 10) || 8,
             defaultDownloadFolder: localStorage.getItem('yt_default_dl_folder') || '%USERPROFILE%\\Downloads\\Video',
             showDownloadPopup: localStorage.getItem('yt_show_dl_popup') !== 'false',
-            showCmdWindow: localStorage.getItem('yt_show_cmd_window') === 'true',
+            hideCmdWindow: localStorage.getItem('yt_hide_cmd_window') === 'true',
             miniDownloadMinimized: false,
             homeFilter: 'all',
             lastKnownPlaybackTime: 0,
@@ -2723,7 +2724,7 @@
             const folderPart = (!folder || folder === '%USERPROFILE%\\Downloads\\Video' || folder === 'default')
                 ? 'default'
                 : encodeUtf8ToHex(folder);
-            const cmdMode = appState.showCmdWindow ? 'show' : 'hide';
+            const cmdMode = appState.hideCmdWindow ? 'hide' : 'show';
             return `ytdlp://${videoIdsStr}/${quality}/${connections}/${subsPart}/${folderPart}/${cmdMode}`;
         }
 
@@ -5900,7 +5901,7 @@
             const newDefaultDlConn = normalizeConnectionsCount(document.getElementById('defaultDownloadConnectionsSelect')?.value || '8');
             const newDefaultDlFolder = (document.getElementById('defaultDownloadFolderInput')?.value || '').trim() || '%USERPROFILE%\\Downloads\\Video';
             const newShowDlPopup = document.getElementById('showDownloadPopupCheckbox').checked;
-            const newShowCmdWindow = Boolean(document.getElementById('showCmdWindowCheckbox')?.checked);
+            const newHideCmdWindow = Boolean(document.getElementById('hideCmdWindowCheckbox')?.checked);
             const newTheme = document.getElementById('themeSelect').value;
             
             if (newKey.includes("•") || newKey === "") {
@@ -5920,8 +5921,8 @@
             appState.defaultDownloadConnections = newDefaultDlConn;
             appState.defaultDownloadFolder = newDefaultDlFolder;
             appState.showDownloadPopup = newShowDlPopup;
-            appState.showCmdWindow = newShowCmdWindow;
-            safeSetLocalStorage('yt_show_cmd_window', String(appState.showCmdWindow));
+            appState.hideCmdWindow = newHideCmdWindow;
+            safeSetLocalStorage('yt_hide_cmd_window', String(appState.hideCmdWindow));
             
             safeSetLocalStorage('yt_api_key', appState.apiKey);
             safeSetLocalStorage('yt_gemini_api_key', appState.geminiApiKey);
@@ -5966,7 +5967,7 @@
             const savedDefaultDlConn = normalizeConnectionsCount(localStorage.getItem('yt_default_dl_connections') || '8');
             const savedDefaultDlFolder = localStorage.getItem('yt_default_dl_folder') || '%USERPROFILE%\\Downloads\\Video';
             const savedShowDlPopup = localStorage.getItem('yt_show_dl_popup') !== 'false';
-            const savedShowCmdWindow = localStorage.getItem('yt_show_cmd_window') === 'true';
+            const savedHideCmdWindow = localStorage.getItem('yt_hide_cmd_window') === 'true';
             const storedTheme = localStorage.getItem('yt_theme');
 
             if(savedKey) document.getElementById('apiKeyInput').value = maskApiKey(savedKey);
@@ -5979,9 +5980,9 @@
             appState.showDownloadPopup = savedShowDlPopup;
             const dlPopupCb = document.getElementById('showDownloadPopupCheckbox');
             if (dlPopupCb) dlPopupCb.checked = savedShowDlPopup;
-            appState.showCmdWindow = savedShowCmdWindow;
-            const showCmdCb = document.getElementById('showCmdWindowCheckbox');
-            if (showCmdCb) showCmdCb.checked = savedShowCmdWindow;
+            appState.hideCmdWindow = savedHideCmdWindow;
+            const hideCmdCb = document.getElementById('hideCmdWindowCheckbox');
+            if (hideCmdCb) hideCmdCb.checked = savedHideCmdWindow;
             if(storedTheme) document.getElementById('themeSelect').value = storedTheme;
             
             applyDefaultDownloadQualityToUI();
