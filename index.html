@@ -1697,8 +1697,6 @@
         }
 
         const sponsorBlockCache = {};
-        let adShieldMutedActive = false;
-        let adShieldPreAdVolume = 100;
         let lastSponsorSkipKey = '';
 
         async function fetchSponsorBlockSegments(videoId) {
@@ -5270,7 +5268,6 @@
             const initialVideoIdAtPipOpen = videoId;
             if (ytPlayer) {
                 try { if (typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo(); } catch (e) {}
-                try { if (typeof ytPlayer.mute === 'function') ytPlayer.mute(); } catch (e) {}
             }
 
             if (activeExternalTimer) {
@@ -5378,7 +5375,6 @@
                         const embedHost = appState.adShieldEnabled ? 'https://www.youtube-nocookie.com' : 'https://www.youtube.com';
                         const embedUrl = new URL(`${embedHost}/embed/${encodeURIComponent(targetVidId)}`);
                         embedUrl.searchParams.set('autoplay', '1');
-                        embedUrl.searchParams.set('mute', '1');
                         embedUrl.searchParams.set('enablejsapi', '1');
                         embedUrl.searchParams.set('rel', '0');
                         embedUrl.searchParams.set('iv_load_policy', '3');
